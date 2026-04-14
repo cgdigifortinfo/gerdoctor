@@ -216,6 +216,75 @@ class GuidedJourneyAPITester:
         else:
             self.log_test("Admin Bulk Role Update", False, "No users available for testing")
 
+    def test_audit_log_endpoints(self):
+        """Test audit log endpoints (NEW for iteration 5)"""
+        print("\n📋 Testing Audit Log Endpoints (Iteration 5)...")
+        
+        # Re-login as admin
+        self.test_admin_login()
+        
+        # Test get audit log
+        audit_response = self.run_test("Admin Get Audit Log", "GET", "admin/audit-log", 200)
+        
+        if audit_response:
+            logs = audit_response.get('logs', [])
+            total = audit_response.get('total', 0)
+            
+            if isinstance(logs, list):
+                self.log_test("Audit Log Structure", True, f"Found {len(logs)} logs out of {total} total")
+                
+                # Check if logs have required fields
+                if logs:
+                    first_log = logs[0]
+                    required_fields = ['actor_email', 'action', 'target_type', 'timestamp']
+                    missing_fields = [field for field in required_fields if field not in first_log]
+                    
+                    if not missing_fields:
+                        self.log_test("Audit Log Fields", True, "All required fields present")
+                    else:
+                        self.log_test("Audit Log Fields", False, f"Missing fields: {missing_fields}")
+                else:
+                    self.log_test("Audit Log Content", True, "No audit logs yet (expected for new system)")
+            else:
+                self.log_test("Audit Log Structure", False, "Logs is not a list")
+        
+        # Test audit log with pagination
+        self.run_test("Admin Get Audit Log (Limited)", "GET", "admin/audit-log?limit=10&skip=0", 200)
+        
+        # Perform an action that should create an audit log entry
+        print("\n🔄 Testing Audit Log Creation...")
+        
+        # Update CMS content to trigger audit log
+        cms_update_response = self.run_test(
+            "Update CMS Content (for audit)", 
+            "PUT", 
+            "cms/home", 
+            200,
+            data={"section": "home", "content": {"hero_title": "Test Audit Log Update"}}
+        )
+        
+        if cms_update_response:
+            # Wait a moment and check if audit log was created
+            import time
+            time.sleep(1)
+            
+            # Get audit log again to see if new entry was created
+            new_audit_response = self.run_test("Check New Audit Log Entry", "GET", "admin/audit-log?limit=5", 200)
+            
+            if new_audit_response:
+                new_logs = new_audit_response.get('logs', [])
+                if new_logs:
+                    # Check if the most recent log is our CMS update
+                    recent_log = new_logs[0]
+                    if (recent_log.get('action') == 'cms_update' and 
+                        recent_log.get('target_type') == 'cms' and
+                        recent_log.get('actor_email') == 'admin@example.com'):
+                        self.log_test("Audit Log Creation", True, "CMS update audit log created successfully")
+                    else:
+                        self.log_test("Audit Log Creation", False, f"Expected cms_update audit log, got: {recent_log}")
+                else:
+                    self.log_test("Audit Log Creation", False, "No audit logs found after CMS update")
+
     def test_notification_preferences(self):
         """Test notification preferences endpoints"""
         print("\n🔔 Testing Notification Preferences...")
@@ -278,6 +347,7 @@ class GuidedJourneyAPITester:
         self.test_profile_endpoints()
         self.test_notification_preferences()
         self.test_admin_endpoints()
+        self.test_audit_log_endpoints()
         
         # Print summary
         print(f"\n📊 Test Summary:")

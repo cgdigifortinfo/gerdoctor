@@ -291,6 +291,19 @@ class BulkRoleUpdate(BaseModel):
     user_ids: List[str]
     role: str
 
+# Audit log helper
+async def create_audit_log(actor_id: str, actor_email: str, action: str, target_type: str, target_id: str = "", details: dict = None):
+    """Record an admin action in the audit log."""
+    await db.audit_logs.insert_one({
+        "actor_id": actor_id,
+        "actor_email": actor_email,
+        "action": action,
+        "target_type": target_type,
+        "target_id": target_id,
+        "details": details or {},
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
 # Create the main app
 app = FastAPI()
 
@@ -849,6 +862,7 @@ async def admin_update_user_role(user_id: str, role: str, request: Request):
         raise HTTPException(status_code=400, detail="Cannot change the primary admin's role")
     
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": role}})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "role_change", "user", user_id, {"new_role": role})
     return {"message": "User role updated"}
 
 # Admin Step Management
@@ -889,6 +903,8 @@ async def admin_create_step(data: StepCreate, request: Request):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     result = await db.steps.insert_one(step_doc)
+    admin_user = await get_current_user(request)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
     return {"id": str(result.inserted_id), "message": "Step created"}
 
 @admin_router.put("/steps/{step_id}")
@@ -902,12 +918,16 @@ async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.steps.update_one({"_id": ObjectId(step_id)}, {"$set": update_data})
+    admin_user = await get_current_user(request)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_update", "step", step_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Step updated"}
 
 @admin_router.delete("/steps/{step_id}")
 async def admin_delete_step(step_id: str, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
+    step = await db.steps.find_one({"_id": ObjectId(step_id)})
     await db.steps.delete_one({"_id": ObjectId(step_id)})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_delete", "step", step_id, {"title": step["title"] if step else "unknown"})
     return {"message": "Step deleted"}
 
 # Admin Partner Management
@@ -955,6 +975,8 @@ async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Re
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
+    admin_user = await get_current_user(request)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "partner_update", "partner", partner_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Partner updated"}
 
 @admin_router.delete("/partners/{partner_id}")
@@ -1057,6 +1079,14 @@ async def admin_get_analytics(request: Request):
         "step_analytics": step_analytics
     }
 
+# Admin Audit Log
+@admin_router.get("/audit-log")
+async def admin_get_audit_log(request: Request, limit: int = 100, skip: int = 0):
+    await require_role("admin")(request)
+    logs = await db.audit_logs.find({}, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.audit_logs.count_documents({})
+    return {"logs": logs, "total": total}
+
 # ========================
 # PARTNER DASHBOARD ROUTES
 # ========================
@@ -1135,13 +1165,14 @@ async def get_cms_content(section: str):
 
 @cms_router.put("/{section}")
 async def update_cms_content(section: str, data: CMSContentUpdate, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
     
     await db.cms_content.update_one(
         {"section": section},
         {"$set": {"section": section, "content": data.content, "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True
     )
+    await create_audit_log(admin_user["_id"], admin_user["email"], "cms_update", "cms", section, {"section": section})
     return {"message": "Content updated"}
 
 # Include all routers

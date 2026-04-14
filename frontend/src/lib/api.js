@@ -96,6 +96,9 @@ export const adminAPI = {
     // Analytics
     getAnalytics: () => api.get('/admin/analytics'),
     
+    // Audit Log
+    getAuditLog: (limit = 100, skip = 0) => api.get(`/admin/audit-log?limit=${limit}&skip=${skip}`),
+    
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
     updateCmsContent: (section, content) => api.put(`/cms/${section}`, { section, content }),

@@ -39,7 +39,7 @@ export function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] flex">
+        <div className="min-h-screen bg-background flex">
             {/* Left Side - Image */}
             <div className="hidden lg:block lg:w-1/2 relative">
                 <img 
@@ -53,15 +53,15 @@ export function Login() {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
                 <div className="w-full max-w-md">
-                    <Link to="/" className="inline-flex items-center text-sm text-[#52525B] hover:text-[#0A0A0A] mb-8">
+                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                         <ArrowLeft size={16} className="mr-2" />
                         Back to Home
                     </Link>
 
-                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-[#0A0A0A] mb-2">
+                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-foreground mb-2">
                         Welcome back
                     </h1>
-                    <p className="text-[#52525B] mb-8">
+                    <p className="text-muted-foreground mb-8">
                         Sign in to continue your journey
                     </p>
 
@@ -73,14 +73,14 @@ export function Login() {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <Label htmlFor="email" className="text-[#0A0A0A]">Email</Label>
+                            <Label htmlFor="email" className="text-foreground">Email</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="login-email-input"
                             />
@@ -88,7 +88,7 @@ export function Login() {
 
                         <div>
                             <div className="flex justify-between items-center">
-                                <Label htmlFor="password" className="text-[#0A0A0A]">Password</Label>
+                                <Label htmlFor="password" className="text-foreground">Password</Label>
                                 <Link to="/forgot-password" className="text-sm text-[#114f55] hover:underline">
                                     Forgot password?
                                 </Link>
@@ -100,14 +100,14 @@ export function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="border-[#E4E4E7] focus:ring-[#114f55] rounded-sm pr-10"
+                                    className="border-border focus:ring-[#114f55] rounded-sm pr-10"
                                     required
                                     data-testid="login-password-input"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525B]"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                                 >
                                     {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                                 </button>
@@ -124,7 +124,7 @@ export function Login() {
                         </Button>
                     </form>
 
-                    <p className="mt-6 text-center text-[#52525B]">
+                    <p className="mt-6 text-center text-muted-foreground">
                         Don't have an account?{' '}
                         <Link to="/register" className="text-[#114f55] hover:underline font-medium">
                             Create one
@@ -174,7 +174,7 @@ export function Register() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] flex">
+        <div className="min-h-screen bg-background flex">
             {/* Left Side - Image */}
             <div className="hidden lg:block lg:w-1/2 relative">
                 <img 
@@ -188,15 +188,15 @@ export function Register() {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
                 <div className="w-full max-w-md">
-                    <Link to="/" className="inline-flex items-center text-sm text-[#52525B] hover:text-[#0A0A0A] mb-8">
+                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                         <ArrowLeft size={16} className="mr-2" />
                         Back to Home
                     </Link>
 
-                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-[#0A0A0A] mb-2">
+                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-foreground mb-2">
                         Create your account
                     </h1>
-                    <p className="text-[#52525B] mb-8">
+                    <p className="text-muted-foreground mb-8">
                         Start your journey with us today
                     </p>
 
@@ -208,35 +208,35 @@ export function Register() {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <Label htmlFor="name" className="text-[#0A0A0A]">Full Name</Label>
+                            <Label htmlFor="name" className="text-foreground">Full Name</Label>
                             <Input
                                 id="name"
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="John Doe"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-name-input"
                             />
                         </div>
 
                         <div>
-                            <Label htmlFor="email" className="text-[#0A0A0A]">Email</Label>
+                            <Label htmlFor="email" className="text-foreground">Email</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-email-input"
                             />
                         </div>
 
                         <div>
-                            <Label htmlFor="password" className="text-[#0A0A0A]">Password</Label>
+                            <Label htmlFor="password" className="text-foreground">Password</Label>
                             <div className="relative mt-2">
                                 <Input
                                     id="password"
@@ -244,14 +244,14 @@ export function Register() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="At least 6 characters"
-                                    className="border-[#E4E4E7] focus:ring-[#114f55] rounded-sm pr-10"
+                                    className="border-border focus:ring-[#114f55] rounded-sm pr-10"
                                     required
                                     data-testid="register-password-input"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525B]"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                                 >
                                     {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                                 </button>
@@ -259,14 +259,14 @@ export function Register() {
                         </div>
 
                         <div>
-                            <Label htmlFor="confirmPassword" className="text-[#0A0A0A]">Confirm Password</Label>
+                            <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
                             <Input
                                 id="confirmPassword"
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Confirm your password"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-confirm-password-input"
                             />
@@ -282,7 +282,7 @@ export function Register() {
                         </Button>
                     </form>
 
-                    <p className="mt-6 text-center text-[#52525B]">
+                    <p className="mt-6 text-center text-muted-foreground">
                         Already have an account?{' '}
                         <Link to="/login" className="text-[#114f55] hover:underline font-medium">
                             Sign in
@@ -316,10 +316,10 @@ export function ForgotPassword() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-8">
+            <div className="min-h-screen bg-background flex items-center justify-center p-8">
                 <div className="w-full max-w-md text-center">
-                    <h1 className="text-2xl font-bold text-[#0A0A0A] mb-4">Check your email</h1>
-                    <p className="text-[#52525B] mb-8">
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Check your email</h1>
+                    <p className="text-muted-foreground mb-8">
                         If an account exists for {email}, you'll receive a password reset link.
                     </p>
                     <Link to="/login">
@@ -333,15 +333,15 @@ export function ForgotPassword() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-8">
+        <div className="min-h-screen bg-background flex items-center justify-center p-8">
             <div className="w-full max-w-md">
-                <Link to="/login" className="inline-flex items-center text-sm text-[#52525B] hover:text-[#0A0A0A] mb-8">
+                <Link to="/login" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                     <ArrowLeft size={16} className="mr-2" />
                     Back to Login
                 </Link>
 
-                <h1 className="text-2xl font-bold text-[#0A0A0A] mb-2">Reset your password</h1>
-                <p className="text-[#52525B] mb-8">
+                <h1 className="text-2xl font-bold text-foreground mb-2">Reset your password</h1>
+                <p className="text-muted-foreground mb-8">
                     Enter your email and we'll send you a reset link.
                 </p>
 
@@ -353,14 +353,14 @@ export function ForgotPassword() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <Label htmlFor="email" className="text-[#0A0A0A]">Email</Label>
+                        <Label htmlFor="email" className="text-foreground">Email</Label>
                         <Input
                             id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
-                            className="mt-2 border-[#E4E4E7] rounded-sm"
+                            className="mt-2 border-border rounded-sm"
                             required
                             data-testid="forgot-email-input"
                         />
@@ -417,9 +417,9 @@ export function ResetPassword() {
 
     if (!token) {
         return (
-            <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-8">
+            <div className="min-h-screen bg-background flex items-center justify-center p-8">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold text-[#0A0A0A] mb-4">Invalid Reset Link</h1>
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Invalid Reset Link</h1>
                     <Link to="/forgot-password">
                         <Button className="bg-[#114f55] hover:bg-[#0d3d42] text-white">
                             Request New Link
@@ -431,10 +431,10 @@ export function ResetPassword() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-8">
+        <div className="min-h-screen bg-background flex items-center justify-center p-8">
             <div className="w-full max-w-md">
-                <h1 className="text-2xl font-bold text-[#0A0A0A] mb-2">Set new password</h1>
-                <p className="text-[#52525B] mb-8">
+                <h1 className="text-2xl font-bold text-foreground mb-2">Set new password</h1>
+                <p className="text-muted-foreground mb-8">
                     Enter your new password below.
                 </p>
 
@@ -446,28 +446,28 @@ export function ResetPassword() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <Label htmlFor="password" className="text-[#0A0A0A]">New Password</Label>
+                        <Label htmlFor="password" className="text-foreground">New Password</Label>
                         <Input
                             id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="At least 6 characters"
-                            className="mt-2 border-[#E4E4E7] rounded-sm"
+                            className="mt-2 border-border rounded-sm"
                             required
                             data-testid="reset-password-input"
                         />
                     </div>
 
                     <div>
-                        <Label htmlFor="confirmPassword" className="text-[#0A0A0A]">Confirm Password</Label>
+                        <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
                         <Input
                             id="confirmPassword"
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="Confirm your password"
-                            className="mt-2 border-[#E4E4E7] rounded-sm"
+                            className="mt-2 border-border rounded-sm"
                             required
                             data-testid="reset-confirm-password-input"
                         />

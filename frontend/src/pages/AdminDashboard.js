@@ -14,19 +14,23 @@ import { Progress } from '../components/ui/progress';
 import { 
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
-    LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple
+    LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
+import { useLanguage } from '../contexts/LanguageContext';
+import { ThemeLangToggle } from '../components/ThemeLangToggle';
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('analytics');
     const [users, setUsers] = useState([]);
     const [steps, setSteps] = useState([]);
     const [partners, setPartners] = useState([]);
     const [analytics, setAnalytics] = useState(null);
+    const [auditLogs, setAuditLogs] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // User management state
@@ -56,14 +60,15 @@ export default function AdminDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes] = await Promise.all([
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes] = await Promise.all([
                 adminAPI.getUsers(),
                 adminAPI.getSteps(),
                 adminAPI.getPartners(),
                 adminAPI.getAnalytics(),
                 adminAPI.getCmsContent('home'),
                 adminAPI.getCmsContent('about'),
-                adminAPI.getCmsContent('partners')
+                adminAPI.getCmsContent('partners'),
+                adminAPI.getAuditLog(50)
             ]);
             setUsers(usersRes.data);
             setSteps(stepsRes.data);
@@ -72,6 +77,7 @@ export default function AdminDashboard() {
             setCmsHome(homeRes.data.content || {});
             setCmsAbout(aboutRes.data.content || {});
             setCmsPartners(partnersContentRes.data.content || {});
+            setAuditLogs(auditRes.data.logs || []);
         } catch (error) {
             toast.error('Failed to load data');
         } finally {
@@ -270,29 +276,30 @@ export default function AdminDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-                <div className="text-[#52525B]">Loading...</div>
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground">Loading...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA]">
+        <div className="min-h-screen bg-background">
             {/* Header */}
             <header className="sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <Link to="/" className="font-black text-xl tracking-tight text-[#0A0A0A]">
+                            <Link to="/" className="font-black text-xl tracking-tight text-foreground">
                                 GuidedJourney
                             </Link>
                             <span className="text-xs font-bold tracking-wider uppercase text-[#114f55] px-2 py-1 bg-teal-50 rounded">
                                 Admin
                             </span>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[#52525B] hidden sm:block">{user?.name}</span>
-                            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-[#52525B]" data-testid="admin-logout-btn">
+                        <div className="flex items-center gap-3">
+                            <ThemeLangToggle />
+                            <span className="text-sm text-muted-foreground hidden sm:block">{user?.name}</span>
+                            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="admin-logout-btn">
                                 <SignOut size={20} />
                             </Button>
                         </div>
@@ -302,26 +309,30 @@ export default function AdminDashboard() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-6 bg-white border border-[#E4E4E7] flex-wrap h-auto gap-1 p-1">
+                    <TabsList className="mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
                         <TabsTrigger value="analytics" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
-                            Dashboard
+                            {t('admin_dashboard')}
                         </TabsTrigger>
                         <TabsTrigger value="users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Users size={18} className="mr-2" />
-                            Users
+                            {t('admin_users')}
                         </TabsTrigger>
                         <TabsTrigger value="steps" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ListChecks size={18} className="mr-2" />
-                            Steps
+                            {t('admin_steps')}
                         </TabsTrigger>
                         <TabsTrigger value="partners" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Buildings size={18} className="mr-2" />
-                            Partners
+                            {t('admin_partners')}
                         </TabsTrigger>
                         <TabsTrigger value="cms" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
-                            CMS
+                            {t('admin_cms')}
+                        </TabsTrigger>
+                        <TabsTrigger value="audit" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                            <ClockCounterClockwise size={18} className="mr-2" />
+                            {t('admin_audit')}
                         </TabsTrigger>
                     </TabsList>
 
@@ -338,27 +349,27 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Role Distribution */}
-                                <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
-                                    <h3 className="text-lg font-semibold text-[#0A0A0A] mb-4">User Distribution</h3>
+                                <div className="bg-card border border-border rounded-sm p-6">
+                                    <h3 className="text-lg font-semibold text-foreground mb-4">User Distribution</h3>
                                     <div className="grid grid-cols-3 gap-4">
-                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
-                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.total_users}</p>
-                                            <p className="text-sm text-[#52525B]">Regular Users</p>
+                                        <div className="text-center p-4 bg-background rounded-sm">
+                                            <p className="text-2xl font-black text-foreground">{analytics.total_users}</p>
+                                            <p className="text-sm text-muted-foreground">Regular Users</p>
                                         </div>
-                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
-                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.partner_count}</p>
-                                            <p className="text-sm text-[#52525B]">Partner Users</p>
+                                        <div className="text-center p-4 bg-background rounded-sm">
+                                            <p className="text-2xl font-black text-foreground">{analytics.partner_count}</p>
+                                            <p className="text-sm text-muted-foreground">Partner Users</p>
                                         </div>
-                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
-                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.admin_count}</p>
-                                            <p className="text-sm text-[#52525B]">Admins</p>
+                                        <div className="text-center p-4 bg-background rounded-sm">
+                                            <p className="text-2xl font-black text-foreground">{analytics.admin_count}</p>
+                                            <p className="text-sm text-muted-foreground">Admins</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Step Completion Rates */}
-                                <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
-                                    <h3 className="text-lg font-semibold text-[#0A0A0A] mb-4">Step Completion Rates</h3>
+                                <div className="bg-card border border-border rounded-sm p-6">
+                                    <h3 className="text-lg font-semibold text-foreground mb-4">Step Completion Rates</h3>
                                     <div className="space-y-4">
                                         {analytics.step_analytics?.map((step) => (
                                             <div key={step.step_id} className="space-y-2">
@@ -367,9 +378,9 @@ export default function AdminDashboard() {
                                                         <span className="w-6 h-6 rounded-full bg-[#114f55] text-white flex items-center justify-center text-xs font-bold">
                                                             {step.order}
                                                         </span>
-                                                        <span className="font-medium text-sm text-[#0A0A0A]">{step.title}</span>
+                                                        <span className="font-medium text-sm text-foreground">{step.title}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-3 text-xs text-[#52525B]">
+                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span>{step.completed}/{step.total} completed</span>
                                                         <span className="font-bold text-[#114f55]">{step.completion_rate}%</span>
                                                     </div>
@@ -385,23 +396,23 @@ export default function AdminDashboard() {
 
                     {/* ============ USERS TAB ============ */}
                     <TabsContent value="users">
-                        <div className="bg-white border border-[#E4E4E7] rounded-sm">
-                            <div className="p-4 border-b border-[#E4E4E7]">
+                        <div className="bg-card border border-border rounded-sm">
+                            <div className="p-4 border-b border-border">
                                 <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
-                                    <h2 className="text-lg font-semibold text-[#0A0A0A]">User Management</h2>
+                                    <h2 className="text-lg font-semibold text-foreground">User Management</h2>
                                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                         <div className="relative flex-1 sm:w-64">
-                                            <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B]" />
+                                            <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                             <Input
                                                 placeholder="Search by name or email..."
                                                 value={userSearch}
                                                 onChange={(e) => setUserSearch(e.target.value)}
-                                                className="pl-9 border-[#E4E4E7] rounded-sm"
+                                                className="pl-9 border-border rounded-sm"
                                                 data-testid="user-search-input"
                                             />
                                         </div>
                                         <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
-                                            <SelectTrigger className="w-full sm:w-36 border-[#E4E4E7]" data-testid="user-role-filter">
+                                            <SelectTrigger className="w-full sm:w-36 border-border" data-testid="user-role-filter">
                                                 <SelectValue placeholder="All Roles" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -411,20 +422,20 @@ export default function AdminDashboard() {
                                                 <SelectItem value="partner">Partner</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Button variant="outline" onClick={handleExportCsv} className="border-[#E4E4E7] text-[#52525B]" data-testid="export-csv-btn">
+                                        <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
                                         </Button>
                                     </div>
                                 </div>
-                                <p className="text-xs text-[#52525B] mt-2">{filteredUsers.length} of {users.length} users</p>
+                                <p className="text-xs text-muted-foreground mt-2">{filteredUsers.length} of {users.length} users</p>
                             </div>
 
                             {/* Bulk Actions Bar */}
                             {selectedUserIds.length > 0 && (
-                                <div className="p-3 bg-[#114f55]/5 border-b border-[#E4E4E7] flex flex-wrap items-center gap-3">
+                                <div className="p-3 bg-[#114f55]/5 border-b border-border flex flex-wrap items-center gap-3">
                                     <span className="text-sm font-medium text-[#114f55]">{selectedUserIds.length} selected</span>
                                     <Select value={bulkRole} onValueChange={setBulkRole}>
-                                        <SelectTrigger className="w-32 h-8 text-xs border-[#E4E4E7]" data-testid="bulk-role-select">
+                                        <SelectTrigger className="w-32 h-8 text-xs border-border" data-testid="bulk-role-select">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -436,7 +447,7 @@ export default function AdminDashboard() {
                                     <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="bulk-apply-btn">
                                         Apply Role
                                     </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])} className="text-[#52525B]">
+                                    <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])} className="text-muted-foreground">
                                         Clear
                                     </Button>
                                 </div>
@@ -444,7 +455,7 @@ export default function AdminDashboard() {
 
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#FAFAFA]">
+                                    <thead className="bg-background">
                                         <tr>
                                             <th className="px-4 py-3 w-10">
                                                 <Checkbox
@@ -453,16 +464,16 @@ export default function AdminDashboard() {
                                                     data-testid="select-all-users"
                                                 />
                                             </th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Email</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Role</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Joined</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Actions</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredUsers.map((u) => (
-                                            <tr key={u.id} className={`border-t border-[#E4E4E7] table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[#114f55]/5' : ''}`}>
+                                            <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[#114f55]/5' : ''}`}>
                                                 <td className="px-4 py-3">
                                                     <Checkbox
                                                         checked={selectedUserIds.includes(u.id)}
@@ -470,11 +481,11 @@ export default function AdminDashboard() {
                                                         data-testid={`select-user-${u.id}`}
                                                     />
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-[#0A0A0A] font-medium">{u.name}</td>
-                                                <td className="px-4 py-3 text-sm text-[#52525B]">{u.email}</td>
+                                                <td className="px-4 py-3 text-sm text-foreground font-medium">{u.name}</td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">{u.email}</td>
                                                 <td className="px-4 py-3">
                                                     <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
-                                                        <SelectTrigger className="w-32 h-8 text-xs border-[#E4E4E7]">
+                                                        <SelectTrigger className="w-32 h-8 text-xs border-border">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -484,11 +495,11 @@ export default function AdminDashboard() {
                                                         </SelectContent>
                                                     </Select>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-[#52525B]">
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">
                                                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-[#E4E4E7]" data-testid={`view-user-${u.id}`}>
+                                                    <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-border" data-testid={`view-user-${u.id}`}>
                                                         <Eye size={16} className="mr-1" /> View
                                                     </Button>
                                                 </td>
@@ -496,7 +507,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-8 text-center text-[#52525B]">No users found</td>
+                                                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -507,29 +518,29 @@ export default function AdminDashboard() {
 
                     {/* ============ STEPS TAB ============ */}
                     <TabsContent value="steps">
-                        <div className="bg-white border border-[#E4E4E7] rounded-sm">
-                            <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
-                                <h2 className="text-lg font-semibold text-[#0A0A0A]">Step Management</h2>
+                        <div className="bg-card border border-border rounded-sm">
+                            <div className="p-4 border-b border-border flex justify-between items-center">
+                                <h2 className="text-lg font-semibold text-foreground">Step Management</h2>
                                 <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-step-btn">
                                     <Plus size={18} className="mr-2" /> Add Step
                                 </Button>
                             </div>
                             <div className="p-4 space-y-4">
                                 {steps.sort((a, b) => a.order - b.order).map((step) => (
-                                    <div key={step.id} className="border border-[#E4E4E7] rounded-sm p-4">
+                                    <div key={step.id} className="border border-border rounded-sm p-4">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                                                         {step.order}
                                                     </span>
-                                                    <h3 className="font-semibold text-[#0A0A0A]">{step.title}</h3>
+                                                    <h3 className="font-semibold text-foreground">{step.title}</h3>
                                                     <span className={`px-2 py-0.5 text-xs rounded-sm ${step.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                         {step.is_active ? 'Active' : 'Inactive'}
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-[#52525B] mt-1 ml-10">{step.description}</p>
-                                                <div className="flex gap-4 mt-2 ml-10 text-xs text-[#52525B] flex-wrap">
+                                                <p className="text-sm text-muted-foreground mt-1 ml-10">{step.description}</p>
+                                                <div className="flex gap-4 mt-2 ml-10 text-xs text-muted-foreground flex-wrap">
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
                                                     {step.email_on_enter && <span className="text-[#114f55]">Email on enter</span>}
@@ -538,7 +549,7 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 flex-shrink-0 ml-4">
-                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-[#E4E4E7] text-[#114f55] hover:bg-teal-50" data-testid={`edit-step-${step.id}`}>
+                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-[#114f55] hover:bg-teal-50" data-testid={`edit-step-${step.id}`}>
                                                     <Pencil size={16} className="mr-1" /> Edit
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>
@@ -554,43 +565,43 @@ export default function AdminDashboard() {
 
                     {/* ============ PARTNERS TAB ============ */}
                     <TabsContent value="partners">
-                        <div className="bg-white border border-[#E4E4E7] rounded-sm">
-                            <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
-                                <h2 className="text-lg font-semibold text-[#0A0A0A]">Partner Management</h2>
+                        <div className="bg-card border border-border rounded-sm">
+                            <div className="p-4 border-b border-border flex justify-between items-center">
+                                <h2 className="text-lg font-semibold text-foreground">Partner Management</h2>
                                 <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-partner-btn">
                                     <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
-                                    <thead className="bg-[#FAFAFA]">
+                                    <thead className="bg-background">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Partner</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Category</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Linked User</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Status</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Actions</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Partner</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Linked User</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {partners.map((partner) => {
                                             const linkedUser = users.find(u => u.id === partner.user_id);
                                             return (
-                                                <tr key={partner.id} className="border-t border-[#E4E4E7] table-row-hover">
+                                                <tr key={partner.id} className="border-t border-border table-row-hover">
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
                                                             {partner.logo_url && <img src={partner.logo_url} alt="" className="w-10 h-10 rounded-sm object-cover" />}
                                                             <div>
-                                                                <p className="font-medium text-[#0A0A0A]">{partner.name}</p>
-                                                                <p className="text-xs text-[#52525B]">{partner.contact_email}</p>
+                                                                <p className="font-medium text-foreground">{partner.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{partner.contact_email}</p>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm text-[#52525B]">{partner.category || '-'}</td>
+                                                    <td className="px-4 py-3 text-sm text-muted-foreground">{partner.category || '-'}</td>
                                                     <td className="px-4 py-3">
                                                         {linkedUser ? (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-[#0A0A0A]">{linkedUser.name}</span>
+                                                                <span className="text-sm text-foreground">{linkedUser.name}</span>
                                                                 <Button variant="ghost" size="sm" onClick={() => handleUnlinkUser(partner.id)} className="text-red-500 hover:text-red-700 h-6 px-1" title="Unlink user" data-testid={`unlink-partner-${partner.id}`}>
                                                                     <LinkBreak size={14} />
                                                                 </Button>
@@ -670,6 +681,56 @@ export default function AdminDashboard() {
                             />
                         </div>
                     </TabsContent>
+
+                    {/* ============ AUDIT LOG TAB ============ */}
+                    <TabsContent value="audit">
+                        <div className="bg-card border border-border rounded-sm">
+                            <div className="p-4 border-b border-border">
+                                <h2 className="text-lg font-semibold">{t('admin_audit')}</h2>
+                                <p className="text-sm text-muted-foreground mt-1">Track all administrative actions</p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-muted">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Time</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actor</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Action</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Target</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {auditLogs.map((log, idx) => (
+                                            <tr key={idx} className="border-t border-border">
+                                                <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                                                    {log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm font-medium">{log.actor_email}</td>
+                                                <td className="px-4 py-3">
+                                                    <AuditActionBadge action={log.action} />
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                    <span className="capitalize">{log.target_type}</span>
+                                                    {log.target_id && <span className="text-xs ml-1 opacity-60">#{log.target_id.slice(-6)}</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">
+                                                    {log.details ? Object.entries(log.details).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ') : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {auditLogs.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                                                    No audit logs yet. Actions will appear here as admins make changes.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -683,19 +744,19 @@ export default function AdminDashboard() {
                         <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label className="text-[#52525B]">Name</Label>
+                                    <Label className="text-muted-foreground">Name</Label>
                                     <p className="font-medium">{selectedUser.name}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-[#52525B]">Email</Label>
+                                    <Label className="text-muted-foreground">Email</Label>
                                     <p className="font-medium">{selectedUser.email}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-[#52525B]">Role</Label>
+                                    <Label className="text-muted-foreground">Role</Label>
                                     <p className="font-medium capitalize">{selectedUser.role}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-[#52525B]">Created</Label>
+                                    <Label className="text-muted-foreground">Created</Label>
                                     <p className="font-medium">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : '-'}</p>
                                 </div>
                             </div>
@@ -706,8 +767,8 @@ export default function AdminDashboard() {
                                     <h4 className="font-semibold mb-3">Profile</h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         {Object.entries(selectedUser.profile).map(([key, value]) => (
-                                            <div key={key} className="p-2 bg-[#FAFAFA] rounded-sm">
-                                                <span className="text-xs text-[#52525B] uppercase">{key.replace(/_/g, ' ')}</span>
+                                            <div key={key} className="p-2 bg-background rounded-sm">
+                                                <span className="text-xs text-muted-foreground uppercase">{key.replace(/_/g, ' ')}</span>
                                                 <p className="text-sm font-medium">{String(value)}</p>
                                             </div>
                                         ))}
@@ -722,7 +783,7 @@ export default function AdminDashboard() {
                                     {selectedUser.progress?.map((p) => {
                                         const step = steps.find(s => s.id === p.step_id);
                                         return (
-                                            <div key={p.step_id} className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-sm">
+                                            <div key={p.step_id} className="flex items-center justify-between p-3 bg-background rounded-sm">
                                                 <span className="text-sm">{step?.title || 'Unknown Step'}</span>
                                                 <Select
                                                     value={p.status}
@@ -745,7 +806,7 @@ export default function AdminDashboard() {
                                         );
                                     })}
                                     {(!selectedUser.progress || selectedUser.progress.length === 0) && (
-                                        <p className="text-sm text-[#52525B] p-3">No progress data yet</p>
+                                        <p className="text-sm text-muted-foreground p-3">No progress data yet</p>
                                     )}
                                 </div>
                             </div>
@@ -758,9 +819,9 @@ export default function AdminDashboard() {
                                         {selectedUser.submissions.map((sub) => {
                                             const partner = partners.find(p => p.id === sub.partner_id);
                                             return (
-                                                <div key={sub.id} className="p-3 bg-[#FAFAFA] rounded-sm">
+                                                <div key={sub.id} className="p-3 bg-background rounded-sm">
                                                     <p className="font-medium">{partner?.name || 'Unknown Partner'}</p>
-                                                    <p className="text-sm text-[#52525B]">
+                                                    <p className="text-sm text-muted-foreground">
                                                         Submitted: {new Date(sub.created_at).toLocaleDateString()}
                                                     </p>
                                                 </div>
@@ -807,18 +868,18 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value }) {
     return (
-        <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
-            <p className="text-sm text-[#52525B] mb-1">{label}</p>
-            <p className="text-3xl font-black text-[#0A0A0A]">{value}</p>
+        <div className="bg-card border border-border rounded-sm p-6">
+            <p className="text-sm text-muted-foreground mb-1">{label}</p>
+            <p className="text-3xl font-black text-foreground">{value}</p>
         </div>
     );
 }
 
 function CmsSection({ title, fields, content, onChange, onSave, saving }) {
     return (
-        <div className="bg-white border border-[#E4E4E7] rounded-sm">
-            <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
-                <h3 className="font-semibold text-[#0A0A0A]">{title}</h3>
+        <div className="bg-card border border-border rounded-sm">
+            <div className="p-4 border-b border-border flex justify-between items-center">
+                <h3 className="font-semibold text-foreground">{title}</h3>
                 <Button
                     onClick={onSave}
                     disabled={saving}
@@ -831,13 +892,13 @@ function CmsSection({ title, fields, content, onChange, onSave, saving }) {
             <div className="p-4 space-y-4">
                 {fields.map((field) => (
                     <div key={field.key}>
-                        <Label className="text-[#0A0A0A]">{field.label}</Label>
+                        <Label className="text-foreground">{field.label}</Label>
                         {field.type === 'textarea' ? (
                             <Textarea
                                 value={content[field.key] || ''}
                                 onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
                                 placeholder={field.placeholder}
-                                className="mt-1 border-[#E4E4E7] rounded-sm min-h-[80px]"
+                                className="mt-1 border-border rounded-sm min-h-[80px]"
                                 data-testid={`cms-field-${field.key}`}
                             />
                         ) : (
@@ -845,7 +906,7 @@ function CmsSection({ title, fields, content, onChange, onSave, saving }) {
                                 value={content[field.key] || ''}
                                 onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
                                 placeholder={field.placeholder}
-                                className="mt-1 border-[#E4E4E7] rounded-sm"
+                                className="mt-1 border-border rounded-sm"
                                 data-testid={`cms-field-${field.key}`}
                             />
                         )}
@@ -871,21 +932,21 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
                 </DialogHeader>
                 <div className="space-y-4">
                     <div className="relative">
-                        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B]" />
+                        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             placeholder="Search users..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 border-[#E4E4E7] rounded-sm"
+                            className="pl-9 border-border rounded-sm"
                             data-testid="link-user-search"
                         />
                     </div>
                     <div className="max-h-[300px] overflow-y-auto space-y-2">
                         {filtered.map((u) => (
-                            <div key={u.id} className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-sm hover:bg-gray-100 transition-colors">
+                            <div key={u.id} className="flex items-center justify-between p-3 bg-background rounded-sm hover:bg-gray-100 transition-colors">
                                 <div>
                                     <p className="font-medium text-sm">{u.name}</p>
-                                    <p className="text-xs text-[#52525B]">{u.email}</p>
+                                    <p className="text-xs text-muted-foreground">{u.email}</p>
                                 </div>
                                 <Button
                                     size="sm"
@@ -898,7 +959,7 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
                             </div>
                         ))}
                         {filtered.length === 0 && (
-                            <p className="text-sm text-center text-[#52525B] py-4">
+                            <p className="text-sm text-center text-muted-foreground py-4">
                                 No available users found
                             </p>
                         )}
@@ -1019,10 +1080,10 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                             </div>
                             <div className="space-y-2">
                                 {formData.fields.map((field, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-sm">
+                                    <div key={index} className="flex items-center justify-between p-3 bg-background rounded-sm">
                                         <div>
                                             <span className="font-medium">{field.label}</span>
-                                            <span className="text-xs text-[#52525B] ml-2">({field.field_type})</span>
+                                            <span className="text-xs text-muted-foreground ml-2">({field.field_type})</span>
                                             {field.required && <span className="text-red-500 ml-1">*</span>}
                                         </div>
                                         <div className="flex gap-2">
@@ -1074,7 +1135,7 @@ function FieldForm({ field, onSave, onCancel }) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-sm w-full max-w-md">
+            <div className="bg-card p-6 rounded-sm w-full max-w-md">
                 <h3 className="font-semibold mb-4">{field ? 'Edit Field' : 'Add Field'}</h3>
                 <div className="space-y-4">
                     <div>
@@ -1191,5 +1252,25 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                 </form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function AuditActionBadge({ action }) {
+    const colors = {
+        role_change: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+        step_create: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        step_update: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        step_delete: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        partner_create: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        partner_update: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        partner_delete: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        cms_update: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+        bulk_role_change: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    };
+    const label = action?.replace(/_/g, ' ') || 'unknown';
+    return (
+        <span className={`px-2 py-1 text-xs font-medium rounded-sm capitalize ${colors[action] || 'bg-gray-100 text-gray-700'}`}>
+            {label}
+        </span>
     );
 }

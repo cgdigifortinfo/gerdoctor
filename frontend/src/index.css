@@ -9,7 +9,10 @@ body {
     font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #FAFAFA;
+}
+
+.dark body, .dark {
+    color-scheme: dark;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -48,6 +51,32 @@ code {
         --chart-5: 27 87% 67%;
         --radius: 0.25rem;
     }
+    .dark {
+        --background: 0 0% 7%;
+        --foreground: 0 0% 93%;
+        --card: 0 0% 10%;
+        --card-foreground: 0 0% 93%;
+        --popover: 0 0% 10%;
+        --popover-foreground: 0 0% 93%;
+        --primary: 174 50% 35%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 147 20% 22%;
+        --secondary-foreground: 0 0% 93%;
+        --muted: 0 0% 14%;
+        --muted-foreground: 0 0% 60%;
+        --accent: 147 20% 22%;
+        --accent-foreground: 0 0% 93%;
+        --destructive: 0 62% 35%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 0 0% 18%;
+        --input: 0 0% 18%;
+        --ring: 174 50% 35%;
+        --chart-1: 174 50% 35%;
+        --chart-2: 147 30% 45%;
+        --chart-3: 197 37% 34%;
+        --chart-4: 43 74% 56%;
+        --chart-5: 27 87% 57%;
+    }
 }
 
 @layer base {
@@ -64,6 +93,10 @@ code {
     backdrop-filter: blur(16px);
     background: rgba(255, 255, 255, 0.7);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.dark .glass {
+    background: rgba(18, 18, 18, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Stepper styles */

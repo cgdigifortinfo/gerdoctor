@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { stepsAPI, profileAPI, partnersAPI, filesAPI, notificationAPI, formatApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,9 +15,11 @@ import {
     FileText, CloudArrowUp, X, CaretRight, Bell, GearSix
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { ThemeLangToggle } from '../components/ThemeLangToggle';
 
 export default function UserDashboard() {
     const { user, logout } = useAuth();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const [steps, setSteps] = useState([]);
     const [progress, setProgress] = useState([]);
@@ -172,7 +175,7 @@ export default function UserDashboard() {
             case 'phone':
                 return (
                     <div key={field.name} className="space-y-2">
-                        <Label htmlFor={field.name} className="text-[#0A0A0A]">
+                        <Label htmlFor={field.name} className="text-foreground">
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Input
@@ -181,7 +184,7 @@ export default function UserDashboard() {
                             value={value}
                             onChange={(e) => handleInputChange(field.name, e.target.value)}
                             placeholder={field.placeholder}
-                            className="border-[#E4E4E7] rounded-sm"
+                            className="border-border rounded-sm"
                             required={field.required}
                             data-testid={`form-field-${field.name}`}
                         />
@@ -190,7 +193,7 @@ export default function UserDashboard() {
             case 'textarea':
                 return (
                     <div key={field.name} className="space-y-2">
-                        <Label htmlFor={field.name} className="text-[#0A0A0A]">
+                        <Label htmlFor={field.name} className="text-foreground">
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Textarea
@@ -198,7 +201,7 @@ export default function UserDashboard() {
                             value={value}
                             onChange={(e) => handleInputChange(field.name, e.target.value)}
                             placeholder={field.placeholder}
-                            className="border-[#E4E4E7] rounded-sm min-h-[100px]"
+                            className="border-border rounded-sm min-h-[100px]"
                             required={field.required}
                             data-testid={`form-field-${field.name}`}
                         />
@@ -207,11 +210,11 @@ export default function UserDashboard() {
             case 'select':
                 return (
                     <div key={field.name} className="space-y-2">
-                        <Label htmlFor={field.name} className="text-[#0A0A0A]">
+                        <Label htmlFor={field.name} className="text-foreground">
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Select value={value} onValueChange={(val) => handleInputChange(field.name, val)}>
-                            <SelectTrigger className="border-[#E4E4E7] rounded-sm" data-testid={`form-field-${field.name}`}>
+                            <SelectTrigger className="border-border rounded-sm" data-testid={`form-field-${field.name}`}>
                                 <SelectValue placeholder={field.placeholder || 'Select an option'} />
                             </SelectTrigger>
                             <SelectContent>
@@ -225,7 +228,7 @@ export default function UserDashboard() {
             case 'date':
                 return (
                     <div key={field.name} className="space-y-2">
-                        <Label htmlFor={field.name} className="text-[#0A0A0A]">
+                        <Label htmlFor={field.name} className="text-foreground">
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <Input
@@ -233,7 +236,7 @@ export default function UserDashboard() {
                             type="date"
                             value={value}
                             onChange={(e) => handleInputChange(field.name, e.target.value)}
-                            className="border-[#E4E4E7] rounded-sm"
+                            className="border-border rounded-sm"
                             required={field.required}
                             data-testid={`form-field-${field.name}`}
                         />
@@ -242,7 +245,7 @@ export default function UserDashboard() {
             case 'file':
                 return (
                     <div key={field.name} className="space-y-2">
-                        <Label htmlFor={field.name} className="text-[#0A0A0A]">
+                        <Label htmlFor={field.name} className="text-foreground">
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </Label>
                         <div className="dropzone p-6 rounded-sm text-center cursor-pointer hover:bg-gray-50 transition-colors">
@@ -260,7 +263,7 @@ export default function UserDashboard() {
                                         <span>{uploadedFiles[field.name].filename}</span>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-2 text-[#52525B]">
+                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                         <CloudArrowUp size={32} />
                                         <span>Click to upload or drag and drop</span>
                                     </div>
@@ -288,7 +291,7 @@ export default function UserDashboard() {
                                 variant="outline"
                                 onClick={() => handleStepSubmit(false)}
                                 disabled={submitting}
-                                className="border-[#E4E4E7] text-[#0A0A0A]"
+                                className="border-border text-foreground"
                                 data-testid="save-progress-btn"
                             >
                                 Save Progress
@@ -330,10 +333,10 @@ export default function UserDashboard() {
                                             />
                                         )}
                                         <div className="flex-1">
-                                            <h3 className="font-semibold text-[#0A0A0A]">{partner.name}</h3>
-                                            <p className="text-sm text-[#52525B] mt-1 line-clamp-2">{partner.description}</p>
+                                            <h3 className="font-semibold text-foreground">{partner.name}</h3>
+                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
                                             {partner.category && (
-                                                <span className="inline-block mt-2 px-2 py-1 text-xs bg-[#FAFAFA] text-[#52525B] rounded-sm">
+                                                <span className="inline-block mt-2 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">
                                                     {partner.category}
                                                 </span>
                                             )}
@@ -347,9 +350,9 @@ export default function UserDashboard() {
                         </div>
                         
                         {selectedPartner && (
-                            <div className="bg-[#FAFAFA] p-6 rounded-sm border border-[#E4E4E7]">
-                                <h4 className="font-semibold text-[#0A0A0A] mb-2">Selected Partner: {selectedPartner.name}</h4>
-                                <p className="text-sm text-[#52525B] mb-4">{selectedPartner.description}</p>
+                            <div className="bg-background p-6 rounded-sm border border-border">
+                                <h4 className="font-semibold text-foreground mb-2">Selected Partner: {selectedPartner.name}</h4>
+                                <p className="text-sm text-muted-foreground mb-4">{selectedPartner.description}</p>
                                 {selectedPartner.website && (
                                     <a 
                                         href={selectedPartner.website} 
@@ -380,9 +383,9 @@ export default function UserDashboard() {
             case 'info':
                 return (
                     <div className="space-y-6">
-                        <div className="bg-[#FAFAFA] p-6 rounded-sm border border-[#E4E4E7]">
-                            <h4 className="font-semibold text-[#0A0A0A] mb-4">Review Your Information</h4>
-                            <p className="text-[#52525B]">{currentStep.description}</p>
+                        <div className="bg-background p-6 rounded-sm border border-border">
+                            <h4 className="font-semibold text-foreground mb-4">Review Your Information</h4>
+                            <p className="text-muted-foreground">{currentStep.description}</p>
                             
                             <div className="mt-6 space-y-4">
                                 {steps.slice(0, currentStepIndex).map((step, idx) => {
@@ -393,8 +396,8 @@ export default function UserDashboard() {
                                                 <Check size={16} className="text-white" />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-[#0A0A0A]">{step.title}</p>
-                                                <p className="text-sm text-[#52525B]">
+                                                <p className="font-medium text-foreground">{step.title}</p>
+                                                <p className="text-sm text-muted-foreground">
                                                     {stepProgress?.status === 'completed' ? 'Completed' : 'In Progress'}
                                                 </p>
                                             </div>
@@ -425,30 +428,31 @@ export default function UserDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-                <div className="text-[#52525B]">Loading...</div>
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground">Loading...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA]">
+        <div className="min-h-screen bg-background">
             {/* Header */}
             <header className="sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
-                        <Link to="/" className="font-black text-xl tracking-tight text-[#0A0A0A]">
+                        <Link to="/" className="font-black text-xl tracking-tight text-foreground">
                             GuidedJourney
                         </Link>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[#52525B] hidden sm:block">
-                                Welcome, {user?.name}
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-muted-foreground hidden sm:block">
+                                {t('dash_welcome')}, {user?.name}
                             </span>
+                            <ThemeLangToggle />
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setShowSettings(!showSettings)}
-                                className="text-[#52525B]"
+                                className="text-muted-foreground"
                                 data-testid="settings-btn"
                             >
                                 <GearSix size={20} />
@@ -457,7 +461,7 @@ export default function UserDashboard() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleLogout}
-                                className="text-[#52525B]"
+                                className="text-muted-foreground"
                                 data-testid="logout-btn"
                             >
                                 <SignOut size={20} />
@@ -471,8 +475,8 @@ export default function UserDashboard() {
                 {/* Progress Bar */}
                 <div className="mb-8">
                     <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-lg font-semibold text-[#0A0A0A]">Your Progress</h2>
-                        <span className="text-sm text-[#52525B]">{getProgressPercentage()}% Complete</span>
+                        <h2 className="text-lg font-semibold text-foreground">Your Progress</h2>
+                        <span className="text-sm text-muted-foreground">{getProgressPercentage()}% Complete</span>
                     </div>
                     <Progress value={getProgressPercentage()} className="h-2" />
                 </div>
@@ -495,7 +499,7 @@ export default function UserDashboard() {
                                             ? 'bg-[#114f55] text-white' 
                                             : isCompleted 
                                                 ? 'bg-green-500 text-white'
-                                                : 'bg-[#E4E4E7] text-[#52525B]'
+                                                : 'bg-[#E4E4E7] text-muted-foreground'
                                     } ${canNavigate ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                                     data-testid={`step-nav-${index}`}
                                 >
@@ -528,7 +532,7 @@ export default function UserDashboard() {
                                             ? 'bg-[#114f55] text-white' 
                                             : isCompleted 
                                                 ? 'bg-green-500 text-white'
-                                                : 'bg-[#E4E4E7] text-[#52525B]'
+                                                : 'bg-[#E4E4E7] text-muted-foreground'
                                     }`}
                                 >
                                     {isCompleted ? <Check size={14} /> : index + 1}
@@ -539,14 +543,14 @@ export default function UserDashboard() {
                 </div>
 
                 {/* Current Step Content */}
-                <div className="bg-white border border-[#E4E4E7] rounded-sm p-6 sm:p-8">
+                <div className="bg-white border border-border rounded-sm p-6 sm:p-8">
                     {steps[currentStepIndex] && (
                         <>
                             <div className="mb-6">
-                                <h1 className="text-2xl font-bold tracking-tight text-[#0A0A0A] mb-2">
+                                <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
                                     {steps[currentStepIndex].title}
                                 </h1>
-                                <p className="text-[#52525B]">{steps[currentStepIndex].description}</p>
+                                <p className="text-muted-foreground">{steps[currentStepIndex].description}</p>
                             </div>
                             {renderStepContent()}
                         </>
@@ -554,11 +558,11 @@ export default function UserDashboard() {
 
                     {/* Navigation Buttons */}
                     {currentStepIndex > 0 && (
-                        <div className="mt-8 pt-6 border-t border-[#E4E4E7]">
+                        <div className="mt-8 pt-6 border-t border-border">
                             <Button
                                 variant="ghost"
                                 onClick={() => setCurrentStepIndex(currentStepIndex - 1)}
-                                className="text-[#52525B]"
+                                className="text-muted-foreground"
                                 data-testid="prev-step-btn"
                             >
                                 <ArrowLeft className="mr-2" size={16} />
@@ -570,21 +574,21 @@ export default function UserDashboard() {
 
                 {/* Notification Settings */}
                 {showSettings && (
-                    <div className="mt-6 bg-white border border-[#E4E4E7] rounded-sm p-6 sm:p-8 animate-fadeIn">
+                    <div className="mt-6 bg-white border border-border rounded-sm p-6 sm:p-8 animate-fadeIn">
                         <div className="flex items-center gap-3 mb-6">
                             <Bell size={24} className="text-[#114f55]" />
-                            <h2 className="text-xl font-bold tracking-tight text-[#0A0A0A]">
+                            <h2 className="text-xl font-bold tracking-tight text-foreground">
                                 Notification Preferences
                             </h2>
                         </div>
-                        <p className="text-sm text-[#52525B] mb-6">
+                        <p className="text-sm text-muted-foreground mb-6">
                             Choose when you receive email notifications about your progress.
                         </p>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                            <div className="flex items-center justify-between p-4 bg-background rounded-sm">
                                 <div>
-                                    <p className="font-medium text-[#0A0A0A]">Step Entry</p>
-                                    <p className="text-sm text-[#52525B]">Receive email when starting a new step</p>
+                                    <p className="font-medium text-foreground">Step Entry</p>
+                                    <p className="text-sm text-muted-foreground">Receive email when starting a new step</p>
                                 </div>
                                 <Switch
                                     checked={notifPrefs.email_on_step_enter}
@@ -592,10 +596,10 @@ export default function UserDashboard() {
                                     data-testid="notif-step-enter"
                                 />
                             </div>
-                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                            <div className="flex items-center justify-between p-4 bg-background rounded-sm">
                                 <div>
-                                    <p className="font-medium text-[#0A0A0A]">Step Edit</p>
-                                    <p className="text-sm text-[#52525B]">Receive email when saving progress on a step</p>
+                                    <p className="font-medium text-foreground">Step Edit</p>
+                                    <p className="text-sm text-muted-foreground">Receive email when saving progress on a step</p>
                                 </div>
                                 <Switch
                                     checked={notifPrefs.email_on_step_edit}
@@ -603,10 +607,10 @@ export default function UserDashboard() {
                                     data-testid="notif-step-edit"
                                 />
                             </div>
-                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                            <div className="flex items-center justify-between p-4 bg-background rounded-sm">
                                 <div>
-                                    <p className="font-medium text-[#0A0A0A]">Step Completion</p>
-                                    <p className="text-sm text-[#52525B]">Receive email when completing a step</p>
+                                    <p className="font-medium text-foreground">Step Completion</p>
+                                    <p className="text-sm text-muted-foreground">Receive email when completing a step</p>
                                 </div>
                                 <Switch
                                     checked={notifPrefs.email_on_step_leave}

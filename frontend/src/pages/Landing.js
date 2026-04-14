@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { cmsAPI, partnersAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { List, X, ArrowRight, Buildings, Users, CheckCircle } from '@phosphor-icons/react';
+import { ThemeLangToggle } from '../components/ThemeLangToggle';
 
 export default function Landing() {
     const { user, loading } = useAuth();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [homeContent, setHomeContent] = useState({});
@@ -54,13 +57,13 @@ export default function Landing() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA]">
+        <div className="min-h-screen bg-background text-foreground">
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
-                        <Link to="/" className="font-black text-xl tracking-tight text-[#0A0A0A]" data-testid="logo">
+                        <Link to="/" className="font-black text-xl tracking-tight text-foreground" data-testid="logo">
                             GuidedJourney
                         </Link>
 
@@ -68,31 +71,32 @@ export default function Landing() {
                         <nav className="hidden md:flex items-center gap-8">
                             <button 
                                 onClick={() => scrollToSection('home')} 
-                                className="text-sm font-medium text-[#52525B] hover:text-[#0A0A0A] transition-colors"
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 data-testid="nav-home"
                             >
-                                Home
+                                {t('nav_home')}
                             </button>
                             <button 
                                 onClick={() => scrollToSection('about')} 
-                                className="text-sm font-medium text-[#52525B] hover:text-[#0A0A0A] transition-colors"
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 data-testid="nav-about"
                             >
-                                About Us
+                                {t('nav_about')}
                             </button>
                             <button 
                                 onClick={() => scrollToSection('partners')} 
-                                className="text-sm font-medium text-[#52525B] hover:text-[#0A0A0A] transition-colors"
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 data-testid="nav-partners"
                             >
-                                Partners
+                                {t('nav_partners')}
                             </button>
+                            <ThemeLangToggle />
                             <Link to="/login">
                                 <Button 
                                     className="bg-[#114f55] hover:bg-[#0d3d42] text-white text-sm font-medium px-6"
                                     data-testid="nav-login-btn"
                                 >
-                                    Login
+                                    {t('nav_login')}
                                 </Button>
                             </Link>
                         </nav>
@@ -110,25 +114,25 @@ export default function Landing() {
 
                 {/* Mobile Menu */}
                 {mobileMenuOpen && (
-                    <div className="md:hidden bg-white border-t border-[#E4E4E7]">
+                    <div className="md:hidden bg-card border-t border-border">
                         <div className="px-4 py-4 space-y-3">
                             <button 
                                 onClick={() => scrollToSection('home')} 
-                                className="block w-full text-left py-2 text-[#0A0A0A] font-medium"
+                                className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-home"
                             >
                                 Home
                             </button>
                             <button 
                                 onClick={() => scrollToSection('about')} 
-                                className="block w-full text-left py-2 text-[#0A0A0A] font-medium"
+                                className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-about"
                             >
                                 About Us
                             </button>
                             <button 
                                 onClick={() => scrollToSection('partners')} 
-                                className="block w-full text-left py-2 text-[#0A0A0A] font-medium"
+                                className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-partners"
                             >
                                 Partners
@@ -154,10 +158,10 @@ export default function Landing() {
                             <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                                 Your Partner Network
                             </p>
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-black text-[#0A0A0A] mb-6">
+                            <h1 className="text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-black text-foreground mb-6">
                                 {homeContent.hero_title || 'Transform Your Business Journey'}
                             </h1>
-                            <p className="text-base leading-relaxed text-[#52525B] mb-8 max-w-lg">
+                            <p className="text-base leading-relaxed text-muted-foreground mb-8 max-w-lg">
                                 {homeContent.hero_subtitle || 'A guided experience to connect you with the right partners and accelerate your growth.'}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
@@ -172,7 +176,7 @@ export default function Landing() {
                                 </Link>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full sm:w-auto border-[#E4E4E7] text-[#0A0A0A] hover:bg-[#FAFAFA] px-8 py-3 text-sm font-medium"
+                                    className="w-full sm:w-auto border-border text-foreground hover:bg-background px-8 py-3 text-sm font-medium"
                                     onClick={() => scrollToSection('about')}
                                     data-testid="hero-learn-more-btn"
                                 >
@@ -186,14 +190,14 @@ export default function Landing() {
                                 alt="Modern architecture"
                                 className="rounded-sm shadow-2xl max-h-[60vh] w-full object-cover"
                             />
-                            <div className="absolute -bottom-6 -left-6 bg-white p-6 shadow-lg rounded-sm border border-[#E4E4E7]">
+                            <div className="absolute -bottom-6 -left-6 bg-card p-6 shadow-lg rounded-sm border border-border">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center">
                                         <CheckCircle size={24} className="text-white" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-black text-[#0A0A0A]">500+</p>
-                                        <p className="text-sm text-[#52525B]">Successful Partnerships</p>
+                                        <p className="text-2xl font-black text-foreground">500+</p>
+                                        <p className="text-sm text-muted-foreground">Successful Partnerships</p>
                                     </div>
                                 </div>
                             </div>
@@ -203,29 +207,29 @@ export default function Landing() {
             </section>
 
             {/* Features Section */}
-            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-y border-[#E4E4E7]">
+            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-y border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-3 gap-8">
-                        <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Users size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Guided Onboarding</h3>
-                            <p className="text-[#52525B]">Step-by-step process to complete your profile and find the perfect partner match.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Guided Onboarding</h3>
+                            <p className="text-muted-foreground">Step-by-step process to complete your profile and find the perfect partner match.</p>
                         </div>
-                        <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Buildings size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Partner Network</h3>
-                            <p className="text-[#52525B]">Access our curated network of industry-leading partners across multiple sectors.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Partner Network</h3>
+                            <p className="text-muted-foreground">Access our curated network of industry-leading partners across multiple sectors.</p>
                         </div>
-                        <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <CheckCircle size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Progress Tracking</h3>
-                            <p className="text-[#52525B]">Monitor your journey with real-time progress updates and status notifications.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Progress Tracking</h3>
+                            <p className="text-muted-foreground">Monitor your journey with real-time progress updates and status notifications.</p>
                         </div>
                     </div>
                 </div>
@@ -246,13 +250,13 @@ export default function Landing() {
                             <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                                 Who We Are
                             </p>
-                            <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-[#0A0A0A] mb-6">
+                            <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-6">
                                 {aboutContent.title || 'About Us'}
                             </h2>
-                            <p className="text-base leading-relaxed text-[#52525B] mb-6">
+                            <p className="text-base leading-relaxed text-muted-foreground mb-6">
                                 {aboutContent.description || 'We help businesses connect with the right partners through a streamlined onboarding process. Our platform simplifies the journey from initial contact to successful partnership.'}
                             </p>
-                            <p className="text-base leading-relaxed text-[#52525B]">
+                            <p className="text-base leading-relaxed text-muted-foreground">
                                 {aboutContent.mission || 'Our mission is to simplify business partnerships and create meaningful connections that drive growth and innovation.'}
                             </p>
                         </div>
@@ -261,16 +265,16 @@ export default function Landing() {
             </section>
 
             {/* Partners Section */}
-            <section id="partners" className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#E4E4E7]">
+            <section id="partners" className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
                         <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                             Our Network
                         </p>
-                        <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-[#0A0A0A] mb-4">
+                        <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-4">
                             {partnersContent.title || 'Our Partners'}
                         </h2>
-                        <p className="text-[#52525B] max-w-2xl mx-auto">
+                        <p className="text-muted-foreground max-w-2xl mx-auto">
                             {partnersContent.description || 'Work with industry-leading partners to achieve your goals.'}
                         </p>
                     </div>
@@ -279,7 +283,7 @@ export default function Landing() {
                         {partners.length > 0 ? partners.slice(0, 6).map((partner) => (
                             <div 
                                 key={partner.id} 
-                                className="partner-card p-6 rounded-sm bg-white"
+                                className="partner-card p-6 rounded-sm bg-card"
                                 data-testid={`partner-card-${partner.id}`}
                             >
                                 {partner.logo_url && (
@@ -289,16 +293,16 @@ export default function Landing() {
                                         className="w-16 h-16 object-cover rounded-sm mb-4"
                                     />
                                 )}
-                                <h3 className="text-lg font-semibold text-[#0A0A0A] mb-2">{partner.name}</h3>
-                                <p className="text-sm text-[#52525B] mb-3 line-clamp-2">{partner.description}</p>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">{partner.name}</h3>
+                                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{partner.description}</p>
                                 {partner.category && (
-                                    <span className="inline-block px-3 py-1 text-xs font-medium bg-[#FAFAFA] text-[#52525B] rounded-sm">
+                                    <span className="inline-block px-3 py-1 text-xs font-medium bg-background text-muted-foreground rounded-sm">
                                         {partner.category}
                                     </span>
                                 )}
                             </div>
                         )) : (
-                            <div className="col-span-3 text-center py-12 text-[#52525B]">
+                            <div className="col-span-3 text-center py-12 text-muted-foreground">
                                 Partners will be displayed here
                             </div>
                         )}
@@ -307,7 +311,7 @@ export default function Landing() {
             </section>
 
             {/* CTA Section */}
-            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#0A0A0A]">
+            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-foreground">
                 <div className="max-w-3xl mx-auto text-center">
                     <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-white mb-6">
                         Ready to Start Your Journey?
@@ -328,11 +332,11 @@ export default function Landing() {
             </section>
 
             {/* Footer */}
-            <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E4E4E7]">
+            <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="font-black text-lg text-[#0A0A0A]">GuidedJourney</p>
-                        <p className="text-sm text-[#52525B]">&copy; 2026 GuidedJourney. All rights reserved.</p>
+                        <p className="font-black text-lg text-foreground">GuidedJourney</p>
+                        <p className="text-sm text-muted-foreground">&copy; 2026 GuidedJourney. All rights reserved.</p>
                     </div>
                 </div>
             </footer>
