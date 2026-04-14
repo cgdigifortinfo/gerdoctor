@@ -1081,11 +1081,31 @@ async def admin_get_analytics(request: Request):
 
 # Admin Audit Log
 @admin_router.get("/audit-log")
-async def admin_get_audit_log(request: Request, limit: int = 100, skip: int = 0):
+async def admin_get_audit_log(
+    request: Request, 
+    limit: int = 100, 
+    skip: int = 0,
+    action: str = "",
+    date_from: str = "",
+    date_to: str = ""
+):
     await require_role("admin")(request)
-    logs = await db.audit_logs.find({}, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
-    total = await db.audit_logs.count_documents({})
-    return {"logs": logs, "total": total}
+    
+    query = {}
+    if action:
+        query["action"] = action
+    if date_from:
+        query.setdefault("timestamp", {})["$gte"] = date_from
+    if date_to:
+        query.setdefault("timestamp", {})["$lte"] = date_to
+    
+    logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.audit_logs.count_documents(query)
+    
+    # Get distinct action types for filter dropdown
+    action_types = await db.audit_logs.distinct("action")
+    
+    return {"logs": logs, "total": total, "action_types": action_types}
 
 # ========================
 # PARTNER DASHBOARD ROUTES

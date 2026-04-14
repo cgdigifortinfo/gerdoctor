@@ -13,7 +13,18 @@ export function AuthProvider({ children }) {
         try {
             const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
             setUser(response.data);
-        } catch {
+        } catch (err) {
+            // Try refreshing the token on 401
+            if (err.response?.status === 401) {
+                try {
+                    await axios.post(`${API}/auth/refresh`, {}, { withCredentials: true });
+                    const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
+                    setUser(response.data);
+                    return;
+                } catch {
+                    // Refresh also failed
+                }
+            }
             setUser(false);
         } finally {
             setLoading(false);

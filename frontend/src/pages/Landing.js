@@ -121,28 +121,31 @@ export default function Landing() {
                                 className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-home"
                             >
-                                Home
+                                {t('nav_home')}
                             </button>
                             <button 
                                 onClick={() => scrollToSection('about')} 
                                 className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-about"
                             >
-                                About Us
+                                {t('nav_about')}
                             </button>
                             <button 
                                 onClick={() => scrollToSection('partners')} 
                                 className="block w-full text-left py-2 text-foreground font-medium"
                                 data-testid="mobile-nav-partners"
                             >
-                                Partners
+                                {t('nav_partners')}
                             </button>
+                            <div className="flex items-center gap-2 py-2">
+                                <ThemeLangToggle />
+                            </div>
                             <Link to="/login" className="block">
                                 <Button 
                                     className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                     data-testid="mobile-nav-login-btn"
                                 >
-                                    Login
+                                    {t('nav_login')}
                                 </Button>
                             </Link>
                         </div>

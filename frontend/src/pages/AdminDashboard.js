@@ -31,6 +31,10 @@ export default function AdminDashboard() {
     const [partners, setPartners] = useState([]);
     const [analytics, setAnalytics] = useState(null);
     const [auditLogs, setAuditLogs] = useState([]);
+    const [auditActionTypes, setAuditActionTypes] = useState([]);
+    const [auditFilter, setAuditFilter] = useState('');
+    const [auditDateFrom, setAuditDateFrom] = useState('');
+    const [auditDateTo, setAuditDateTo] = useState('');
     const [loading, setLoading] = useState(true);
 
     // User management state
@@ -78,6 +82,7 @@ export default function AdminDashboard() {
             setCmsAbout(aboutRes.data.content || {});
             setCmsPartners(partnersContentRes.data.content || {});
             setAuditLogs(auditRes.data.logs || []);
+            setAuditActionTypes(auditRes.data.action_types || []);
         } catch (error) {
             toast.error('Failed to load data');
         } finally {
@@ -223,11 +228,34 @@ export default function AdminDashboard() {
         try {
             await adminAPI.updateCmsContent(section, content);
             toast.success(`${section} content updated`);
+            loadData();
         } catch (error) {
             toast.error(formatApiError(error));
         } finally {
             setCmsSaving(false);
         }
+    };
+
+    // Audit log filter
+    const handleAuditFilter = async () => {
+        try {
+            const actionVal = auditFilter === 'all' ? '' : auditFilter;
+            const res = await adminAPI.getAuditLog(100, 0, actionVal, auditDateFrom, auditDateTo);
+            setAuditLogs(res.data.logs || []);
+            setAuditActionTypes(res.data.action_types || []);
+        } catch (error) {
+            toast.error('Failed to load audit logs');
+        }
+    };
+
+    const handleClearAuditFilter = async () => {
+        setAuditFilter('');
+        setAuditDateFrom('');
+        setAuditDateTo('');
+        try {
+            const res = await adminAPI.getAuditLog(100, 0);
+            setAuditLogs(res.data.logs || []);
+        } catch {}
     };
 
     // Bulk user actions
@@ -686,8 +714,37 @@ export default function AdminDashboard() {
                     <TabsContent value="audit">
                         <div className="bg-card border border-border rounded-sm">
                             <div className="p-4 border-b border-border">
-                                <h2 className="text-lg font-semibold">{t('admin_audit')}</h2>
-                                <p className="text-sm text-muted-foreground mt-1">Track all administrative actions</p>
+                                <h2 className="text-lg font-semibold mb-3">{t('admin_audit')}</h2>
+                                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+                                    <div>
+                                        <Label className="text-xs text-muted-foreground">Action Type</Label>
+                                        <Select value={auditFilter} onValueChange={setAuditFilter}>
+                                            <SelectTrigger className="w-44 h-9 text-sm border-border" data-testid="audit-action-filter">
+                                                <SelectValue placeholder="All actions" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All actions</SelectItem>
+                                                {auditActionTypes.map(a => (
+                                                    <SelectItem key={a} value={a}>{a.replace(/_/g, ' ')}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs text-muted-foreground">From</Label>
+                                        <Input type="date" value={auditDateFrom} onChange={e => setAuditDateFrom(e.target.value)} className="h-9 text-sm border-border w-40" data-testid="audit-date-from" />
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs text-muted-foreground">To</Label>
+                                        <Input type="date" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)} className="h-9 text-sm border-border w-40" data-testid="audit-date-to" />
+                                    </div>
+                                    <Button size="sm" onClick={handleAuditFilter} className="bg-[#114f55] hover:bg-[#0d3d42] text-white h-9" data-testid="audit-apply-filter">
+                                        Filter
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={handleClearAuditFilter} className="text-muted-foreground h-9" data-testid="audit-clear-filter">
+                                        {t('admin_clear')}
+                                    </Button>
+                                </div>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full">

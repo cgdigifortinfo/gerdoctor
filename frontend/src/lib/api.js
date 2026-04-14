@@ -97,7 +97,13 @@ export const adminAPI = {
     getAnalytics: () => api.get('/admin/analytics'),
     
     // Audit Log
-    getAuditLog: (limit = 100, skip = 0) => api.get(`/admin/audit-log?limit=${limit}&skip=${skip}`),
+    getAuditLog: (limit = 100, skip = 0, action = '', dateFrom = '', dateTo = '') => {
+        const params = new URLSearchParams({ limit, skip });
+        if (action) params.append('action', action);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        return api.get(`/admin/audit-log?${params.toString()}`);
+    },
     
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
