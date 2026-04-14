@@ -10,20 +10,20 @@ export function ThemeLangToggle() {
     return (
         <div className="flex items-center gap-1">
             <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={toggleTheme}
-                className="text-muted-foreground h-8 w-8 p-0"
+                className="h-8 w-8 p-0 border-border"
                 data-testid="theme-toggle-btn"
                 title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
                 {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
             <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={toggleLang}
-                className="text-muted-foreground h-8 px-2 text-xs font-bold uppercase"
+                className="h-8 px-2 text-xs font-bold uppercase border-border"
                 data-testid="lang-toggle-btn"
                 title={lang === 'en' ? 'Auf Deutsch umschalten' : 'Switch to English'}
             >
