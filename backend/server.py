@@ -1428,6 +1428,28 @@ async def startup():
             })
         logger.info(f"Demo user created: {demo_email}")
     
+    # Seed a partner user if none exist
+    partner_email = "partner@example.com"
+    partner_password = "Partner123!"
+    existing_partner_user = await db.users.find_one({"email": partner_email})
+    if not existing_partner_user:
+        first_partner = await db.partners.find_one({"is_active": True})
+        if first_partner:
+            partner_hash = hash_password(partner_password)
+            result = await db.users.insert_one({
+                "email": partner_email,
+                "password_hash": partner_hash,
+                "name": "TechVenture Admin",
+                "role": "partner",
+                "partner_id": str(first_partner["_id"]),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            await db.partners.update_one(
+                {"_id": first_partner["_id"]},
+                {"$set": {"user_id": str(result.inserted_id)}}
+            )
+            logger.info(f"Partner user created: {partner_email}")
+    
     # Write test credentials
     os.makedirs("/app/memory", exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
@@ -1442,6 +1464,11 @@ async def startup():
 - Email: demo@example.com
 - Password: Demo123!
 - Role: user
+
+## Partner User Account
+- Email: partner@example.com
+- Password: Partner123!
+- Role: partner (linked to TechVenture Partners)
 
 ## Seeded Data
 - 4 default steps (Profile, Partner Selection, Application, Review)
