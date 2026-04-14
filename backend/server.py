@@ -14,6 +14,11 @@ import secrets
 import asyncio
 import uuid
 import requests
+import smtplib
+import socket
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Any
@@ -86,32 +91,41 @@ def get_object(path: str) -> tuple:
     resp.raise_for_status()
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
-# Email Configuration (Resend)
-try:
-    import resend
-    resend.api_key = os.environ.get("RESEND_API_KEY", "")
-    SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
-except ImportError:
-    resend = None
-    SENDER_EMAIL = ""
+# Email Configuration (Mailgun SMTP)
+MAILGUN_SMTP_HOST = os.environ.get("MAILGUN_SMTP_HOST", "smtp.eu.mailgun.org")
+MAILGUN_SMTP_PORT = int(os.environ.get("MAILGUN_SMTP_PORT", 587))
+MAILGUN_SMTP_USER = os.environ.get("MAILGUN_SMTP_USER", "")
+MAILGUN_SMTP_PASSWORD = os.environ.get("MAILGUN_SMTP_PASSWORD", "")
+MAILGUN_FROM_EMAIL = os.environ.get("MAILGUN_FROM_EMAIL", "")
 
-async def send_email_notification(to_email: str, subject: str, html_content: str):
-    """Send email notification using Resend."""
-    if not resend or not os.environ.get("RESEND_API_KEY"):
-        logger.info(f"Email would be sent to {to_email}: {subject}")
+def send_email_sync(to_email: str, subject: str, html_content: str) -> dict:
+    """Send email via Mailgun SMTP (synchronous, run in thread)."""
+    if not MAILGUN_SMTP_USER or not MAILGUN_FROM_EMAIL:
+        logger.info(f"Email not configured. Would send to {to_email}: {subject}")
         return {"status": "skipped", "message": "Email not configured"}
     try:
-        params = {
-            "from": SENDER_EMAIL,
-            "to": [to_email],
-            "subject": subject,
-            "html": html_content
-        }
-        email = await asyncio.to_thread(resend.Emails.send, params)
-        return {"status": "success", "email_id": email.get("id")}
-    except Exception as e:
-        logger.error(f"Failed to send email: {e}")
+        msg = MIMEMultipart("alternative")
+        msg["From"] = formataddr(("GuidedJourney", MAILGUN_FROM_EMAIL))
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(MAILGUN_SMTP_HOST, MAILGUN_SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(MAILGUN_SMTP_USER, MAILGUN_SMTP_PASSWORD)
+            server.send_message(msg)
+        logger.info(f"Email sent to {to_email}: {subject}")
+        return {"status": "success"}
+    except (smtplib.SMTPException, ConnectionRefusedError, socket.gaierror, TimeoutError) as e:
+        logger.error(f"SMTP error sending to {to_email}: {e}")
         return {"status": "failed", "error": str(e)}
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {e}")
+        return {"status": "failed", "error": str(e)}
+
+async def send_email_notification(to_email: str, subject: str, html_content: str):
+    """Send email notification using Mailgun SMTP (non-blocking)."""
+    return await asyncio.to_thread(send_email_sync, to_email, subject, html_content)
 
 # Password hashing
 def hash_password(password: str) -> str:
