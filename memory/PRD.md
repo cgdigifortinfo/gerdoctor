@@ -10,53 +10,24 @@ Build a mobile-first app with CMS-style landing page, progress stepper for users
 - **Email**: Mailgun SMTP (smtp.eu.mailgun.org)
 - **File Storage**: Emergent Object Storage
 - **Design**: Swiss & High-Contrast archetype, Cabinet Grotesk + Satoshi fonts
-
-## User Personas
-1. **Regular User**: Completes guided onboarding steps
-2. **Admin**: Manages steps, users, partners, CMS content via dashboard
-3. **Partner Company**: Views user submissions, edits own profile
-
-## Core Requirements
-- [x] Mobile-first responsive design
-- [x] CMS-style landing page (Home, About Us, Partners)
-- [x] JWT authentication with 3 roles
-- [x] Progress stepper (4 configurable steps)
-- [x] Admin CMS: manage steps, users, partners
-- [x] Partner dashboard: view submissions, edit profile
-- [x] File uploads (documents, images)
-- [x] Mailgun SMTP email notifications
-- [x] Configurable email triggers per step
+- **Colors**: Primary #114f55, Secondary #9ec5aa
 
 ## What's Been Implemented
 
-### Phase 1 (April 14, 2026)
-- Complete backend API (auth, steps, partners, files, admin, CMS)
-- Landing page, Login/Register, User Dashboard, Admin Dashboard, Partner Dashboard
-- Mailgun SMTP email integration
-- Object Storage for file uploads
-- Default seeded data (4 steps, 3 partners, admin account)
+### Phase 1: Core MVP
+- JWT auth with 3 roles, landing page, user dashboard with stepper, admin dashboard, partner dashboard
+- Mailgun SMTP email, Object Storage file uploads
 
-### Phase 2 (April 14, 2026)
-- CMS content editor (admin can edit landing page hero, about, partners text)
-- Admin analytics dashboard (stats, user distribution, step completion rates)
-- User search/filter (by name, email, role)
-- Partner-user linking workflow (link/unlink user accounts to partner orgs)
-- Admin can edit user progress status directly
+### Phase 2: CMS & Analytics
+- CMS content editor for landing page, analytics dashboard, user search/filter, partner-user linking
+
+### Phase 3: Preferences & Bulk Actions (Current)
+- User notification preferences (opt-in/out per step: enter, edit, leave)
+- Bulk user actions (multi-select checkboxes + batch role change)
+- CSV export for admin reporting (users + step statuses)
+- Complete color scheme migration to #114f55 / #9ec5aa
+- Admin role protection (seed admin can't be demoted)
 
 ## Prioritized Backlog
-### P1 (Important)
-- Password strength indicator on registration
-- User notification preferences (opt-in/out per step)
-- Bulk user actions in admin
-
-### P2 (Nice to Have)
-- Dark mode support
-- Multi-language support
-- Export user data to CSV
-- Admin audit log
-
-## Next Tasks
-1. Add notification preferences for users
-2. Implement bulk actions in admin user list
-3. Add CSV export for admin reports
-4. Add dark mode toggle
+### P1: Dark mode, multi-language
+### P2: Audit log, password strength indicator, bulk user delete

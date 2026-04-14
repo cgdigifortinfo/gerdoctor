@@ -80,7 +80,7 @@ export function Login() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm"
+                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="login-email-input"
                             />
@@ -89,7 +89,7 @@ export function Login() {
                         <div>
                             <div className="flex justify-between items-center">
                                 <Label htmlFor="password" className="text-[#0A0A0A]">Password</Label>
-                                <Link to="/forgot-password" className="text-sm text-[#002FA7] hover:underline">
+                                <Link to="/forgot-password" className="text-sm text-[#114f55] hover:underline">
                                     Forgot password?
                                 </Link>
                             </div>
@@ -100,7 +100,7 @@ export function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm pr-10"
+                                    className="border-[#E4E4E7] focus:ring-[#114f55] rounded-sm pr-10"
                                     required
                                     data-testid="login-password-input"
                                 />
@@ -116,7 +116,7 @@ export function Login() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                            className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="login-submit-btn"
                         >
@@ -126,7 +126,7 @@ export function Login() {
 
                     <p className="mt-6 text-center text-[#52525B]">
                         Don't have an account?{' '}
-                        <Link to="/register" className="text-[#002FA7] hover:underline font-medium">
+                        <Link to="/register" className="text-[#114f55] hover:underline font-medium">
                             Create one
                         </Link>
                     </p>
@@ -215,7 +215,7 @@ export function Register() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="John Doe"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm"
+                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-name-input"
                             />
@@ -229,7 +229,7 @@ export function Register() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm"
+                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-email-input"
                             />
@@ -244,7 +244,7 @@ export function Register() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="At least 6 characters"
-                                    className="border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm pr-10"
+                                    className="border-[#E4E4E7] focus:ring-[#114f55] rounded-sm pr-10"
                                     required
                                     data-testid="register-password-input"
                                 />
@@ -266,7 +266,7 @@ export function Register() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Confirm your password"
-                                className="mt-2 border-[#E4E4E7] focus:ring-[#002FA7] rounded-sm"
+                                className="mt-2 border-[#E4E4E7] focus:ring-[#114f55] rounded-sm"
                                 required
                                 data-testid="register-confirm-password-input"
                             />
@@ -274,7 +274,7 @@ export function Register() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                            className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="register-submit-btn"
                         >
@@ -284,7 +284,7 @@ export function Register() {
 
                     <p className="mt-6 text-center text-[#52525B]">
                         Already have an account?{' '}
-                        <Link to="/login" className="text-[#002FA7] hover:underline font-medium">
+                        <Link to="/login" className="text-[#114f55] hover:underline font-medium">
                             Sign in
                         </Link>
                     </p>
@@ -323,7 +323,7 @@ export function ForgotPassword() {
                         If an account exists for {email}, you'll receive a password reset link.
                     </p>
                     <Link to="/login">
-                        <Button className="bg-[#002FA7] hover:bg-[#0d3d42] text-white">
+                        <Button className="bg-[#114f55] hover:bg-[#0d3d42] text-white">
                             Return to Login
                         </Button>
                     </Link>
@@ -368,7 +368,7 @@ export function ForgotPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                        className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="forgot-submit-btn"
                     >
@@ -421,7 +421,7 @@ export function ResetPassword() {
                 <div className="text-center">
                     <h1 className="text-2xl font-bold text-[#0A0A0A] mb-4">Invalid Reset Link</h1>
                     <Link to="/forgot-password">
-                        <Button className="bg-[#002FA7] hover:bg-[#0d3d42] text-white">
+                        <Button className="bg-[#114f55] hover:bg-[#0d3d42] text-white">
                             Request New Link
                         </Button>
                     </Link>
@@ -475,7 +475,7 @@ export function ResetPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                        className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="reset-submit-btn"
                     >

@@ -782,8 +782,13 @@ async def admin_bulk_update_role(data: BulkRoleUpdate, request: Request):
         raise HTTPException(status_code=400, detail="Invalid role")
     
     updated = 0
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
     for uid in data.user_ids:
         try:
+            # Skip the primary admin account
+            target = await db.users.find_one({"_id": ObjectId(uid)})
+            if target and target["email"] == admin_email and data.role != "admin":
+                continue
             result = await db.users.update_one(
                 {"_id": ObjectId(uid)},
                 {"$set": {"role": data.role}}
@@ -834,9 +839,14 @@ async def admin_export_users_csv(request: Request):
 
 @admin_router.put("/users/{user_id}/role")
 async def admin_update_user_role(user_id: str, role: str, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
     if role not in ["user", "admin", "partner"]:
         raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Protect the admin seed account from role changes
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if target and target["email"] == os.environ.get("ADMIN_EMAIL", "admin@example.com") and role != "admin":
+        raise HTTPException(status_code=400, detail="Cannot change the primary admin's role")
     
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": role}})
     return {"message": "User role updated"}
