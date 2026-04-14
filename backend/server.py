@@ -142,7 +142,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
         "sub": user_id,
         "email": email,
         "role": role,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=2),
         "type": "access"
     }
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
@@ -353,8 +353,8 @@ async def register(data: UserRegister, response: Response):
     access_token = create_access_token(user_id, email, "user")
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     return {"id": user_id, "email": email, "name": data.name, "role": "user"}
 
@@ -393,8 +393,8 @@ async def login(data: UserLogin, request: Request, response: Response):
     access_token = create_access_token(user_id, email, user["role"])
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     return {"id": user_id, "email": user["email"], "name": user["name"], "role": user["role"]}
 
@@ -424,7 +424,7 @@ async def refresh_token(request: Request, response: Response):
         
         user_id = str(user["_id"])
         access_token = create_access_token(user_id, user["email"], user["role"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
         return {"message": "Token refreshed"}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
@@ -1230,9 +1230,14 @@ async def root():
 app.include_router(api_router)
 
 # CORS
+frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+cors_origins = [frontend_url, "http://localhost:3000"]
+if frontend_url.startswith("https://"):
+    cors_origins.append(frontend_url.replace("https://", "http://"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000")],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1379,6 +1384,50 @@ async def startup():
         await db.partners.insert_many(sample_partners)
         logger.info("Sample partners created")
     
+    # Seed default CMS content if none exist
+    for section, defaults in {
+        "home": {"hero_title": "Transform Your Business Journey", "hero_subtitle": "A guided experience to connect you with the right partners and accelerate your growth.", "hero_cta": "Get Started"},
+        "about": {"title": "About Us", "description": "We help businesses connect with the right partners through a streamlined onboarding process. Our platform simplifies the journey from initial contact to successful partnership.", "mission": "Our mission is to simplify business partnerships and create meaningful connections that drive growth and innovation."},
+        "partners": {"title": "Our Partners", "description": "Work with industry-leading partners to achieve your goals."}
+    }.items():
+        existing_cms = await db.cms_content.find_one({"section": section})
+        if not existing_cms:
+            await db.cms_content.insert_one({"section": section, "content": defaults, "created_at": datetime.now(timezone.utc).isoformat()})
+            logger.info(f"CMS content seeded: {section}")
+    
+    # Seed a demo user if none exist (besides admin)
+    demo_email = "demo@example.com"
+    demo_password = "Demo123!"
+    existing_demo = await db.users.find_one({"email": demo_email})
+    if not existing_demo:
+        demo_hash = hash_password(demo_password)
+        result = await db.users.insert_one({
+            "email": demo_email,
+            "password_hash": demo_hash,
+            "name": "Demo User",
+            "role": "user",
+            "profile": {
+                "phone": "+1 555 123 4567",
+                "address": "123 Main Street",
+                "city": "Berlin",
+                "country": "Germany"
+            },
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        demo_id = str(result.inserted_id)
+        # Create progress entries for demo user
+        steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+        for step in steps:
+            await db.user_progress.insert_one({
+                "user_id": demo_id,
+                "step_id": str(step["_id"]),
+                "status": "pending",
+                "data": {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        logger.info(f"Demo user created: {demo_email}")
+    
     # Write test credentials
     os.makedirs("/app/memory", exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
@@ -1389,14 +1438,23 @@ async def startup():
 - Password: {admin_password}
 - Role: admin
 
+## Demo User Account
+- Email: demo@example.com
+- Password: Demo123!
+- Role: user
+
+## Seeded Data
+- 4 default steps (Profile, Partner Selection, Application, Review)
+- 3 sample partners (TechVenture, Global Consulting, Innovation Labs)
+- CMS content for home, about, partners sections
+- Demo user with profile data
+
 ## Auth Endpoints
 - POST /api/auth/register - Register new user
 - POST /api/auth/login - Login
 - POST /api/auth/logout - Logout
 - GET /api/auth/me - Get current user
 - POST /api/auth/refresh - Refresh token
-- POST /api/auth/forgot-password - Request password reset
-- POST /api/auth/reset-password - Reset password
 """)
     logger.info("Test credentials written to /app/memory/test_credentials.md")
 
