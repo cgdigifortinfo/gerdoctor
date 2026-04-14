@@ -673,6 +673,33 @@ async def admin_get_users(request: Request):
         })
     return result
 
+# Admin Search Users - MUST be before /users/{user_id}
+@admin_router.get("/users/search")
+async def admin_search_users(request: Request, q: str = "", role: str = ""):
+    await require_role("admin")(request)
+    
+    query = {}
+    if q:
+        query["$or"] = [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"email": {"$regex": q, "$options": "i"}}
+        ]
+    if role and role != "all":
+        query["role"] = role
+    
+    users = await db.users.find(query, {"password_hash": 0}).to_list(1000)
+    result = []
+    for u in users:
+        result.append({
+            "id": str(u["_id"]),
+            "email": u["email"],
+            "name": u["name"],
+            "role": u["role"],
+            "created_at": u.get("created_at"),
+            "partner_id": u.get("partner_id")
+        })
+    return result
+
 @admin_router.get("/users/{user_id}")
 async def admin_get_user(user_id: str, request: Request):
     await require_role("admin")(request)
@@ -836,12 +863,95 @@ async def admin_delete_partner(partner_id: str, request: Request):
 async def admin_link_partner_user(partner_id: str, user_id: str, request: Request):
     await require_role("admin")(request)
     
+    # Verify user exists
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify partner exists
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    # Unlink previous user if any
+    old_user_id = partner.get("user_id")
+    if old_user_id:
+        await db.users.update_one(
+            {"_id": ObjectId(old_user_id)},
+            {"$set": {"role": "user"}, "$unset": {"partner_id": ""}}
+        )
+    
     # Update partner with user link
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": {"user_id": user_id}})
     # Update user role to partner
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": "partner", "partner_id": partner_id}})
     
-    return {"message": "Partner linked to user"}
+    return {"message": "Partner linked to user", "user_name": target_user["name"]}
+
+@admin_router.put("/partners/{partner_id}/unlink-user")
+async def admin_unlink_partner_user(partner_id: str, request: Request):
+    await require_role("admin")(request)
+    
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    
+    old_user_id = partner.get("user_id")
+    if old_user_id:
+        await db.users.update_one(
+            {"_id": ObjectId(old_user_id)},
+            {"$set": {"role": "user"}, "$unset": {"partner_id": ""}}
+        )
+    
+    await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$unset": {"user_id": ""}})
+    return {"message": "Partner unlinked from user"}
+
+# Admin Analytics
+@admin_router.get("/analytics")
+async def admin_get_analytics(request: Request):
+    await require_role("admin")(request)
+    
+    total_users = await db.users.count_documents({"role": "user"})
+    total_partners = await db.partners.count_documents({"is_active": True})
+    total_submissions = await db.partner_submissions.count_documents({})
+    
+    # Step completion rates
+    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    step_analytics = []
+    for step in steps:
+        step_id = str(step["_id"])
+        total = await db.user_progress.count_documents({"step_id": step_id})
+        completed = await db.user_progress.count_documents({"step_id": step_id, "status": "completed"})
+        in_progress = await db.user_progress.count_documents({"step_id": step_id, "status": "in_progress"})
+        step_analytics.append({
+            "step_id": step_id,
+            "title": step["title"],
+            "order": step["order"],
+            "total": total,
+            "completed": completed,
+            "in_progress": in_progress,
+            "completion_rate": round((completed / total * 100) if total > 0 else 0, 1)
+        })
+    
+    # Users by role
+    admin_count = await db.users.count_documents({"role": "admin"})
+    partner_count = await db.users.count_documents({"role": "partner"})
+    
+    # Recent registrations (last 7 days)
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    recent_users = await db.users.count_documents({
+        "created_at": {"$gte": seven_days_ago}
+    })
+    
+    return {
+        "total_users": total_users,
+        "total_partners": total_partners,
+        "total_submissions": total_submissions,
+        "admin_count": admin_count,
+        "partner_count": partner_count,
+        "recent_registrations": recent_users,
+        "step_analytics": step_analytics
+    }
 
 # ========================
 # PARTNER DASHBOARD ROUTES

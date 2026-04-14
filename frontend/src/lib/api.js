@@ -72,6 +72,7 @@ export const adminAPI = {
     // Users
     getUsers: () => api.get('/admin/users'),
     getUser: (id) => api.get(`/admin/users/${id}`),
+    searchUsers: (q, role) => api.get(`/admin/users/search?q=${encodeURIComponent(q || '')}&role=${encodeURIComponent(role || '')}`),
     updateUserProgress: (userId, step_id, status, data) => 
         api.put(`/admin/users/${userId}/progress`, { step_id, status, data }),
     updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
@@ -88,6 +89,14 @@ export const adminAPI = {
     updatePartner: (id, data) => api.put(`/admin/partners/${id}`, data),
     deletePartner: (id) => api.delete(`/admin/partners/${id}`),
     linkPartnerUser: (partnerId, userId) => api.put(`/admin/partners/${partnerId}/link-user?user_id=${userId}`),
+    unlinkPartnerUser: (partnerId) => api.put(`/admin/partners/${partnerId}/unlink-user`),
+    
+    // Analytics
+    getAnalytics: () => api.get('/admin/analytics'),
+    
+    // CMS
+    getCmsContent: (section) => api.get(`/cms/${section}`),
+    updateCmsContent: (section, content) => api.put(`/cms/${section}`, { section, content }),
 };
 
 // Partner Dashboard APIs

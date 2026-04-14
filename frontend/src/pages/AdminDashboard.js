@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminAPI, formatApiError } from '../lib/api';
@@ -8,39 +8,65 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Switch } from '../components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Progress } from '../components/ui/progress';
 import { 
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
-    Eye, X, CaretDown, CaretUp
+    Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
+    LinkBreak, UserPlus, ArrowRight, Check
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('users');
+    const [activeTab, setActiveTab] = useState('analytics');
     const [users, setUsers] = useState([]);
     const [steps, setSteps] = useState([]);
     const [partners, setPartners] = useState([]);
+    const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // User management state
     const [selectedUser, setSelectedUser] = useState(null);
-    const [editingStep, setEditingStep] = useState(null);
-    const [editingPartner, setEditingPartner] = useState(null);
-    const [showStepDialog, setShowStepDialog] = useState(false);
-    const [showPartnerDialog, setShowPartnerDialog] = useState(false);
     const [showUserDialog, setShowUserDialog] = useState(false);
+    const [userSearch, setUserSearch] = useState('');
+    const [userRoleFilter, setUserRoleFilter] = useState('all');
+
+    // Step management state
+    const [editingStep, setEditingStep] = useState(null);
+    const [showStepDialog, setShowStepDialog] = useState(false);
+
+    // Partner management state
+    const [editingPartner, setEditingPartner] = useState(null);
+    const [showPartnerDialog, setShowPartnerDialog] = useState(false);
+    const [showLinkDialog, setShowLinkDialog] = useState(null);
+
+    // CMS state
+    const [cmsHome, setCmsHome] = useState({});
+    const [cmsAbout, setCmsAbout] = useState({});
+    const [cmsPartners, setCmsPartners] = useState({});
+    const [cmsSaving, setCmsSaving] = useState(false);
 
     const loadData = useCallback(async () => {
         try {
-            const [usersRes, stepsRes, partnersRes] = await Promise.all([
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes] = await Promise.all([
                 adminAPI.getUsers(),
                 adminAPI.getSteps(),
-                adminAPI.getPartners()
+                adminAPI.getPartners(),
+                adminAPI.getAnalytics(),
+                adminAPI.getCmsContent('home'),
+                adminAPI.getCmsContent('about'),
+                adminAPI.getCmsContent('partners')
             ]);
             setUsers(usersRes.data);
             setSteps(stepsRes.data);
             setPartners(partnersRes.data);
+            setAnalytics(analyticsRes.data);
+            setCmsHome(homeRes.data.content || {});
+            setCmsAbout(aboutRes.data.content || {});
+            setCmsPartners(partnersContentRes.data.content || {});
         } catch (error) {
             toast.error('Failed to load data');
         } finally {
@@ -57,6 +83,18 @@ export default function AdminDashboard() {
         navigate('/');
     };
 
+    // Filtered users
+    const filteredUsers = useMemo(() => {
+        return users.filter(u => {
+            const matchesSearch = !userSearch || 
+                u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                u.email.toLowerCase().includes(userSearch.toLowerCase());
+            const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+            return matchesSearch && matchesRole;
+        });
+    }, [users, userSearch, userRoleFilter]);
+
+    // User handlers
     const handleViewUser = async (userId) => {
         try {
             const response = await adminAPI.getUser(userId);
@@ -77,7 +115,19 @@ export default function AdminDashboard() {
         }
     };
 
-    // Step Management
+    const handleUpdateUserProgress = async (userId, stepId, newStatus) => {
+        try {
+            await adminAPI.updateUserProgress(userId, stepId, newStatus, {});
+            toast.success('Progress updated');
+            const response = await adminAPI.getUser(userId);
+            setSelectedUser(response.data);
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    // Step handlers
     const handleSaveStep = async (stepData) => {
         try {
             if (editingStep?.id) {
@@ -106,7 +156,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // Partner Management
+    // Partner handlers
     const handleSavePartner = async (partnerData) => {
         try {
             if (editingPartner?.id) {
@@ -135,6 +185,40 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleLinkUser = async (partnerId, userId) => {
+        try {
+            await adminAPI.linkPartnerUser(partnerId, userId);
+            toast.success('User linked to partner');
+            setShowLinkDialog(null);
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleUnlinkUser = async (partnerId) => {
+        try {
+            await adminAPI.unlinkPartnerUser(partnerId);
+            toast.success('User unlinked from partner');
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    // CMS handlers
+    const handleSaveCms = async (section, content) => {
+        setCmsSaving(true);
+        try {
+            await adminAPI.updateCmsContent(section, content);
+            toast.success(`${section} content updated`);
+        } catch (error) {
+            toast.error(formatApiError(error));
+        } finally {
+            setCmsSaving(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
@@ -158,16 +242,8 @@ export default function AdminDashboard() {
                             </span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-[#52525B] hidden sm:block">
-                                {user?.name}
-                            </span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="text-[#52525B]"
-                                data-testid="admin-logout-btn"
-                            >
+                            <span className="text-sm text-[#52525B] hidden sm:block">{user?.name}</span>
+                            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-[#52525B]" data-testid="admin-logout-btn">
                                 <SignOut size={20} />
                             </Button>
                         </div>
@@ -177,7 +253,11 @@ export default function AdminDashboard() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-6 bg-white border border-[#E4E4E7]">
+                    <TabsList className="mb-6 bg-white border border-[#E4E4E7] flex-wrap h-auto gap-1 p-1">
+                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                            <ChartBar size={18} className="mr-2" />
+                            Dashboard
+                        </TabsTrigger>
                         <TabsTrigger value="users" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
                             <Users size={18} className="mr-2" />
                             Users
@@ -190,13 +270,101 @@ export default function AdminDashboard() {
                             <Buildings size={18} className="mr-2" />
                             Partners
                         </TabsTrigger>
+                        <TabsTrigger value="cms" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                            <Notebook size={18} className="mr-2" />
+                            CMS
+                        </TabsTrigger>
                     </TabsList>
 
-                    {/* Users Tab */}
+                    {/* ============ ANALYTICS TAB ============ */}
+                    <TabsContent value="analytics">
+                        {analytics && (
+                            <div className="space-y-6">
+                                {/* Stats Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <StatCard label="Total Users" value={analytics.total_users} />
+                                    <StatCard label="Active Partners" value={analytics.total_partners} />
+                                    <StatCard label="Submissions" value={analytics.total_submissions} />
+                                    <StatCard label="New (7 days)" value={analytics.recent_registrations} />
+                                </div>
+
+                                {/* Role Distribution */}
+                                <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
+                                    <h3 className="text-lg font-semibold text-[#0A0A0A] mb-4">User Distribution</h3>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
+                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.total_users}</p>
+                                            <p className="text-sm text-[#52525B]">Regular Users</p>
+                                        </div>
+                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
+                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.partner_count}</p>
+                                            <p className="text-sm text-[#52525B]">Partner Users</p>
+                                        </div>
+                                        <div className="text-center p-4 bg-[#FAFAFA] rounded-sm">
+                                            <p className="text-2xl font-black text-[#0A0A0A]">{analytics.admin_count}</p>
+                                            <p className="text-sm text-[#52525B]">Admins</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Step Completion Rates */}
+                                <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
+                                    <h3 className="text-lg font-semibold text-[#0A0A0A] mb-4">Step Completion Rates</h3>
+                                    <div className="space-y-4">
+                                        {analytics.step_analytics?.map((step) => (
+                                            <div key={step.step_id} className="space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-6 h-6 rounded-full bg-[#002FA7] text-white flex items-center justify-center text-xs font-bold">
+                                                            {step.order}
+                                                        </span>
+                                                        <span className="font-medium text-sm text-[#0A0A0A]">{step.title}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-xs text-[#52525B]">
+                                                        <span>{step.completed}/{step.total} completed</span>
+                                                        <span className="font-bold text-[#002FA7]">{step.completion_rate}%</span>
+                                                    </div>
+                                                </div>
+                                                <Progress value={step.completion_rate} className="h-2" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </TabsContent>
+
+                    {/* ============ USERS TAB ============ */}
                     <TabsContent value="users">
                         <div className="bg-white border border-[#E4E4E7] rounded-sm">
                             <div className="p-4 border-b border-[#E4E4E7]">
-                                <h2 className="text-lg font-semibold text-[#0A0A0A]">User Management</h2>
+                                <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+                                    <h2 className="text-lg font-semibold text-[#0A0A0A]">User Management</h2>
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                        <div className="relative flex-1 sm:w-64">
+                                            <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B]" />
+                                            <Input
+                                                placeholder="Search by name or email..."
+                                                value={userSearch}
+                                                onChange={(e) => setUserSearch(e.target.value)}
+                                                className="pl-9 border-[#E4E4E7] rounded-sm"
+                                                data-testid="user-search-input"
+                                            />
+                                        </div>
+                                        <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+                                            <SelectTrigger className="w-full sm:w-36 border-[#E4E4E7]" data-testid="user-role-filter">
+                                                <SelectValue placeholder="All Roles" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Roles</SelectItem>
+                                                <SelectItem value="user">User</SelectItem>
+                                                <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="partner">Partner</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-[#52525B] mt-2">{filteredUsers.length} of {users.length} users</p>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
@@ -205,19 +373,17 @@ export default function AdminDashboard() {
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Name</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Role</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Joined</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {users.map((u) => (
+                                        {filteredUsers.map((u) => (
                                             <tr key={u.id} className="border-t border-[#E4E4E7] table-row-hover">
-                                                <td className="px-4 py-3 text-sm text-[#0A0A0A]">{u.name}</td>
+                                                <td className="px-4 py-3 text-sm text-[#0A0A0A] font-medium">{u.name}</td>
                                                 <td className="px-4 py-3 text-sm text-[#52525B]">{u.email}</td>
                                                 <td className="px-4 py-3">
-                                                    <Select 
-                                                        value={u.role} 
-                                                        onValueChange={(val) => handleUpdateUserRole(u.id, val)}
-                                                    >
+                                                    <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
                                                         <SelectTrigger className="w-32 h-8 text-xs border-[#E4E4E7]">
                                                             <SelectValue />
                                                         </SelectTrigger>
@@ -228,86 +394,65 @@ export default function AdminDashboard() {
                                                         </SelectContent>
                                                     </Select>
                                                 </td>
+                                                <td className="px-4 py-3 text-sm text-[#52525B]">
+                                                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
+                                                </td>
                                                 <td className="px-4 py-3">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleViewUser(u.id)}
-                                                        data-testid={`view-user-${u.id}`}
-                                                    >
-                                                        <Eye size={18} />
+                                                    <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-[#E4E4E7]" data-testid={`view-user-${u.id}`}>
+                                                        <Eye size={16} className="mr-1" /> View
                                                     </Button>
                                                 </td>
                                             </tr>
                                         ))}
+                                        {filteredUsers.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-4 py-8 text-center text-[#52525B]">No users found</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </TabsContent>
 
-                    {/* Steps Tab */}
+                    {/* ============ STEPS TAB ============ */}
                     <TabsContent value="steps">
                         <div className="bg-white border border-[#E4E4E7] rounded-sm">
                             <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-[#0A0A0A]">Step Management</h2>
-                                <Button
-                                    onClick={() => {
-                                        setEditingStep(null);
-                                        setShowStepDialog(true);
-                                    }}
-                                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
-                                    data-testid="add-step-btn"
-                                >
-                                    <Plus size={18} className="mr-2" />
-                                    Add Step
+                                <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="add-step-btn">
+                                    <Plus size={18} className="mr-2" /> Add Step
                                 </Button>
                             </div>
                             <div className="p-4 space-y-4">
                                 {steps.sort((a, b) => a.order - b.order).map((step) => (
                                     <div key={step.id} className="border border-[#E4E4E7] rounded-sm p-4">
                                         <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-8 h-8 rounded-full bg-[#002FA7] text-white flex items-center justify-center text-sm font-bold">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="w-8 h-8 rounded-full bg-[#002FA7] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                                                         {step.order}
                                                     </span>
                                                     <h3 className="font-semibold text-[#0A0A0A]">{step.title}</h3>
-                                                    <span className={`px-2 py-0.5 text-xs rounded-sm ${
-                                                        step.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                                                    }`}>
+                                                    <span className={`px-2 py-0.5 text-xs rounded-sm ${step.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                         {step.is_active ? 'Active' : 'Inactive'}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm text-[#52525B] mt-1 ml-10">{step.description}</p>
-                                                <div className="flex gap-4 mt-2 ml-10 text-xs text-[#52525B]">
-                                                    <span>Type: {step.step_type}</span>
-                                                    <span>Fields: {step.fields?.length || 0}</span>
+                                                <div className="flex gap-4 mt-2 ml-10 text-xs text-[#52525B] flex-wrap">
+                                                    <span>Type: <strong>{step.step_type}</strong></span>
+                                                    <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
+                                                    {step.email_on_enter && <span className="text-[#002FA7]">Email on enter</span>}
+                                                    {step.email_on_edit && <span className="text-[#002FA7]">Email on edit</span>}
+                                                    {step.email_on_leave && <span className="text-[#002FA7]">Email on leave</span>}
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setEditingStep(step);
-                                                        setShowStepDialog(true);
-                                                    }}
-                                                    className="border-[#E4E4E7] text-[#002FA7] hover:bg-blue-50"
-                                                    data-testid={`edit-step-${step.id}`}
-                                                >
-                                                    <Pencil size={16} className="mr-1" />
-                                                    Edit
+                                            <div className="flex gap-2 flex-shrink-0 ml-4">
+                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-[#E4E4E7] text-[#002FA7] hover:bg-blue-50" data-testid={`edit-step-${step.id}`}>
+                                                    <Pencil size={16} className="mr-1" /> Edit
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteStep(step.id)}
-                                                    className="border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
-                                                    data-testid={`delete-step-${step.id}`}
-                                                >
-                                                    <Trash size={16} className="mr-1" />
-                                                    Delete
+                                                <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>
+                                                    <Trash size={16} className="mr-1" /> Delete
                                                 </Button>
                                             </div>
                                         </div>
@@ -317,21 +462,13 @@ export default function AdminDashboard() {
                         </div>
                     </TabsContent>
 
-                    {/* Partners Tab */}
+                    {/* ============ PARTNERS TAB ============ */}
                     <TabsContent value="partners">
                         <div className="bg-white border border-[#E4E4E7] rounded-sm">
                             <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-[#0A0A0A]">Partner Management</h2>
-                                <Button
-                                    onClick={() => {
-                                        setEditingPartner(null);
-                                        setShowPartnerDialog(true);
-                                    }}
-                                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
-                                    data-testid="add-partner-btn"
-                                >
-                                    <Plus size={18} className="mr-2" />
-                                    Add Partner
+                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="add-partner-btn">
+                                    <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
                             </div>
                             <div className="overflow-x-auto">
@@ -340,61 +477,107 @@ export default function AdminDashboard() {
                                         <tr>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Partner</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Category</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Linked User</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Status</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {partners.map((partner) => (
-                                            <tr key={partner.id} className="border-t border-[#E4E4E7] table-row-hover">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        {partner.logo_url && (
-                                                            <img src={partner.logo_url} alt="" className="w-10 h-10 rounded-sm object-cover" />
-                                                        )}
-                                                        <div>
-                                                            <p className="font-medium text-[#0A0A0A]">{partner.name}</p>
-                                                            <p className="text-xs text-[#52525B]">{partner.contact_email}</p>
+                                        {partners.map((partner) => {
+                                            const linkedUser = users.find(u => u.id === partner.user_id);
+                                            return (
+                                                <tr key={partner.id} className="border-t border-[#E4E4E7] table-row-hover">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            {partner.logo_url && <img src={partner.logo_url} alt="" className="w-10 h-10 rounded-sm object-cover" />}
+                                                            <div>
+                                                                <p className="font-medium text-[#0A0A0A]">{partner.name}</p>
+                                                                <p className="text-xs text-[#52525B]">{partner.contact_email}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-[#52525B]">{partner.category || '-'}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 text-xs rounded-sm ${
-                                                        partner.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                                                    }`}>
-                                                        {partner.is_active ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                setEditingPartner(partner);
-                                                                setShowPartnerDialog(true);
-                                                            }}
-                                                            data-testid={`edit-partner-${partner.id}`}
-                                                        >
-                                                            <Pencil size={18} />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleDeletePartner(partner.id)}
-                                                            className="text-red-500 hover:text-red-700"
-                                                            data-testid={`delete-partner-${partner.id}`}
-                                                        >
-                                                            <Trash size={18} />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-[#52525B]">{partner.category || '-'}</td>
+                                                    <td className="px-4 py-3">
+                                                        {linkedUser ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm text-[#0A0A0A]">{linkedUser.name}</span>
+                                                                <Button variant="ghost" size="sm" onClick={() => handleUnlinkUser(partner.id)} className="text-red-500 hover:text-red-700 h-6 px-1" title="Unlink user" data-testid={`unlink-partner-${partner.id}`}>
+                                                                    <LinkBreak size={14} />
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[#002FA7] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
+                                                                <UserPlus size={14} className="mr-1" /> Link User
+                                                            </Button>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2 py-1 text-xs rounded-sm ${partner.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                            {partner.is_active ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex gap-2">
+                                                            <Button variant="ghost" size="sm" onClick={() => { setEditingPartner(partner); setShowPartnerDialog(true); }} data-testid={`edit-partner-${partner.id}`}>
+                                                                <Pencil size={16} />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => handleDeletePartner(partner.id)} className="text-red-500 hover:text-red-700" data-testid={`delete-partner-${partner.id}`}>
+                                                                <Trash size={16} />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </TabsContent>
+
+                    {/* ============ CMS TAB ============ */}
+                    <TabsContent value="cms">
+                        <div className="space-y-6">
+                            {/* Home Section */}
+                            <CmsSection
+                                title="Home / Hero Section"
+                                fields={[
+                                    { key: 'hero_title', label: 'Hero Title', type: 'text', placeholder: 'Transform Your Business Journey' },
+                                    { key: 'hero_subtitle', label: 'Hero Subtitle', type: 'textarea', placeholder: 'A guided experience to connect you with the right partners' },
+                                    { key: 'hero_cta', label: 'CTA Button Text', type: 'text', placeholder: 'Get Started' }
+                                ]}
+                                content={cmsHome}
+                                onChange={setCmsHome}
+                                onSave={() => handleSaveCms('home', cmsHome)}
+                                saving={cmsSaving}
+                            />
+
+                            {/* About Section */}
+                            <CmsSection
+                                title="About Us Section"
+                                fields={[
+                                    { key: 'title', label: 'Section Title', type: 'text', placeholder: 'About Us' },
+                                    { key: 'description', label: 'Description', type: 'textarea', placeholder: 'We help businesses connect...' },
+                                    { key: 'mission', label: 'Mission Statement', type: 'textarea', placeholder: 'Our mission is to...' }
+                                ]}
+                                content={cmsAbout}
+                                onChange={setCmsAbout}
+                                onSave={() => handleSaveCms('about', cmsAbout)}
+                                saving={cmsSaving}
+                            />
+
+                            {/* Partners Section */}
+                            <CmsSection
+                                title="Partners Section"
+                                fields={[
+                                    { key: 'title', label: 'Section Title', type: 'text', placeholder: 'Our Partners' },
+                                    { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Work with industry-leading partners...' }
+                                ]}
+                                content={cmsPartners}
+                                onChange={setCmsPartners}
+                                onSave={() => handleSaveCms('partners', cmsPartners)}
+                                saving={cmsSaving}
+                            />
                         </div>
                     </TabsContent>
                 </Tabs>
@@ -427,6 +610,22 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
+                            {/* Profile Data */}
+                            {selectedUser.profile && Object.keys(selectedUser.profile).length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-3">Profile</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {Object.entries(selectedUser.profile).map(([key, value]) => (
+                                            <div key={key} className="p-2 bg-[#FAFAFA] rounded-sm">
+                                                <span className="text-xs text-[#52525B] uppercase">{key.replace(/_/g, ' ')}</span>
+                                                <p className="text-sm font-medium">{String(value)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Progress with edit ability */}
                             <div>
                                 <h4 className="font-semibold mb-3">Progress</h4>
                                 <div className="space-y-2">
@@ -434,19 +633,34 @@ export default function AdminDashboard() {
                                         const step = steps.find(s => s.id === p.step_id);
                                         return (
                                             <div key={p.step_id} className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-sm">
-                                                <span>{step?.title || 'Unknown Step'}</span>
-                                                <span className={`px-2 py-1 text-xs rounded-sm ${
-                                                    p.status === 'completed' ? 'badge-completed' :
-                                                    p.status === 'in_progress' ? 'badge-in-progress' : 'badge-pending'
-                                                }`}>
-                                                    {p.status}
-                                                </span>
+                                                <span className="text-sm">{step?.title || 'Unknown Step'}</span>
+                                                <Select
+                                                    value={p.status}
+                                                    onValueChange={(val) => handleUpdateUserProgress(selectedUser.id, p.step_id, val)}
+                                                >
+                                                    <SelectTrigger className={`w-36 h-8 text-xs border-0 ${
+                                                        p.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                        p.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-gray-100 text-gray-700'
+                                                    }`} data-testid={`user-progress-${p.step_id}`}>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pending">Pending</SelectItem>
+                                                        <SelectItem value="in_progress">In Progress</SelectItem>
+                                                        <SelectItem value="completed">Completed</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         );
                                     })}
+                                    {(!selectedUser.progress || selectedUser.progress.length === 0) && (
+                                        <p className="text-sm text-[#52525B] p-3">No progress data yet</p>
+                                    )}
                                 </div>
                             </div>
 
+                            {/* Submissions */}
                             {selectedUser.submissions?.length > 0 && (
                                 <div>
                                     <h4 className="font-semibold mb-3">Partner Submissions</h4>
@@ -473,10 +687,7 @@ export default function AdminDashboard() {
             {/* Step Edit Dialog */}
             <StepDialog
                 open={showStepDialog}
-                onClose={() => {
-                    setShowStepDialog(false);
-                    setEditingStep(null);
-                }}
+                onClose={() => { setShowStepDialog(false); setEditingStep(null); }}
                 step={editingStep}
                 onSave={handleSaveStep}
                 existingSteps={steps}
@@ -485,29 +696,135 @@ export default function AdminDashboard() {
             {/* Partner Edit Dialog */}
             <PartnerDialog
                 open={showPartnerDialog}
-                onClose={() => {
-                    setShowPartnerDialog(false);
-                    setEditingPartner(null);
-                }}
+                onClose={() => { setShowPartnerDialog(false); setEditingPartner(null); }}
                 partner={editingPartner}
                 onSave={handleSavePartner}
             />
+
+            {/* Link User to Partner Dialog */}
+            <LinkUserDialog
+                open={!!showLinkDialog}
+                onClose={() => setShowLinkDialog(null)}
+                partner={showLinkDialog}
+                users={users.filter(u => u.role === 'user')}
+                onLink={handleLinkUser}
+            />
         </div>
+    );
+}
+
+// ============ SUBCOMPONENTS ============
+
+function StatCard({ label, value }) {
+    return (
+        <div className="bg-white border border-[#E4E4E7] rounded-sm p-6">
+            <p className="text-sm text-[#52525B] mb-1">{label}</p>
+            <p className="text-3xl font-black text-[#0A0A0A]">{value}</p>
+        </div>
+    );
+}
+
+function CmsSection({ title, fields, content, onChange, onSave, saving }) {
+    return (
+        <div className="bg-white border border-[#E4E4E7] rounded-sm">
+            <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
+                <h3 className="font-semibold text-[#0A0A0A]">{title}</h3>
+                <Button
+                    onClick={onSave}
+                    disabled={saving}
+                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                    data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+            </div>
+            <div className="p-4 space-y-4">
+                {fields.map((field) => (
+                    <div key={field.key}>
+                        <Label className="text-[#0A0A0A]">{field.label}</Label>
+                        {field.type === 'textarea' ? (
+                            <Textarea
+                                value={content[field.key] || ''}
+                                onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
+                                placeholder={field.placeholder}
+                                className="mt-1 border-[#E4E4E7] rounded-sm min-h-[80px]"
+                                data-testid={`cms-field-${field.key}`}
+                            />
+                        ) : (
+                            <Input
+                                value={content[field.key] || ''}
+                                onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
+                                placeholder={field.placeholder}
+                                className="mt-1 border-[#E4E4E7] rounded-sm"
+                                data-testid={`cms-field-${field.key}`}
+                            />
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function LinkUserDialog({ open, onClose, partner, users, onLink }) {
+    const [search, setSearch] = useState('');
+    const filtered = users.filter(u =>
+        u.name.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="max-w-md max-h-[70vh]">
+                <DialogHeader>
+                    <DialogTitle>Link User to {partner?.name}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="relative">
+                        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B]" />
+                        <Input
+                            placeholder="Search users..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-9 border-[#E4E4E7] rounded-sm"
+                            data-testid="link-user-search"
+                        />
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                        {filtered.map((u) => (
+                            <div key={u.id} className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-sm hover:bg-gray-100 transition-colors">
+                                <div>
+                                    <p className="font-medium text-sm">{u.name}</p>
+                                    <p className="text-xs text-[#52525B]">{u.email}</p>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    onClick={() => onLink(partner?.id, u.id)}
+                                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                    data-testid={`link-select-user-${u.id}`}
+                                >
+                                    <LinkIcon size={14} className="mr-1" /> Link
+                                </Button>
+                            </div>
+                        ))}
+                        {filtered.length === 0 && (
+                            <p className="text-sm text-center text-[#52525B] py-4">
+                                No available users found
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
 // Step Dialog Component
 function StepDialog({ open, onClose, step, onSave, existingSteps }) {
     const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        order: existingSteps.length + 1,
-        step_type: 'form',
-        fields: [],
-        email_on_enter: false,
-        email_on_edit: false,
-        email_on_leave: false,
-        is_active: true
+        title: '', description: '', order: existingSteps.length + 1,
+        step_type: 'form', fields: [],
+        email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
     });
     const [showFieldForm, setShowFieldForm] = useState(false);
     const [editingField, setEditingField] = useState(null);
@@ -515,11 +832,9 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
     useEffect(() => {
         if (step) {
             setFormData({
-                title: step.title || '',
-                description: step.description || '',
+                title: step.title || '', description: step.description || '',
                 order: step.order || existingSteps.length + 1,
-                step_type: step.step_type || 'form',
-                fields: step.fields || [],
+                step_type: step.step_type || 'form', fields: step.fields || [],
                 email_on_enter: step.email_on_enter || false,
                 email_on_edit: step.email_on_edit || false,
                 email_on_leave: step.email_on_leave || false,
@@ -527,23 +842,14 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
             });
         } else {
             setFormData({
-                title: '',
-                description: '',
-                order: existingSteps.length + 1,
-                step_type: 'form',
-                fields: [],
-                email_on_enter: false,
-                email_on_edit: false,
-                email_on_leave: false,
-                is_active: true
+                title: '', description: '', order: existingSteps.length + 1,
+                step_type: 'form', fields: [],
+                email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
             });
         }
     }, [step, existingSteps.length]);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSave(formData);
-    };
+    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
 
     const handleAddField = (field) => {
         if (editingField !== null) {
@@ -571,42 +877,20 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                             <Label>Title</Label>
-                            <Input
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="mt-1"
-                                required
-                                data-testid="step-title-input"
-                            />
+                            <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" />
                         </div>
                         <div className="col-span-2">
                             <Label>Description</Label>
-                            <Textarea
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                className="mt-1"
-                                required
-                                data-testid="step-description-input"
-                            />
+                            <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" />
                         </div>
                         <div>
                             <Label>Order</Label>
-                            <Input
-                                type="number"
-                                min="1"
-                                value={formData.order}
-                                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-                                className="mt-1"
-                                required
-                                data-testid="step-order-input"
-                            />
+                            <Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required data-testid="step-order-input" />
                         </div>
                         <div>
                             <Label>Type</Label>
                             <Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}>
-                                <SelectTrigger className="mt-1" data-testid="step-type-select">
-                                    <SelectValue />
-                                </SelectTrigger>
+                                <SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="form">Form</SelectItem>
                                     <SelectItem value="partner_selection">Partner Selection</SelectItem>
@@ -616,59 +900,31 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                         </div>
                     </div>
 
-                    {/* Email Notifications */}
                     <div className="space-y-3">
                         <Label>Email Notifications</Label>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">On entering step</span>
-                                <Switch
-                                    checked={formData.email_on_enter}
-                                    onCheckedChange={(val) => setFormData({ ...formData, email_on_enter: val })}
-                                />
+                        {[
+                            ['email_on_enter', 'On entering step'],
+                            ['email_on_edit', 'On editing step'],
+                            ['email_on_leave', 'On leaving step']
+                        ].map(([key, label]) => (
+                            <div key={key} className="flex items-center justify-between">
+                                <span className="text-sm">{label}</span>
+                                <Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} />
                             </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">On editing step</span>
-                                <Switch
-                                    checked={formData.email_on_edit}
-                                    onCheckedChange={(val) => setFormData({ ...formData, email_on_edit: val })}
-                                />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">On leaving step</span>
-                                <Switch
-                                    checked={formData.email_on_leave}
-                                    onCheckedChange={(val) => setFormData({ ...formData, email_on_leave: val })}
-                                />
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
                     <div className="flex items-center justify-between">
                         <Label>Active</Label>
-                        <Switch
-                            checked={formData.is_active}
-                            onCheckedChange={(val) => setFormData({ ...formData, is_active: val })}
-                        />
+                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
                     </div>
 
-                    {/* Fields for form type */}
                     {formData.step_type === 'form' && (
                         <div>
                             <div className="flex justify-between items-center mb-3">
                                 <Label>Form Fields</Label>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        setEditingField(null);
-                                        setShowFieldForm(true);
-                                    }}
-                                    data-testid="add-field-btn"
-                                >
-                                    <Plus size={16} className="mr-1" />
-                                    Add Field
+                                <Button type="button" variant="outline" size="sm" onClick={() => { setEditingField(null); setShowFieldForm(true); }} data-testid="add-field-btn">
+                                    <Plus size={16} className="mr-1" /> Add Field
                                 </Button>
                             </div>
                             <div className="space-y-2">
@@ -680,24 +936,10 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                                             {field.required && <span className="text-red-500 ml-1">*</span>}
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setEditingField(index);
-                                                    setShowFieldForm(true);
-                                                }}
-                                            >
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingField(index); setShowFieldForm(true); }}>
                                                 <Pencil size={16} />
                                             </Button>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleRemoveField(index)}
-                                                className="text-red-500"
-                                            >
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveField(index)} className="text-red-500">
                                                 <X size={16} />
                                             </Button>
                                         </div>
@@ -715,15 +957,11 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                     </div>
                 </form>
 
-                {/* Field Form Modal */}
                 {showFieldForm && (
                     <FieldForm
                         field={editingField !== null ? formData.fields[editingField] : null}
                         onSave={handleAddField}
-                        onCancel={() => {
-                            setShowFieldForm(false);
-                            setEditingField(null);
-                        }}
+                        onCancel={() => { setShowFieldForm(false); setEditingField(null); }}
                     />
                 )}
             </DialogContent>
@@ -731,22 +969,16 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
     );
 }
 
-// Field Form Component
 function FieldForm({ field, onSave, onCancel }) {
     const [data, setData] = useState({
-        name: field?.name || '',
-        field_type: field?.field_type || 'text',
-        label: field?.label || '',
-        placeholder: field?.placeholder || '',
-        required: field?.required || false,
-        options: field?.options || []
+        name: field?.name || '', field_type: field?.field_type || 'text',
+        label: field?.label || '', placeholder: field?.placeholder || '',
+        required: field?.required || false, options: field?.options || []
     });
     const [optionsText, setOptionsText] = useState((field?.options || []).join('\n'));
 
     const handleSubmit = () => {
-        const options = data.field_type === 'select' 
-            ? optionsText.split('\n').filter(o => o.trim())
-            : undefined;
+        const options = data.field_type === 'select' ? optionsText.split('\n').filter(o => o.trim()) : undefined;
         onSave({ ...data, options });
     };
 
@@ -757,30 +989,16 @@ function FieldForm({ field, onSave, onCancel }) {
                 <div className="space-y-4">
                     <div>
                         <Label>Field Name (ID)</Label>
-                        <Input
-                            value={data.name}
-                            onChange={(e) => setData({ ...data, name: e.target.value.toLowerCase().replace(/\s/g, '_') })}
-                            className="mt-1"
-                            placeholder="e.g., phone_number"
-                            data-testid="field-name-input"
-                        />
+                        <Input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value.toLowerCase().replace(/\s/g, '_') })} className="mt-1" placeholder="e.g., phone_number" data-testid="field-name-input" />
                     </div>
                     <div>
                         <Label>Label</Label>
-                        <Input
-                            value={data.label}
-                            onChange={(e) => setData({ ...data, label: e.target.value })}
-                            className="mt-1"
-                            placeholder="e.g., Phone Number"
-                            data-testid="field-label-input"
-                        />
+                        <Input value={data.label} onChange={(e) => setData({ ...data, label: e.target.value })} className="mt-1" placeholder="e.g., Phone Number" data-testid="field-label-input" />
                     </div>
                     <div>
                         <Label>Type</Label>
                         <Select value={data.field_type} onValueChange={(val) => setData({ ...data, field_type: val })}>
-                            <SelectTrigger className="mt-1" data-testid="field-type-select">
-                                <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger className="mt-1" data-testid="field-type-select"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="text">Text</SelectItem>
                                 <SelectItem value="email">Email</SelectItem>
@@ -794,31 +1012,17 @@ function FieldForm({ field, onSave, onCancel }) {
                     </div>
                     <div>
                         <Label>Placeholder</Label>
-                        <Input
-                            value={data.placeholder}
-                            onChange={(e) => setData({ ...data, placeholder: e.target.value })}
-                            className="mt-1"
-                            data-testid="field-placeholder-input"
-                        />
+                        <Input value={data.placeholder} onChange={(e) => setData({ ...data, placeholder: e.target.value })} className="mt-1" data-testid="field-placeholder-input" />
                     </div>
                     {data.field_type === 'select' && (
                         <div>
                             <Label>Options (one per line)</Label>
-                            <Textarea
-                                value={optionsText}
-                                onChange={(e) => setOptionsText(e.target.value)}
-                                className="mt-1"
-                                placeholder="Option 1&#10;Option 2&#10;Option 3"
-                                data-testid="field-options-input"
-                            />
+                            <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} className="mt-1" placeholder={"Option 1\nOption 2\nOption 3"} data-testid="field-options-input" />
                         </div>
                     )}
                     <div className="flex items-center justify-between">
                         <Label>Required</Label>
-                        <Switch
-                            checked={data.required}
-                            onCheckedChange={(val) => setData({ ...data, required: val })}
-                        />
+                        <Switch checked={data.required} onCheckedChange={(val) => setData({ ...data, required: val })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
@@ -832,46 +1036,26 @@ function FieldForm({ field, onSave, onCancel }) {
     );
 }
 
-// Partner Dialog Component
 function PartnerDialog({ open, onClose, partner, onSave }) {
     const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        logo_url: '',
-        website: '',
-        contact_email: '',
-        category: '',
-        is_active: true
+        name: '', description: '', logo_url: '', website: '',
+        contact_email: '', category: '', is_active: true
     });
 
     useEffect(() => {
         if (partner) {
             setFormData({
-                name: partner.name || '',
-                description: partner.description || '',
-                logo_url: partner.logo_url || '',
-                website: partner.website || '',
-                contact_email: partner.contact_email || '',
-                category: partner.category || '',
+                name: partner.name || '', description: partner.description || '',
+                logo_url: partner.logo_url || '', website: partner.website || '',
+                contact_email: partner.contact_email || '', category: partner.category || '',
                 is_active: partner.is_active !== false
             });
         } else {
-            setFormData({
-                name: '',
-                description: '',
-                logo_url: '',
-                website: '',
-                contact_email: '',
-                category: '',
-                is_active: true
-            });
+            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', is_active: true });
         }
     }, [partner]);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSave(formData);
-    };
+    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -882,70 +1066,31 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <Label>Name</Label>
-                        <Input
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="mt-1"
-                            required
-                            data-testid="partner-name-input"
-                        />
+                        <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="mt-1" required data-testid="partner-name-input" />
                     </div>
                     <div>
                         <Label>Description</Label>
-                        <Textarea
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="mt-1"
-                            required
-                            data-testid="partner-description-input"
-                        />
+                        <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="partner-description-input" />
                     </div>
                     <div>
                         <Label>Logo URL</Label>
-                        <Input
-                            value={formData.logo_url}
-                            onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                            className="mt-1"
-                            placeholder="https://..."
-                            data-testid="partner-logo-input"
-                        />
+                        <Input value={formData.logo_url} onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })} className="mt-1" placeholder="https://..." data-testid="partner-logo-input" />
                     </div>
                     <div>
                         <Label>Website</Label>
-                        <Input
-                            value={formData.website}
-                            onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                            className="mt-1"
-                            placeholder="https://..."
-                            data-testid="partner-website-input"
-                        />
+                        <Input value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="mt-1" placeholder="https://..." data-testid="partner-website-input" />
                     </div>
                     <div>
                         <Label>Contact Email</Label>
-                        <Input
-                            type="email"
-                            value={formData.contact_email}
-                            onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                            className="mt-1"
-                            data-testid="partner-email-input"
-                        />
+                        <Input type="email" value={formData.contact_email} onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })} className="mt-1" data-testid="partner-email-input" />
                     </div>
                     <div>
                         <Label>Category</Label>
-                        <Input
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="mt-1"
-                            placeholder="e.g., Investment, Consulting"
-                            data-testid="partner-category-input"
-                        />
+                        <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="mt-1" placeholder="e.g., Investment, Consulting" data-testid="partner-category-input" />
                     </div>
                     <div className="flex items-center justify-between">
                         <Label>Active</Label>
-                        <Switch
-                            checked={formData.is_active}
-                            onCheckedChange={(val) => setFormData({ ...formData, is_active: val })}
-                        />
+                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
                     </div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

@@ -176,6 +176,14 @@ class GuidedJourneyAPITester:
         self.run_test("Admin Get Users", "GET", "admin/users", 200)
         self.run_test("Admin Get Steps", "GET", "admin/steps", 200)
         self.run_test("Admin Get Partners", "GET", "admin/partners", 200)
+        
+        # Test new analytics endpoint
+        self.run_test("Admin Get Analytics", "GET", "admin/analytics", 200)
+        
+        # Test user search functionality
+        self.run_test("Admin Search Users (empty query)", "GET", "admin/users/search", 200)
+        self.run_test("Admin Search Users (by role)", "GET", "admin/users/search?role=admin", 200)
+        self.run_test("Admin Search Users (by query)", "GET", "admin/users/search?q=admin", 200)
 
     def test_profile_endpoints(self):
         """Test profile endpoints"""
