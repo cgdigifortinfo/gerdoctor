@@ -1103,11 +1103,15 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
 function StepDialog({ open, onClose, step, onSave, existingSteps }) {
     const [formData, setFormData] = useState({
         title: '', description: '', order: existingSteps.length + 1,
-        step_type: 'form', fields: [],
+        step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
+        action_label: '', pending_message: '', complete_message: '',
+        required_fields: [], required_uploads: [],
+        field_mappings: [], conditions: [],
         email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
     });
     const [showFieldForm, setShowFieldForm] = useState(false);
     const [editingField, setEditingField] = useState(null);
+    const [activeSection, setActiveSection] = useState('basic');
 
     useEffect(() => {
         if (step) {
@@ -1115,135 +1119,229 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                 title: step.title || '', description: step.description || '',
                 order: step.order || existingSteps.length + 1,
                 step_type: step.step_type || 'form', fields: step.fields || [],
-                email_on_enter: step.email_on_enter || false,
-                email_on_edit: step.email_on_edit || false,
-                email_on_leave: step.email_on_leave || false,
-                is_active: step.is_active !== false
+                filter_tag: step.filter_tag || '', skippable: step.skippable || false,
+                skip_label: step.skip_label || '', action_label: step.action_label || '',
+                pending_message: step.pending_message || '', complete_message: step.complete_message || '',
+                required_fields: step.required_fields || [], required_uploads: step.required_uploads || [],
+                field_mappings: step.field_mappings || [], conditions: step.conditions || [],
+                email_on_enter: step.email_on_enter || false, email_on_edit: step.email_on_edit || false,
+                email_on_leave: step.email_on_leave || false, is_active: step.is_active !== false
             });
         } else {
             setFormData({
                 title: '', description: '', order: existingSteps.length + 1,
-                step_type: 'form', fields: [],
+                step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
+                action_label: '', pending_message: '', complete_message: '',
+                required_fields: [], required_uploads: [],
+                field_mappings: [], conditions: [],
                 email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
             });
         }
     }, [step, existingSteps.length]);
 
     const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
-
     const handleAddField = (field) => {
-        if (editingField !== null) {
-            const newFields = [...formData.fields];
-            newFields[editingField] = field;
-            setFormData({ ...formData, fields: newFields });
-            setEditingField(null);
-        } else {
-            setFormData({ ...formData, fields: [...formData.fields, field] });
-        }
+        if (editingField !== null) { const nf = [...formData.fields]; nf[editingField] = field; setFormData({ ...formData, fields: nf }); setEditingField(null); }
+        else { setFormData({ ...formData, fields: [...formData.fields, field] }); }
         setShowFieldForm(false);
     };
+    const handleRemoveField = (index) => { setFormData({ ...formData, fields: formData.fields.filter((_, i) => i !== index) }); };
 
-    const handleRemoveField = (index) => {
-        setFormData({ ...formData, fields: formData.fields.filter((_, i) => i !== index) });
+    // Mapping helpers
+    const addMapping = () => { setFormData({ ...formData, field_mappings: [...formData.field_mappings, { source_step_order: 1, source_field: '', target_field: '' }] }); };
+    const removeMapping = (i) => { setFormData({ ...formData, field_mappings: formData.field_mappings.filter((_, idx) => idx !== i) }); };
+    const updateMapping = (i, key, val) => { const m = [...formData.field_mappings]; m[i] = { ...m[i], [key]: key === 'source_step_order' ? parseInt(val) : val }; setFormData({ ...formData, field_mappings: m }); };
+
+    // Condition helpers
+    const addCondition = () => { setFormData({ ...formData, conditions: [...formData.conditions, { source_step_order: 1, field: 'status', operator: 'status_is', value: 'completed', action: 'allow_next', target_step_order: null, message: '' }] }); };
+    const removeCondition = (i) => { setFormData({ ...formData, conditions: formData.conditions.filter((_, idx) => idx !== i) }); };
+    const updateCondition = (i, key, val) => { const c = [...formData.conditions]; c[i] = { ...c[i], [key]: ['source_step_order', 'target_step_order'].includes(key) ? (val ? parseInt(val) : null) : val }; setFormData({ ...formData, conditions: c }); };
+
+    // Required fields/uploads
+    const toggleRequiredField = (name) => {
+        const rf = formData.required_fields.includes(name) ? formData.required_fields.filter(f => f !== name) : [...formData.required_fields, name];
+        setFormData({ ...formData, required_fields: rf });
     };
+    const [newReqUpload, setNewReqUpload] = useState('');
+    const addRequiredUpload = () => { if (newReqUpload && !formData.required_uploads.includes(newReqUpload)) { setFormData({ ...formData, required_uploads: [...formData.required_uploads, newReqUpload] }); setNewReqUpload(''); } };
+    const removeRequiredUpload = (u) => { setFormData({ ...formData, required_uploads: formData.required_uploads.filter(x => x !== u) }); };
+
+    const sectionBtnClass = (s) => `px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${activeSection === s ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>{step ? 'Edit Step' : 'Create Step'}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                            <Label>Title</Label>
-                            <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" />
-                        </div>
-                        <div className="col-span-2">
-                            <Label>Description</Label>
-                            <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" />
-                        </div>
-                        <div>
-                            <Label>Order</Label>
-                            <Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required data-testid="step-order-input" />
-                        </div>
-                        <div>
-                            <Label>Type</Label>
-                            <Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}>
-                                <SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="form">Form</SelectItem>
-                                    <SelectItem value="partner_selection">Partner Selection</SelectItem>
-                                    <SelectItem value="info">Information</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>{step ? 'Schritt bearbeiten' : 'Schritt erstellen'}</DialogTitle></DialogHeader>
+                
+                {/* Section tabs */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                    <button type="button" onClick={() => setActiveSection('basic')} className={sectionBtnClass('basic')}>Grunddaten</button>
+                    <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>Typ-Einstellungen</button>
+                    {formData.step_type === 'form' && <button type="button" onClick={() => setActiveSection('fields')} className={sectionBtnClass('fields')}>Felder ({formData.fields.length})</button>}
+                    <button type="button" onClick={() => setActiveSection('requirements')} className={sectionBtnClass('requirements')}>Anforderungen</button>
+                    <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>Mappings ({formData.field_mappings.length})</button>
+                    <button type="button" onClick={() => setActiveSection('conditions')} className={sectionBtnClass('conditions')}>Bedingungen ({formData.conditions.length})</button>
+                    <button type="button" onClick={() => setActiveSection('notifications')} className={sectionBtnClass('notifications')}>Benachrichtigungen</button>
+                </div>
 
-                    <div className="space-y-3">
-                        <Label>Email Notifications</Label>
-                        {[
-                            ['email_on_enter', 'On entering step'],
-                            ['email_on_edit', 'On editing step'],
-                            ['email_on_leave', 'On leaving step']
-                        ].map(([key, label]) => (
-                            <div key={key} className="flex items-center justify-between">
-                                <span className="text-sm">{label}</span>
-                                <Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} />
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* BASIC */}
+                    {activeSection === 'basic' && (
+                        <div className="space-y-4">
+                            <div><Label>Titel</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
+                            <div><Label>Beschreibung</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><Label>Reihenfolge</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
+                                <div><Label>Typ</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">Formular</SelectItem><SelectItem value="partner_selection">Partner-Auswahl</SelectItem><SelectItem value="milestone">Meilenstein</SelectItem><SelectItem value="display">Anzeige</SelectItem><SelectItem value="info">Information</SelectItem></SelectContent></Select></div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="flex items-center justify-between"><Label>Aktiv</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
+                            <div className="flex items-center justify-between"><Label>Überspringbar</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
+                            {formData.skippable && <div><Label>Überspringen-Text</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
+                        </div>
+                    )}
 
-                    <div className="flex items-center justify-between">
-                        <Label>Active</Label>
-                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
-                    </div>
+                    {/* TYPE SETTINGS */}
+                    {activeSection === 'type' && (
+                        <div className="space-y-4">
+                            {(formData.step_type === 'partner_selection') && <div><Label>Filter-Tag</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" /></div>}
+                            {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
+                                <>
+                                    <div><Label>Ausstehend-Nachricht</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" placeholder="Warten auf Abschluss..." /></div>
+                                    <div><Label>Abgeschlossen-Nachricht</Label><Textarea value={formData.complete_message} onChange={(e) => setFormData({ ...formData, complete_message: e.target.value })} className="mt-1" placeholder="Alles erledigt!" /></div>
+                                </>
+                            )}
+                            {formData.step_type === 'display' && <div><Label>Button-Text</Label><Input value={formData.action_label} onChange={(e) => setFormData({ ...formData, action_label: e.target.value })} className="mt-1" placeholder="z.B. zur FaMed" /></div>}
+                        </div>
+                    )}
 
-                    {formData.step_type === 'form' && (
+                    {/* FIELDS */}
+                    {activeSection === 'fields' && formData.step_type === 'form' && (
                         <div>
-                            <div className="flex justify-between items-center mb-3">
-                                <Label>Form Fields</Label>
-                                <Button type="button" variant="outline" size="sm" onClick={() => { setEditingField(null); setShowFieldForm(true); }} data-testid="add-field-btn">
-                                    <Plus size={16} className="mr-1" /> Add Field
-                                </Button>
-                            </div>
+                            <div className="flex justify-between items-center mb-3"><Label>Formularfelder</Label><Button type="button" variant="outline" size="sm" onClick={() => { setEditingField(null); setShowFieldForm(true); }} data-testid="add-field-btn"><Plus size={16} className="mr-1" /> Feld hinzufügen</Button></div>
                             <div className="space-y-2">
                                 {formData.fields.map((field, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-background rounded-sm">
-                                        <div>
-                                            <span className="font-medium">{field.label}</span>
-                                            <span className="text-xs text-muted-foreground ml-2">({field.field_type})</span>
-                                            {field.required && <span className="text-red-500 ml-1">*</span>}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingField(index); setShowFieldForm(true); }}>
-                                                <Pencil size={16} />
-                                            </Button>
-                                            <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveField(index)} className="text-red-500">
-                                                <X size={16} />
-                                            </Button>
-                                        </div>
+                                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-sm">
+                                        <div><span className="font-medium">{field.label}</span><span className="text-xs text-muted-foreground ml-2">({field.field_type})</span>{field.required && <span className="text-red-500 ml-1">*</span>}</div>
+                                        <div className="flex gap-2"><Button type="button" variant="ghost" size="sm" onClick={() => { setEditingField(index); setShowFieldForm(true); }}><Pencil size={16} /></Button><Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveField(index)} className="text-red-500"><X size={16} /></Button></div>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-3">
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">
-                            {step ? 'Update Step' : 'Create Step'}
-                        </Button>
+                    {/* REQUIREMENTS */}
+                    {activeSection === 'requirements' && (
+                        <div className="space-y-4">
+                            <div>
+                                <Label className="mb-2 block">Pflichtfelder (zum Abschluss des Schritts)</Label>
+                                {formData.fields.length > 0 ? (
+                                    <div className="space-y-1">{formData.fields.map(f => (
+                                        <label key={f.name} className="flex items-center gap-2 p-2 bg-muted rounded-sm cursor-pointer hover:bg-muted/80">
+                                            <input type="checkbox" checked={formData.required_fields.includes(f.name)} onChange={() => toggleRequiredField(f.name)} className="rounded" />
+                                            <span className="text-sm">{f.label} ({f.name})</span>
+                                        </label>
+                                    ))}</div>
+                                ) : <p className="text-sm text-muted-foreground">Keine Felder definiert</p>}
+                            </div>
+                            <div>
+                                <Label className="mb-2 block">Erforderliche Dokument-Uploads</Label>
+                                <div className="space-y-2">
+                                    {formData.required_uploads.map(u => (
+                                        <div key={u} className="flex items-center justify-between p-2 bg-muted rounded-sm">
+                                            <span className="text-sm">{u}</span>
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => removeRequiredUpload(u)} className="text-red-500 h-6 w-6 p-0"><X size={14} /></Button>
+                                        </div>
+                                    ))}
+                                    <div className="flex gap-2">
+                                        <Input value={newReqUpload} onChange={(e) => setNewReqUpload(e.target.value)} placeholder="z.B. Visum" className="flex-1" />
+                                        <Button type="button" variant="outline" size="sm" onClick={addRequiredUpload}><Plus size={14} /></Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAPPINGS */}
+                    {activeSection === 'mappings' && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center"><Label>Feld-Mappings (Daten aus anderen Schritten vorausfüllen)</Label><Button type="button" variant="outline" size="sm" onClick={addMapping}><Plus size={14} className="mr-1" /> Mapping</Button></div>
+                            {formData.field_mappings.map((m, i) => (
+                                <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 p-3 bg-muted rounded-sm items-end">
+                                    <div><Label className="text-xs">Quell-Schritt Nr.</Label><Input type="number" min="1" value={m.source_step_order || ''} onChange={(e) => updateMapping(i, 'source_step_order', e.target.value)} className="h-8 text-sm" /></div>
+                                    <div><Label className="text-xs">Quell-Feld</Label><Input value={m.source_field || ''} onChange={(e) => updateMapping(i, 'source_field', e.target.value)} className="h-8 text-sm" placeholder="z.B. name" /></div>
+                                    <div><Label className="text-xs">Ziel-Feld</Label><Input value={m.target_field || ''} onChange={(e) => updateMapping(i, 'target_field', e.target.value)} className="h-8 text-sm" placeholder="z.B. applicant_name" /></div>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => removeMapping(i)} className="text-red-500 h-8 w-8 p-0"><Trash size={14} /></Button>
+                                </div>
+                            ))}
+                            {formData.field_mappings.length === 0 && <p className="text-sm text-muted-foreground p-4 bg-muted rounded-sm text-center">Keine Mappings konfiguriert</p>}
+                        </div>
+                    )}
+
+                    {/* CONDITIONS */}
+                    {activeSection === 'conditions' && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center"><Label>Bedingungen (Zugangssteuerung basierend auf vorherigen Schritten)</Label><Button type="button" variant="outline" size="sm" onClick={addCondition}><Plus size={14} className="mr-1" /> Bedingung</Button></div>
+                            <p className="text-xs text-muted-foreground">Wenn eine Bedingung zutrifft, wird die konfigurierte Aktion ausgeführt.</p>
+                            {formData.conditions.map((c, i) => (
+                                <div key={i} className="p-3 bg-muted rounded-sm space-y-2 border border-border">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        <div><Label className="text-xs">Quell-Schritt Nr.</Label><Input type="number" min="1" value={c.source_step_order || ''} onChange={(e) => updateCondition(i, 'source_step_order', e.target.value)} className="h-8 text-sm" /></div>
+                                        <div><Label className="text-xs">Feld</Label><Input value={c.field || ''} onChange={(e) => updateCondition(i, 'field', e.target.value)} className="h-8 text-sm" placeholder="status / feldname" /></div>
+                                        <div><Label className="text-xs">Operator</Label>
+                                            <Select value={c.operator} onValueChange={(val) => updateCondition(i, 'operator', val)}>
+                                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="status_is">Status ist</SelectItem>
+                                                    <SelectItem value="status_not">Status ist nicht</SelectItem>
+                                                    <SelectItem value="equals">Gleich</SelectItem>
+                                                    <SelectItem value="not_equals">Ungleich</SelectItem>
+                                                    <SelectItem value="contains">Enthält</SelectItem>
+                                                    <SelectItem value="not_empty">Nicht leer</SelectItem>
+                                                    <SelectItem value="empty">Leer</SelectItem>
+                                                    <SelectItem value="has_upload">Hat Upload</SelectItem>
+                                                    <SelectItem value="missing_upload">Fehlt Upload</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div><Label className="text-xs">Wert</Label><Input value={c.value || ''} onChange={(e) => updateCondition(i, 'value', e.target.value)} className="h-8 text-sm" placeholder="completed / Visum" /></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
+                                        <div><Label className="text-xs">Aktion</Label>
+                                            <Select value={c.action} onValueChange={(val) => updateCondition(i, 'action', val)}>
+                                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="block">Blockieren</SelectItem>
+                                                    <SelectItem value="allow_next">Weiter erlauben</SelectItem>
+                                                    <SelectItem value="redirect">Zu Schritt weiterleiten</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        {c.action === 'redirect' && <div><Label className="text-xs">Ziel-Schritt Nr.</Label><Input type="number" min="1" value={c.target_step_order || ''} onChange={(e) => updateCondition(i, 'target_step_order', e.target.value)} className="h-8 text-sm" /></div>}
+                                        <div><Label className="text-xs">Nachricht</Label><Input value={c.message || ''} onChange={(e) => updateCondition(i, 'message', e.target.value)} className="h-8 text-sm" placeholder="Optionale Nachricht" /></div>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => removeCondition(i)} className="text-red-500 h-8"><Trash size={14} /></Button>
+                                    </div>
+                                </div>
+                            ))}
+                            {formData.conditions.length === 0 && <p className="text-sm text-muted-foreground p-4 bg-muted rounded-sm text-center">Keine Bedingungen konfiguriert. Alle Benutzer können diesen Schritt erreichen.</p>}
+                        </div>
+                    )}
+
+                    {/* NOTIFICATIONS */}
+                    {activeSection === 'notifications' && (
+                        <div className="space-y-3">
+                            {[['email_on_enter', 'Bei Schritt-Eintritt'], ['email_on_edit', 'Bei Bearbeitung'], ['email_on_leave', 'Bei Schritt-Abschluss']].map(([key, label]) => (
+                                <div key={key} className="flex items-center justify-between"><span className="text-sm">{label}</span><Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} /></div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">{step ? 'Aktualisieren' : 'Erstellen'}</Button>
                     </div>
                 </form>
 
-                {showFieldForm && (
-                    <FieldForm
-                        field={editingField !== null ? formData.fields[editingField] : null}
-                        onSave={handleAddField}
-                        onCancel={() => { setShowFieldForm(false); setEditingField(null); }}
-                    />
-                )}
+                {showFieldForm && <FieldForm field={editingField !== null ? formData.fields[editingField] : null} onSave={handleAddField} onCancel={() => { setShowFieldForm(false); setEditingField(null); }} />}
             </DialogContent>
         </Dialog>
     );
@@ -1258,7 +1356,7 @@ function FieldForm({ field, onSave, onCancel }) {
     const [optionsText, setOptionsText] = useState((field?.options || []).join('\n'));
 
     const handleSubmit = () => {
-        const options = data.field_type === 'select' ? optionsText.split('\n').filter(o => o.trim()) : undefined;
+        const options = ['select', 'selectbox', 'multiupload'].includes(data.field_type) ? optionsText.split('\n').filter(o => o.trim()) : undefined;
         onSave({ ...data, options });
     };
 
@@ -1285,8 +1383,10 @@ function FieldForm({ field, onSave, onCancel }) {
                                 <SelectItem value="phone">Phone</SelectItem>
                                 <SelectItem value="textarea">Text Area</SelectItem>
                                 <SelectItem value="select">Dropdown</SelectItem>
+                                <SelectItem value="selectbox">Selectbox</SelectItem>
                                 <SelectItem value="date">Date</SelectItem>
                                 <SelectItem value="file">File Upload</SelectItem>
+                                <SelectItem value="multiupload">Multi-Upload</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -1294,9 +1394,9 @@ function FieldForm({ field, onSave, onCancel }) {
                         <Label>Placeholder</Label>
                         <Input value={data.placeholder} onChange={(e) => setData({ ...data, placeholder: e.target.value })} className="mt-1" data-testid="field-placeholder-input" />
                     </div>
-                    {data.field_type === 'select' && (
+                    {(data.field_type === 'select' || data.field_type === 'selectbox' || data.field_type === 'multiupload') && (
                         <div>
-                            <Label>Options (one per line)</Label>
+                            <Label>Options (one per line){data.field_type === 'multiupload' ? ' - Dokumenttypen' : ''}</Label>
                             <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} className="mt-1" placeholder={"Option 1\nOption 2\nOption 3"} data-testid="field-options-input" />
                         </div>
                     )}
@@ -1319,8 +1419,9 @@ function FieldForm({ field, onSave, onCancel }) {
 function PartnerDialog({ open, onClose, partner, onSave }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
-        contact_email: '', category: '', is_active: true
+        contact_email: '', category: '', tags: [], is_active: true
     });
+    const [tagsText, setTagsText] = useState('');
 
     useEffect(() => {
         if (partner) {
@@ -1328,14 +1429,20 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                 name: partner.name || '', description: partner.description || '',
                 logo_url: partner.logo_url || '', website: partner.website || '',
                 contact_email: partner.contact_email || '', category: partner.category || '',
-                is_active: partner.is_active !== false
+                tags: partner.tags || [], is_active: partner.is_active !== false
             });
+            setTagsText((partner.tags || []).join(', '));
         } else {
-            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', is_active: true });
+            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true });
+            setTagsText('');
         }
     }, [partner]);
 
-    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const tags = tagsText.split(',').map(t => t.trim()).filter(Boolean);
+        onSave({ ...formData, tags });
+    };
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -1367,6 +1474,10 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                     <div>
                         <Label>Category</Label>
                         <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="mt-1" placeholder="e.g., Investment, Consulting" data-testid="partner-category-input" />
+                    </div>
+                    <div>
+                        <Label>Tags (kommagetrennt)</Label>
+                        <Input value={tagsText} onChange={(e) => setTagsText(e.target.value)} className="mt-1" placeholder="z.B. Antragstellung, Kenntnisprüfung" data-testid="partner-tags-input" />
                     </div>
                     <div className="flex items-center justify-between">
                         <Label>Active</Label>

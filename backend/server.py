@@ -264,7 +264,8 @@ class StepCreate(BaseModel):
     complete_message: Optional[str] = None  # for milestone type
     required_fields: Optional[List[str]] = None  # field names required to proceed
     required_uploads: Optional[List[str]] = None  # document types required to proceed
-    field_mappings: Optional[List[dict]] = None  # [{source_field, source_value, target_step_order, target_field, target_value}]
+    field_mappings: Optional[List[dict]] = None  # [{source_step_order, source_field, target_field}]
+    conditions: Optional[List[dict]] = None  # [{source_step_order, field, operator, value, action, target_step_order, message}]
     email_on_enter: bool = False
     email_on_edit: bool = False
     email_on_leave: bool = False
@@ -284,6 +285,7 @@ class StepUpdate(BaseModel):
     required_fields: Optional[List[str]] = None
     required_uploads: Optional[List[str]] = None
     field_mappings: Optional[List[dict]] = None
+    conditions: Optional[List[dict]] = None
     email_on_enter: Optional[bool] = None
     email_on_edit: Optional[bool] = None
     email_on_leave: Optional[bool] = None
@@ -562,6 +564,32 @@ async def get_user_progress(request: Request):
     progress = await db.user_progress.find({"user_id": user["_id"]}, {"_id": 0}).to_list(100)
     return progress
 
+@steps_router.get("/all-data")
+async def get_all_step_data(request: Request):
+    """Get all steps with their progress data for conditional logic evaluation."""
+    user = await get_current_user(request)
+    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    progress = await db.user_progress.find({"user_id": user["_id"]}, {"_id": 0}).to_list(100)
+    progress_map = {p["step_id"]: p for p in progress}
+    
+    result = []
+    for s in steps:
+        sid = str(s["_id"])
+        p = progress_map.get(sid, {})
+        result.append({
+            "step_id": sid,
+            "order": s["order"],
+            "title": s["title"],
+            "step_type": s["step_type"],
+            "status": p.get("status", "pending"),
+            "data": p.get("data", {}),
+            "conditions": s.get("conditions", []),
+            "field_mappings": s.get("field_mappings", []),
+            "required_fields": s.get("required_fields", []),
+            "required_uploads": s.get("required_uploads", [])
+        })
+    return result
+
 @steps_router.put("/progress")
 async def update_user_progress(data: UserProgressUpdate, request: Request):
     user = await get_current_user(request)
@@ -572,6 +600,37 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         raise HTTPException(status_code=404, detail="Step not found")
     
     existing = await db.user_progress.find_one({"user_id": user["_id"], "step_id": data.step_id})
+    
+    # Validate required fields/uploads before allowing completion
+    if data.status == "completed" and not data.data.get("skipped"):
+        required_fields = step.get("required_fields", [])
+        required_uploads = step.get("required_uploads", [])
+        submission_data = data.data or {}
+        
+        # Check required fields
+        missing_fields = []
+        for rf in required_fields:
+            val = submission_data.get(rf)
+            if not val or (isinstance(val, str) and not val.strip()):
+                missing_fields.append(rf)
+        
+        if missing_fields:
+            field_labels = {f["name"]: f["label"] for f in step.get("fields", [])}
+            labels = [field_labels.get(f, f) for f in missing_fields]
+            raise HTTPException(status_code=400, detail=f"Pflichtfelder fehlen: {', '.join(labels)}")
+        
+        # Check required uploads (check multiupload fields for required document types)
+        if required_uploads:
+            uploaded_types = set()
+            for field in step.get("fields", []):
+                if field.get("field_type") == "multiupload":
+                    entries = submission_data.get(field["name"], [])
+                    for entry in entries:
+                        if isinstance(entry, dict) and entry.get("file_id") and entry.get("document_type"):
+                            uploaded_types.add(entry["document_type"])
+            missing_uploads = [u for u in required_uploads if u not in uploaded_types]
+            if missing_uploads:
+                raise HTTPException(status_code=400, detail=f"Erforderliche Dokumente fehlen: {', '.join(missing_uploads)}")
     
     # Get user notification preferences
     user_prefs = user.get("notification_preferences", {
@@ -913,6 +972,7 @@ async def admin_get_steps(request: Request):
             "required_fields": s.get("required_fields", []),
             "required_uploads": s.get("required_uploads", []),
             "field_mappings": s.get("field_mappings", []),
+            "conditions": s.get("conditions", []),
             "email_on_enter": s.get("email_on_enter", False),
             "email_on_edit": s.get("email_on_edit", False),
             "email_on_leave": s.get("email_on_leave", False),
@@ -939,6 +999,7 @@ async def admin_create_step(data: StepCreate, request: Request):
         "required_fields": data.required_fields or [],
         "required_uploads": data.required_uploads or [],
         "field_mappings": data.field_mappings or [],
+        "conditions": data.conditions or [],
         "email_on_enter": data.email_on_enter,
         "email_on_edit": data.email_on_edit,
         "email_on_leave": data.email_on_leave,
