@@ -116,7 +116,7 @@ export function Login() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#002FA7] hover:bg-[#002280] text-white py-3 rounded-sm"
+                            className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="login-submit-btn"
                         >
@@ -274,7 +274,7 @@ export function Register() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#002FA7] hover:bg-[#002280] text-white py-3 rounded-sm"
+                            className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="register-submit-btn"
                         >
@@ -323,7 +323,7 @@ export function ForgotPassword() {
                         If an account exists for {email}, you'll receive a password reset link.
                     </p>
                     <Link to="/login">
-                        <Button className="bg-[#002FA7] hover:bg-[#002280] text-white">
+                        <Button className="bg-[#002FA7] hover:bg-[#0d3d42] text-white">
                             Return to Login
                         </Button>
                     </Link>
@@ -368,7 +368,7 @@ export function ForgotPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#002FA7] hover:bg-[#002280] text-white py-3 rounded-sm"
+                        className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="forgot-submit-btn"
                     >
@@ -421,7 +421,7 @@ export function ResetPassword() {
                 <div className="text-center">
                     <h1 className="text-2xl font-bold text-[#0A0A0A] mb-4">Invalid Reset Link</h1>
                     <Link to="/forgot-password">
-                        <Button className="bg-[#002FA7] hover:bg-[#002280] text-white">
+                        <Button className="bg-[#002FA7] hover:bg-[#0d3d42] text-white">
                             Request New Link
                         </Button>
                     </Link>
@@ -475,7 +475,7 @@ export function ResetPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#002FA7] hover:bg-[#002280] text-white py-3 rounded-sm"
+                        className="w-full bg-[#002FA7] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="reset-submit-btn"
                     >

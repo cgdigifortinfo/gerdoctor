@@ -112,11 +112,11 @@ export default function PartnerDashboard() {
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="mb-6 bg-white border border-[#E4E4E7]">
-                            <TabsTrigger value="submissions" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                            <TabsTrigger value="submissions" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                                 <FileText size={18} className="mr-2" />
                                 Submissions
                             </TabsTrigger>
-                            <TabsTrigger value="profile" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                            <TabsTrigger value="profile" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                                 <Gear size={18} className="mr-2" />
                                 Profile
                             </TabsTrigger>
@@ -270,7 +270,7 @@ export default function PartnerDashboard() {
                                                 </Button>
                                                 <Button
                                                     onClick={handleSaveProfile}
-                                                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                                     data-testid="save-profile-btn"
                                                 >
                                                     Save Changes
@@ -305,7 +305,7 @@ export default function PartnerDashboard() {
                                                     <Label className="text-[#52525B]">Website</Label>
                                                     <p className="mt-1">
                                                         {profile.website ? (
-                                                            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#002FA7] hover:underline">
+                                                            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline">
                                                                 {profile.website}
                                                             </a>
                                                         ) : '-'}

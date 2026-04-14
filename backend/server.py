@@ -282,6 +282,15 @@ class CMSContentUpdate(BaseModel):
     section: str  # home, about, partners
     content: dict
 
+class NotificationPreferences(BaseModel):
+    email_on_step_enter: bool = True
+    email_on_step_edit: bool = False
+    email_on_step_leave: bool = True
+
+class BulkRoleUpdate(BaseModel):
+    user_ids: List[str]
+    role: str
+
 # Create the main app
 app = FastAPI()
 
@@ -480,6 +489,26 @@ async def update_profile(data: ProfileUpdate, request: Request):
     
     return {"message": "Profile updated"}
 
+# Notification Preferences
+@api_router.get("/notifications/preferences")
+async def get_notification_preferences(request: Request):
+    user = await get_current_user(request)
+    prefs = user.get("notification_preferences", {
+        "email_on_step_enter": True,
+        "email_on_step_edit": False,
+        "email_on_step_leave": True
+    })
+    return prefs
+
+@api_router.put("/notifications/preferences")
+async def update_notification_preferences(data: NotificationPreferences, request: Request):
+    user = await get_current_user(request)
+    await db.users.update_one(
+        {"_id": ObjectId(user["_id"])},
+        {"$set": {"notification_preferences": data.model_dump()}}
+    )
+    return {"message": "Notification preferences updated"}
+
 # ========================
 # STEPS ROUTES
 # ========================
@@ -511,24 +540,31 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
     
     existing = await db.user_progress.find_one({"user_id": user["_id"], "step_id": data.step_id})
     
-    # Send email on edit if configured
-    if existing and step.get("email_on_edit") and data.data:
+    # Get user notification preferences
+    user_prefs = user.get("notification_preferences", {
+        "email_on_step_enter": True,
+        "email_on_step_edit": False,
+        "email_on_step_leave": True
+    })
+    
+    # Send email on edit if step configured AND user opted in
+    if existing and step.get("email_on_edit") and data.data and user_prefs.get("email_on_step_edit", False):
         await send_email_notification(
             user["email"],
             f"Step Updated: {step['title']}",
             f"<p>You have updated your progress on step: {step['title']}</p>"
         )
     
-    # Send email on enter if configured
-    if not existing and step.get("email_on_enter"):
+    # Send email on enter if step configured AND user opted in
+    if not existing and step.get("email_on_enter") and user_prefs.get("email_on_step_enter", True):
         await send_email_notification(
             user["email"],
             f"Step Started: {step['title']}",
             f"<p>You have started step: {step['title']}</p>"
         )
     
-    # Send email on leave (completion) if configured
-    if data.status == "completed" and step.get("email_on_leave"):
+    # Send email on leave (completion) if step configured AND user opted in
+    if data.status == "completed" and step.get("email_on_leave") and user_prefs.get("email_on_step_leave", True):
         await send_email_notification(
             user["email"],
             f"Step Completed: {step['title']}",
@@ -737,6 +773,64 @@ async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, req
         upsert=True
     )
     return {"message": "User progress updated"}
+
+# Bulk Role Update
+@admin_router.put("/users/bulk-role")
+async def admin_bulk_update_role(data: BulkRoleUpdate, request: Request):
+    await require_role("admin")(request)
+    if data.role not in ["user", "admin", "partner"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    updated = 0
+    for uid in data.user_ids:
+        try:
+            result = await db.users.update_one(
+                {"_id": ObjectId(uid)},
+                {"$set": {"role": data.role}}
+            )
+            if result.modified_count:
+                updated += 1
+        except Exception:
+            continue
+    return {"message": f"{updated} users updated to {data.role}"}
+
+# CSV Export
+@admin_router.get("/export/users")
+async def admin_export_users_csv(request: Request):
+    await require_role("admin")(request)
+    
+    users = await db.users.find({}, {"password_hash": 0}).to_list(10000)
+    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    
+    import io
+    import csv
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    step_headers = [s["title"] for s in steps]
+    writer.writerow(["Name", "Email", "Role", "Created At"] + step_headers)
+    
+    for u in users:
+        user_id = str(u["_id"])
+        progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+        progress_map = {p["step_id"]: p["status"] for p in progress}
+        
+        step_statuses = [progress_map.get(str(s["_id"]), "not_started") for s in steps]
+        writer.writerow([
+            u.get("name", ""),
+            u.get("email", ""),
+            u.get("role", ""),
+            u.get("created_at", "")
+        ] + step_statuses)
+    
+    csv_content = output.getvalue()
+    from fastapi.responses import Response as RawResponse
+    return RawResponse(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=users_export.csv"}
+    )
 
 @admin_router.put("/users/{user_id}/role")
 async def admin_update_user_role(user_id: str, role: str, request: Request):

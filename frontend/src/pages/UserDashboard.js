@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { stepsAPI, profileAPI, partnersAPI, filesAPI, formatApiError } from '../lib/api';
+import { stepsAPI, profileAPI, partnersAPI, filesAPI, notificationAPI, formatApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
+import { Switch } from '../components/ui/switch';
 import { 
     SignOut, Check, ArrowRight, ArrowLeft, User, Buildings, 
-    FileText, CloudArrowUp, X, CaretRight 
+    FileText, CloudArrowUp, X, CaretRight, Bell, GearSix
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -26,17 +27,25 @@ export default function UserDashboard() {
     const [formData, setFormData] = useState({});
     const [uploadedFiles, setUploadedFiles] = useState({});
     const [submitting, setSubmitting] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [notifPrefs, setNotifPrefs] = useState({
+        email_on_step_enter: true,
+        email_on_step_edit: false,
+        email_on_step_leave: true
+    });
 
     const loadData = useCallback(async () => {
         try {
-            const [stepsRes, progressRes, partnersRes] = await Promise.all([
+            const [stepsRes, progressRes, partnersRes, notifRes] = await Promise.all([
                 stepsAPI.getAll(),
                 stepsAPI.getProgress(),
-                partnersAPI.getAll()
+                partnersAPI.getAll(),
+                notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } }))
             ]);
             setSteps(stepsRes.data);
             setProgress(progressRes.data);
             setPartners(partnersRes.data);
+            setNotifPrefs(notifRes.data);
             
             // Find current step based on progress
             const progressMap = {};
@@ -246,7 +255,7 @@ export default function UserDashboard() {
                             />
                             <label htmlFor={field.name} className="cursor-pointer">
                                 {uploadedFiles[field.name] ? (
-                                    <div className="flex items-center justify-center gap-2 text-[#002FA7]">
+                                    <div className="flex items-center justify-center gap-2 text-[#114f55]">
                                         <Check size={20} />
                                         <span>{uploadedFiles[field.name].filename}</span>
                                     </div>
@@ -287,7 +296,7 @@ export default function UserDashboard() {
                             <Button
                                 onClick={() => handleStepSubmit(true)}
                                 disabled={submitting}
-                                className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                 data-testid="complete-step-btn"
                             >
                                 {submitting ? 'Saving...' : 'Complete & Continue'}
@@ -307,7 +316,7 @@ export default function UserDashboard() {
                                     onClick={() => handlePartnerSelect(partner)}
                                     className={`partner-card p-6 rounded-sm cursor-pointer transition-all ${
                                         selectedPartner?.id === partner.id 
-                                            ? 'border-[#002FA7] border-2 bg-blue-50' 
+                                            ? 'border-[#114f55] border-2 bg-teal-50' 
                                             : 'bg-white'
                                     }`}
                                     data-testid={`partner-select-${partner.id}`}
@@ -330,7 +339,7 @@ export default function UserDashboard() {
                                             )}
                                         </div>
                                         {selectedPartner?.id === partner.id && (
-                                            <Check size={24} className="text-[#002FA7]" />
+                                            <Check size={24} className="text-[#114f55]" />
                                         )}
                                     </div>
                                 </div>
@@ -346,7 +355,7 @@ export default function UserDashboard() {
                                         href={selectedPartner.website} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="text-[#002FA7] text-sm hover:underline"
+                                        className="text-[#114f55] text-sm hover:underline"
                                     >
                                         Visit Website
                                     </a>
@@ -358,7 +367,7 @@ export default function UserDashboard() {
                             <Button
                                 onClick={() => handleStepSubmit(true)}
                                 disabled={!selectedPartner || submitting}
-                                className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                 data-testid="confirm-partner-btn"
                             >
                                 {submitting ? 'Saving...' : 'Confirm Selection & Continue'}
@@ -380,7 +389,7 @@ export default function UserDashboard() {
                                     const stepProgress = progress.find(p => p.step_id === step.id);
                                     return (
                                         <div key={step.id} className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-[#002FA7] flex items-center justify-center">
+                                            <div className="w-8 h-8 rounded-full bg-[#114f55] flex items-center justify-center">
                                                 <Check size={16} className="text-white" />
                                             </div>
                                             <div>
@@ -399,7 +408,7 @@ export default function UserDashboard() {
                             <Button
                                 onClick={() => handleStepSubmit(true)}
                                 disabled={submitting}
-                                className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                 data-testid="finalize-btn"
                             >
                                 {submitting ? 'Finalizing...' : 'Finalize Journey'}
@@ -435,6 +444,15 @@ export default function UserDashboard() {
                             <span className="text-sm text-[#52525B] hidden sm:block">
                                 Welcome, {user?.name}
                             </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowSettings(!showSettings)}
+                                className="text-[#52525B]"
+                                data-testid="settings-btn"
+                            >
+                                <GearSix size={20} />
+                            </Button>
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -474,7 +492,7 @@ export default function UserDashboard() {
                                     disabled={!canNavigate}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-colors ${
                                         isActive 
-                                            ? 'bg-[#002FA7] text-white' 
+                                            ? 'bg-[#114f55] text-white' 
                                             : isCompleted 
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-[#E4E4E7] text-[#52525B]'
@@ -507,7 +525,7 @@ export default function UserDashboard() {
                                     key={step.id}
                                     className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                                         isActive 
-                                            ? 'bg-[#002FA7] text-white' 
+                                            ? 'bg-[#114f55] text-white' 
                                             : isCompleted 
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-[#E4E4E7] text-[#52525B]'
@@ -549,6 +567,72 @@ export default function UserDashboard() {
                         </div>
                     )}
                 </div>
+
+                {/* Notification Settings */}
+                {showSettings && (
+                    <div className="mt-6 bg-white border border-[#E4E4E7] rounded-sm p-6 sm:p-8 animate-fadeIn">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Bell size={24} className="text-[#114f55]" />
+                            <h2 className="text-xl font-bold tracking-tight text-[#0A0A0A]">
+                                Notification Preferences
+                            </h2>
+                        </div>
+                        <p className="text-sm text-[#52525B] mb-6">
+                            Choose when you receive email notifications about your progress.
+                        </p>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                                <div>
+                                    <p className="font-medium text-[#0A0A0A]">Step Entry</p>
+                                    <p className="text-sm text-[#52525B]">Receive email when starting a new step</p>
+                                </div>
+                                <Switch
+                                    checked={notifPrefs.email_on_step_enter}
+                                    onCheckedChange={(val) => setNotifPrefs(prev => ({ ...prev, email_on_step_enter: val }))}
+                                    data-testid="notif-step-enter"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                                <div>
+                                    <p className="font-medium text-[#0A0A0A]">Step Edit</p>
+                                    <p className="text-sm text-[#52525B]">Receive email when saving progress on a step</p>
+                                </div>
+                                <Switch
+                                    checked={notifPrefs.email_on_step_edit}
+                                    onCheckedChange={(val) => setNotifPrefs(prev => ({ ...prev, email_on_step_edit: val }))}
+                                    data-testid="notif-step-edit"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between p-4 bg-[#FAFAFA] rounded-sm">
+                                <div>
+                                    <p className="font-medium text-[#0A0A0A]">Step Completion</p>
+                                    <p className="text-sm text-[#52525B]">Receive email when completing a step</p>
+                                </div>
+                                <Switch
+                                    checked={notifPrefs.email_on_step_leave}
+                                    onCheckedChange={(val) => setNotifPrefs(prev => ({ ...prev, email_on_step_leave: val }))}
+                                    data-testid="notif-step-leave"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-6">
+                            <Button
+                                onClick={async () => {
+                                    try {
+                                        await notificationAPI.updatePreferences(notifPrefs);
+                                        toast.success('Notification preferences saved');
+                                    } catch (error) {
+                                        toast.error('Failed to save preferences');
+                                    }
+                                }}
+                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
+                                data-testid="save-notif-prefs-btn"
+                            >
+                                Save Preferences
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -14,9 +14,10 @@ import { Progress } from '../components/ui/progress';
 import { 
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
-    LinkBreak, UserPlus, ArrowRight, Check
+    LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { Checkbox } from '../components/ui/checkbox';
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
@@ -48,6 +49,10 @@ export default function AdminDashboard() {
     const [cmsAbout, setCmsAbout] = useState({});
     const [cmsPartners, setCmsPartners] = useState({});
     const [cmsSaving, setCmsSaving] = useState(false);
+
+    // Bulk selection state
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [bulkRole, setBulkRole] = useState('user');
 
     const loadData = useCallback(async () => {
         try {
@@ -219,6 +224,50 @@ export default function AdminDashboard() {
         }
     };
 
+    // Bulk user actions
+    const toggleUserSelection = (userId) => {
+        setSelectedUserIds(prev => 
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedUserIds.length === filteredUsers.length) {
+            setSelectedUserIds([]);
+        } else {
+            setSelectedUserIds(filteredUsers.map(u => u.id));
+        }
+    };
+
+    const handleBulkRoleUpdate = async () => {
+        if (selectedUserIds.length === 0) { toast.error('No users selected'); return; }
+        try {
+            await adminAPI.bulkUpdateRole(selectedUserIds, bulkRole);
+            toast.success(`${selectedUserIds.length} users updated to ${bulkRole}`);
+            setSelectedUserIds([]);
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    // CSV Export
+    const handleExportCsv = async () => {
+        try {
+            const response = await adminAPI.exportUsersCsv();
+            const blob = new Blob([response.data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'users_export.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast.success('CSV exported');
+        } catch (error) {
+            toast.error('Failed to export CSV');
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
@@ -237,7 +286,7 @@ export default function AdminDashboard() {
                             <Link to="/" className="font-black text-xl tracking-tight text-[#0A0A0A]">
                                 GuidedJourney
                             </Link>
-                            <span className="text-xs font-bold tracking-wider uppercase text-[#002FA7] px-2 py-1 bg-blue-50 rounded">
+                            <span className="text-xs font-bold tracking-wider uppercase text-[#114f55] px-2 py-1 bg-teal-50 rounded">
                                 Admin
                             </span>
                         </div>
@@ -254,23 +303,23 @@ export default function AdminDashboard() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="mb-6 bg-white border border-[#E4E4E7] flex-wrap h-auto gap-1 p-1">
-                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
                             Dashboard
                         </TabsTrigger>
-                        <TabsTrigger value="users" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                        <TabsTrigger value="users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Users size={18} className="mr-2" />
                             Users
                         </TabsTrigger>
-                        <TabsTrigger value="steps" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                        <TabsTrigger value="steps" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ListChecks size={18} className="mr-2" />
                             Steps
                         </TabsTrigger>
-                        <TabsTrigger value="partners" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                        <TabsTrigger value="partners" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Buildings size={18} className="mr-2" />
                             Partners
                         </TabsTrigger>
-                        <TabsTrigger value="cms" className="data-[state=active]:bg-[#002FA7] data-[state=active]:text-white">
+                        <TabsTrigger value="cms" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
                             CMS
                         </TabsTrigger>
@@ -315,14 +364,14 @@ export default function AdminDashboard() {
                                             <div key={step.step_id} className="space-y-2">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="w-6 h-6 rounded-full bg-[#002FA7] text-white flex items-center justify-center text-xs font-bold">
+                                                        <span className="w-6 h-6 rounded-full bg-[#114f55] text-white flex items-center justify-center text-xs font-bold">
                                                             {step.order}
                                                         </span>
                                                         <span className="font-medium text-sm text-[#0A0A0A]">{step.title}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-xs text-[#52525B]">
                                                         <span>{step.completed}/{step.total} completed</span>
-                                                        <span className="font-bold text-[#002FA7]">{step.completion_rate}%</span>
+                                                        <span className="font-bold text-[#114f55]">{step.completion_rate}%</span>
                                                     </div>
                                                 </div>
                                                 <Progress value={step.completion_rate} className="h-2" />
@@ -362,14 +411,48 @@ export default function AdminDashboard() {
                                                 <SelectItem value="partner">Partner</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        <Button variant="outline" onClick={handleExportCsv} className="border-[#E4E4E7] text-[#52525B]" data-testid="export-csv-btn">
+                                            <DownloadSimple size={16} className="mr-1" /> Export CSV
+                                        </Button>
                                     </div>
                                 </div>
                                 <p className="text-xs text-[#52525B] mt-2">{filteredUsers.length} of {users.length} users</p>
                             </div>
+
+                            {/* Bulk Actions Bar */}
+                            {selectedUserIds.length > 0 && (
+                                <div className="p-3 bg-[#114f55]/5 border-b border-[#E4E4E7] flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-medium text-[#114f55]">{selectedUserIds.length} selected</span>
+                                    <Select value={bulkRole} onValueChange={setBulkRole}>
+                                        <SelectTrigger className="w-32 h-8 text-xs border-[#E4E4E7]" data-testid="bulk-role-select">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="user">User</SelectItem>
+                                            <SelectItem value="admin">Admin</SelectItem>
+                                            <SelectItem value="partner">Partner</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="bulk-apply-btn">
+                                        Apply Role
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])} className="text-[#52525B]">
+                                        Clear
+                                    </Button>
+                                </div>
+                            )}
+
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-[#FAFAFA]">
                                         <tr>
+                                            <th className="px-4 py-3 w-10">
+                                                <Checkbox
+                                                    checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0}
+                                                    onCheckedChange={toggleSelectAll}
+                                                    data-testid="select-all-users"
+                                                />
+                                            </th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Name</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[#52525B]">Role</th>
@@ -379,7 +462,14 @@ export default function AdminDashboard() {
                                     </thead>
                                     <tbody>
                                         {filteredUsers.map((u) => (
-                                            <tr key={u.id} className="border-t border-[#E4E4E7] table-row-hover">
+                                            <tr key={u.id} className={`border-t border-[#E4E4E7] table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[#114f55]/5' : ''}`}>
+                                                <td className="px-4 py-3">
+                                                    <Checkbox
+                                                        checked={selectedUserIds.includes(u.id)}
+                                                        onCheckedChange={() => toggleUserSelection(u.id)}
+                                                        data-testid={`select-user-${u.id}`}
+                                                    />
+                                                </td>
                                                 <td className="px-4 py-3 text-sm text-[#0A0A0A] font-medium">{u.name}</td>
                                                 <td className="px-4 py-3 text-sm text-[#52525B]">{u.email}</td>
                                                 <td className="px-4 py-3">
@@ -406,7 +496,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-8 text-center text-[#52525B]">No users found</td>
+                                                <td colSpan={6} className="px-4 py-8 text-center text-[#52525B]">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -420,7 +510,7 @@ export default function AdminDashboard() {
                         <div className="bg-white border border-[#E4E4E7] rounded-sm">
                             <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-[#0A0A0A]">Step Management</h2>
-                                <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="add-step-btn">
+                                <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-step-btn">
                                     <Plus size={18} className="mr-2" /> Add Step
                                 </Button>
                             </div>
@@ -430,7 +520,7 @@ export default function AdminDashboard() {
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="w-8 h-8 rounded-full bg-[#002FA7] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                                    <span className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                                                         {step.order}
                                                     </span>
                                                     <h3 className="font-semibold text-[#0A0A0A]">{step.title}</h3>
@@ -442,13 +532,13 @@ export default function AdminDashboard() {
                                                 <div className="flex gap-4 mt-2 ml-10 text-xs text-[#52525B] flex-wrap">
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
-                                                    {step.email_on_enter && <span className="text-[#002FA7]">Email on enter</span>}
-                                                    {step.email_on_edit && <span className="text-[#002FA7]">Email on edit</span>}
-                                                    {step.email_on_leave && <span className="text-[#002FA7]">Email on leave</span>}
+                                                    {step.email_on_enter && <span className="text-[#114f55]">Email on enter</span>}
+                                                    {step.email_on_edit && <span className="text-[#114f55]">Email on edit</span>}
+                                                    {step.email_on_leave && <span className="text-[#114f55]">Email on leave</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 flex-shrink-0 ml-4">
-                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-[#E4E4E7] text-[#002FA7] hover:bg-blue-50" data-testid={`edit-step-${step.id}`}>
+                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-[#E4E4E7] text-[#114f55] hover:bg-teal-50" data-testid={`edit-step-${step.id}`}>
                                                     <Pencil size={16} className="mr-1" /> Edit
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>
@@ -467,7 +557,7 @@ export default function AdminDashboard() {
                         <div className="bg-white border border-[#E4E4E7] rounded-sm">
                             <div className="p-4 border-b border-[#E4E4E7] flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-[#0A0A0A]">Partner Management</h2>
-                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="add-partner-btn">
+                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-partner-btn">
                                     <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
                             </div>
@@ -506,7 +596,7 @@ export default function AdminDashboard() {
                                                                 </Button>
                                                             </div>
                                                         ) : (
-                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[#002FA7] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
+                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[#114f55] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
                                                                 <UserPlus size={14} className="mr-1" /> Link User
                                                             </Button>
                                                         )}
@@ -732,7 +822,7 @@ function CmsSection({ title, fields, content, onChange, onSave, saving }) {
                 <Button
                     onClick={onSave}
                     disabled={saving}
-                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                     data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -800,7 +890,7 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
                                 <Button
                                     size="sm"
                                     onClick={() => onLink(partner?.id, u.id)}
-                                    className="bg-[#002FA7] hover:bg-[#002280] text-white"
+                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                     data-testid={`link-select-user-${u.id}`}
                                 >
                                     <LinkIcon size={14} className="mr-1" /> Link
@@ -951,7 +1041,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
 
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="save-step-btn">
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">
                             {step ? 'Update Step' : 'Create Step'}
                         </Button>
                     </div>
@@ -1027,7 +1117,7 @@ function FieldForm({ field, onSave, onCancel }) {
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                     <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="save-field-btn">
+                    <Button onClick={handleSubmit} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-field-btn">
                         {field ? 'Update' : 'Add'} Field
                     </Button>
                 </div>
@@ -1094,7 +1184,7 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                     </div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" className="bg-[#002FA7] hover:bg-[#002280] text-white" data-testid="save-partner-btn">
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-partner-btn">
                             {partner ? 'Update Partner' : 'Add Partner'}
                         </Button>
                     </div>

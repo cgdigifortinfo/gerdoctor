@@ -89,7 +89,7 @@ export default function Landing() {
                             </button>
                             <Link to="/login">
                                 <Button 
-                                    className="bg-[#002FA7] hover:bg-[#002280] text-white text-sm font-medium px-6"
+                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white text-sm font-medium px-6"
                                     data-testid="nav-login-btn"
                                 >
                                     Login
@@ -135,7 +135,7 @@ export default function Landing() {
                             </button>
                             <Link to="/login" className="block">
                                 <Button 
-                                    className="w-full bg-[#002FA7] hover:bg-[#002280] text-white"
+                                    className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white"
                                     data-testid="mobile-nav-login-btn"
                                 >
                                     Login
@@ -151,7 +151,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="animate-fadeIn">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#002FA7] mb-4">
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                                 Your Partner Network
                             </p>
                             <h1 className="text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-black text-[#0A0A0A] mb-6">
@@ -163,7 +163,7 @@ export default function Landing() {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link to="/register">
                                     <Button 
-                                        className="w-full sm:w-auto bg-[#002FA7] hover:bg-[#002280] text-white px-8 py-3 text-sm font-medium"
+                                        className="w-full sm:w-auto bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
                                         data-testid="hero-cta-btn"
                                     >
                                         {homeContent.hero_cta || 'Get Started'}
@@ -188,7 +188,7 @@ export default function Landing() {
                             />
                             <div className="absolute -bottom-6 -left-6 bg-white p-6 shadow-lg rounded-sm border border-[#E4E4E7]">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-[#002FA7] rounded-sm flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center">
                                         <CheckCircle size={24} className="text-white" />
                                     </div>
                                     <div>
@@ -207,21 +207,21 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-3 gap-8">
                         <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
-                            <div className="w-12 h-12 bg-[#002FA7] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Users size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Guided Onboarding</h3>
                             <p className="text-[#52525B]">Step-by-step process to complete your profile and find the perfect partner match.</p>
                         </div>
                         <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
-                            <div className="w-12 h-12 bg-[#002FA7] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Buildings size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Partner Network</h3>
                             <p className="text-[#52525B]">Access our curated network of industry-leading partners across multiple sectors.</p>
                         </div>
                         <div className="p-8 border border-[#E4E4E7] rounded-sm card-hover">
-                            <div className="w-12 h-12 bg-[#002FA7] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <CheckCircle size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold tracking-tight text-[#0A0A0A] mb-3">Progress Tracking</h3>
@@ -243,7 +243,7 @@ export default function Landing() {
                             />
                         </div>
                         <div className="order-1 md:order-2">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#002FA7] mb-4">
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                                 Who We Are
                             </p>
                             <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-[#0A0A0A] mb-6">
@@ -264,7 +264,7 @@ export default function Landing() {
             <section id="partners" className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#E4E4E7]">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#002FA7] mb-4">
+                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
                             Our Network
                         </p>
                         <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-[#0A0A0A] mb-4">
@@ -317,7 +317,7 @@ export default function Landing() {
                     </p>
                     <Link to="/register">
                         <Button 
-                            className="bg-[#002FA7] hover:bg-[#002280] text-white px-8 py-3 text-sm font-medium"
+                            className="bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
                             data-testid="cta-register-btn"
                         >
                             Create Your Account

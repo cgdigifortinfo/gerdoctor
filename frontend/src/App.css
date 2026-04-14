@@ -17,7 +17,7 @@
 
 /* Progress bar */
 .progress-bar {
-    background: linear-gradient(90deg, #002FA7 0%, #002280 100%);
+    background: linear-gradient(90deg, #114f55 0%, #0d3d42 100%);
 }
 
 /* Mobile bottom nav */
@@ -32,7 +32,7 @@
 }
 
 .partner-card:hover {
-    border-color: #002FA7;
+    border-color: #114f55;
 }
 
 /* Table styles */

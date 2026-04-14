@@ -76,6 +76,8 @@ export const adminAPI = {
     updateUserProgress: (userId, step_id, status, data) => 
         api.put(`/admin/users/${userId}/progress`, { step_id, status, data }),
     updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
+    bulkUpdateRole: (user_ids, role) => api.put('/admin/users/bulk-role', { user_ids, role }),
+    exportUsersCsv: () => api.get('/admin/export/users', { responseType: 'blob' }),
     
     // Steps
     getSteps: () => api.get('/admin/steps'),
@@ -97,6 +99,12 @@ export const adminAPI = {
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
     updateCmsContent: (section, content) => api.put(`/cms/${section}`, { section, content }),
+};
+
+// Notification Preferences APIs
+export const notificationAPI = {
+    getPreferences: () => api.get('/notifications/preferences'),
+    updatePreferences: (prefs) => api.put('/notifications/preferences', prefs),
 };
 
 // Partner Dashboard APIs

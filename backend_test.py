@@ -173,7 +173,7 @@ class GuidedJourneyAPITester:
         self.test_admin_login()
         
         # Test admin endpoints
-        self.run_test("Admin Get Users", "GET", "admin/users", 200)
+        users_response = self.run_test("Admin Get Users", "GET", "admin/users", 200)
         self.run_test("Admin Get Steps", "GET", "admin/steps", 200)
         self.run_test("Admin Get Partners", "GET", "admin/partners", 200)
         
@@ -184,7 +184,72 @@ class GuidedJourneyAPITester:
         self.run_test("Admin Search Users (empty query)", "GET", "admin/users/search", 200)
         self.run_test("Admin Search Users (by role)", "GET", "admin/users/search?role=admin", 200)
         self.run_test("Admin Search Users (by query)", "GET", "admin/users/search?q=admin", 200)
+        
+        # Test NEW FEATURES for iteration 3
+        print("\n🆕 Testing New Admin Features (Iteration 3)...")
+        
+        # Test CSV export
+        try:
+            url = f"{self.base_url}/api/admin/export/users"
+            response = self.session.get(url, headers={'Content-Type': 'application/json'})
+            if response.status_code == 200 and 'text/csv' in response.headers.get('content-type', ''):
+                self.log_test("Admin CSV Export", True, "CSV file downloaded successfully")
+            else:
+                self.log_test("Admin CSV Export", False, f"Status: {response.status_code}, Content-Type: {response.headers.get('content-type', 'unknown')}")
+        except Exception as e:
+            self.log_test("Admin CSV Export", False, f"Error: {str(e)}")
+        
+        # Test bulk role update (if we have users)
+        if users_response and len(users_response) > 0:
+            # Get first user ID for testing
+            test_user_ids = [users_response[0]['id']] if users_response else []
+            if test_user_ids:
+                bulk_response = self.run_test(
+                    "Admin Bulk Role Update", 
+                    "PUT", 
+                    "admin/users/bulk-role", 
+                    200,
+                    data={"user_ids": test_user_ids, "role": "user"}
+                )
+                if bulk_response:
+                    print(f"✅ Bulk role update successful: {bulk_response.get('message', 'No message')}")
+        else:
+            self.log_test("Admin Bulk Role Update", False, "No users available for testing")
 
+    def test_notification_preferences(self):
+        """Test notification preferences endpoints"""
+        print("\n🔔 Testing Notification Preferences...")
+        
+        # Test get notification preferences
+        prefs_response = self.run_test("Get Notification Preferences", "GET", "notifications/preferences", 200)
+        
+        # Test update notification preferences
+        if prefs_response:
+            # Update preferences
+            new_prefs = {
+                "email_on_step_enter": False,
+                "email_on_step_edit": True,
+                "email_on_step_leave": False
+            }
+            update_response = self.run_test(
+                "Update Notification Preferences", 
+                "PUT", 
+                "notifications/preferences", 
+                200,
+                data=new_prefs
+            )
+            
+            if update_response:
+                # Verify the update by getting preferences again
+                verify_response = self.run_test("Verify Updated Preferences", "GET", "notifications/preferences", 200)
+                if verify_response:
+                    # Check if the preferences were actually updated
+                    if (verify_response.get('email_on_step_enter') == False and 
+                        verify_response.get('email_on_step_edit') == True and 
+                        verify_response.get('email_on_step_leave') == False):
+                        self.log_test("Notification Preferences Update Verification", True, "Preferences updated correctly")
+                    else:
+                        self.log_test("Notification Preferences Update Verification", False, f"Preferences not updated correctly: {verify_response}")
     def test_profile_endpoints(self):
         """Test profile endpoints"""
         print("\n👤 Testing Profile Endpoints...")
@@ -211,6 +276,7 @@ class GuidedJourneyAPITester:
         self.test_partners_endpoints()
         self.test_cms_endpoints()
         self.test_profile_endpoints()
+        self.test_notification_preferences()
         self.test_admin_endpoints()
         
         # Print summary
