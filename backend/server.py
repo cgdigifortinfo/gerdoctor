@@ -1187,8 +1187,11 @@ async def startup():
         })
         logger.info(f"Admin user created: {admin_email}")
     elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password), "role": "admin"}})
         logger.info("Admin password updated")
+    elif existing.get("role") != "admin":
+        await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
+        logger.info("Admin role restored")
     
     # Seed default steps if none exist
     step_count = await db.steps.count_documents({})
