@@ -8,28 +8,28 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null); // null = checking, false = not auth, object = auth
     const [loading, setLoading] = useState(true);
+    const [token, setToken] = useState(null);
 
     const checkAuth = useCallback(async () => {
         try {
-            const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const response = await axios.get(`${API}/auth/me`, { withCredentials: true, headers });
             setUser(response.data);
         } catch (err) {
-            // Try refreshing the token on 401
             if (err.response?.status === 401) {
                 try {
                     await axios.post(`${API}/auth/refresh`, {}, { withCredentials: true });
                     const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
                     setUser(response.data);
                     return;
-                } catch {
-                    // Refresh also failed
-                }
+                } catch {}
             }
             setUser(false);
+            setToken(null);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         checkAuth();
@@ -37,12 +37,14 @@ export function AuthProvider({ children }) {
 
     const login = async (email, password) => {
         const response = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
+        if (response.data.access_token) setToken(response.data.access_token);
         setUser(response.data);
         return response.data;
     };
 
     const register = async (email, password, name) => {
         const response = await axios.post(`${API}/auth/register`, { email, password, name }, { withCredentials: true });
+        if (response.data.access_token) setToken(response.data.access_token);
         setUser(response.data);
         return response.data;
     };
@@ -50,6 +52,7 @@ export function AuthProvider({ children }) {
     const logout = async () => {
         await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
         setUser(false);
+        setToken(null);
     };
 
     const refreshToken = async () => {
