@@ -230,6 +230,7 @@ class PartnerCreate(BaseModel):
     website: Optional[str] = None
     contact_email: Optional[EmailStr] = None
     category: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 class PartnerUpdate(BaseModel):
     name: Optional[str] = None
@@ -238,22 +239,32 @@ class PartnerUpdate(BaseModel):
     website: Optional[str] = None
     contact_email: Optional[EmailStr] = None
     category: Optional[str] = None
+    tags: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
 class StepFieldCreate(BaseModel):
     name: str
-    field_type: str  # text, email, phone, textarea, select, file, date
+    field_type: str  # text, email, phone, textarea, select, selectbox, file, multiupload, date
     label: str
     placeholder: Optional[str] = None
     required: bool = False
-    options: Optional[List[str]] = None  # for select fields
+    options: Optional[List[str]] = None  # for select/selectbox/multiupload document types
 
 class StepCreate(BaseModel):
     title: str
     description: str
     order: int
-    step_type: str  # form, partner_selection, info
+    step_type: str  # form, partner_selection, milestone, display
     fields: Optional[List[StepFieldCreate]] = None
+    filter_tag: Optional[str] = None  # for partner_selection: filter by this tag
+    skippable: bool = False
+    skip_label: Optional[str] = None
+    action_label: Optional[str] = None  # for display type: button text
+    pending_message: Optional[str] = None  # for milestone type
+    complete_message: Optional[str] = None  # for milestone type
+    required_fields: Optional[List[str]] = None  # field names required to proceed
+    required_uploads: Optional[List[str]] = None  # document types required to proceed
+    field_mappings: Optional[List[dict]] = None  # [{source_field, source_value, target_step_order, target_field, target_value}]
     email_on_enter: bool = False
     email_on_edit: bool = False
     email_on_leave: bool = False
@@ -264,6 +275,15 @@ class StepUpdate(BaseModel):
     order: Optional[int] = None
     step_type: Optional[str] = None
     fields: Optional[List[StepFieldCreate]] = None
+    filter_tag: Optional[str] = None
+    skippable: Optional[bool] = None
+    skip_label: Optional[str] = None
+    action_label: Optional[str] = None
+    pending_message: Optional[str] = None
+    complete_message: Optional[str] = None
+    required_fields: Optional[List[str]] = None
+    required_uploads: Optional[List[str]] = None
+    field_mappings: Optional[List[dict]] = None
     email_on_enter: Optional[bool] = None
     email_on_edit: Optional[bool] = None
     email_on_leave: Optional[bool] = None
@@ -603,8 +623,11 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
 # ========================
 
 @partner_router.get("")
-async def get_partners():
-    partners = await db.partners.find({"is_active": True}).to_list(100)
+async def get_partners(tag: str = ""):
+    query = {"is_active": True}
+    if tag:
+        query["tags"] = tag
+    partners = await db.partners.find(query).to_list(100)
     result = []
     for p in partners:
         result.append({
@@ -613,7 +636,8 @@ async def get_partners():
             "description": p["description"],
             "logo_url": p.get("logo_url"),
             "website": p.get("website"),
-            "category": p.get("category")
+            "category": p.get("category"),
+            "tags": p.get("tags", [])
         })
     return result
 
@@ -629,7 +653,8 @@ async def get_partner(partner_id: str):
         "logo_url": partner.get("logo_url"),
         "website": partner.get("website"),
         "contact_email": partner.get("contact_email"),
-        "category": partner.get("category")
+        "category": partner.get("category"),
+        "tags": partner.get("tags", [])
     }
 
 @partner_router.post("/submit")
@@ -879,6 +904,15 @@ async def admin_get_steps(request: Request):
             "order": s["order"],
             "step_type": s["step_type"],
             "fields": s.get("fields", []),
+            "filter_tag": s.get("filter_tag", ""),
+            "skippable": s.get("skippable", False),
+            "skip_label": s.get("skip_label", ""),
+            "action_label": s.get("action_label", ""),
+            "pending_message": s.get("pending_message", ""),
+            "complete_message": s.get("complete_message", ""),
+            "required_fields": s.get("required_fields", []),
+            "required_uploads": s.get("required_uploads", []),
+            "field_mappings": s.get("field_mappings", []),
             "email_on_enter": s.get("email_on_enter", False),
             "email_on_edit": s.get("email_on_edit", False),
             "email_on_leave": s.get("email_on_leave", False),
@@ -896,6 +930,15 @@ async def admin_create_step(data: StepCreate, request: Request):
         "order": data.order,
         "step_type": data.step_type,
         "fields": [f.model_dump() for f in data.fields] if data.fields else [],
+        "filter_tag": data.filter_tag or "",
+        "skippable": data.skippable,
+        "skip_label": data.skip_label or "",
+        "action_label": data.action_label or "",
+        "pending_message": data.pending_message or "",
+        "complete_message": data.complete_message or "",
+        "required_fields": data.required_fields or [],
+        "required_uploads": data.required_uploads or [],
+        "field_mappings": data.field_mappings or [],
         "email_on_enter": data.email_on_enter,
         "email_on_edit": data.email_on_edit,
         "email_on_leave": data.email_on_leave,
@@ -964,6 +1007,7 @@ async def admin_get_partners(request: Request):
             "website": p.get("website"),
             "contact_email": p.get("contact_email"),
             "category": p.get("category"),
+            "tags": p.get("tags", []),
             "is_active": p.get("is_active", True),
             "user_id": p.get("user_id")
         })
@@ -1281,209 +1325,109 @@ async def startup():
     # Seed default steps if none exist
     step_count = await db.steps.count_documents({})
     if step_count == 0:
+        doc_types = ["Visum", "Antrag auf Approbation", "Approbation", "Eingangsbescheinigung bei zuständiger Behörde", "Kenntnissprüfung"]
         default_steps = [
             {
-                "title": "Complete Your Profile",
-                "description": "Fill in your personal information to get started",
-                "order": 1,
-                "step_type": "form",
+                "title": "Persönliche Daten", "description": "Füllen Sie Ihre persönlichen Informationen aus", "order": 1, "step_type": "form",
                 "fields": [
-                    {"name": "phone", "field_type": "phone", "label": "Phone Number", "placeholder": "+1 (555) 000-0000", "required": True},
-                    {"name": "address", "field_type": "text", "label": "Address", "placeholder": "Your address", "required": True},
-                    {"name": "city", "field_type": "text", "label": "City", "placeholder": "City", "required": True},
-                    {"name": "country", "field_type": "text", "label": "Country", "placeholder": "Country", "required": True},
-                    {"name": "bio", "field_type": "textarea", "label": "Bio", "placeholder": "Tell us about yourself", "required": False},
-                    {"name": "profile_image", "field_type": "file", "label": "Profile Image", "required": False}
+                    {"name": "name", "field_type": "text", "label": "Name", "placeholder": "Ihr Nachname", "required": True},
+                    {"name": "first_name", "field_type": "text", "label": "Vorname", "placeholder": "Ihr Vorname", "required": True},
+                    {"name": "phone", "field_type": "phone", "label": "Telefon", "placeholder": "+49 (0) 123 456 789", "required": True},
+                    {"name": "address", "field_type": "text", "label": "Adresse", "placeholder": "Straße und Hausnummer", "required": True},
+                    {"name": "field_of_study", "field_type": "selectbox", "label": "Fachgebiet", "options": ["Allgemeinmedizin", "Zahnmedizin", "HNO"], "required": True},
+                    {"name": "documents", "field_type": "multiupload", "label": "Dokumente", "options": doc_types, "required": False}
                 ],
-                "email_on_enter": False,
-                "email_on_edit": False,
-                "email_on_leave": True,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "required_fields": ["name", "first_name", "phone", "address", "field_of_study"],
+                "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
-                "title": "Select a Partner",
-                "description": "Browse our partners and select one to work with",
-                "order": 2,
-                "step_type": "partner_selection",
-                "fields": [],
-                "email_on_enter": False,
-                "email_on_edit": False,
-                "email_on_leave": False,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "title": "Service Antragstellung", "description": "Wählen Sie einen Partner für die Antragstellung", "order": 2, "step_type": "partner_selection",
+                "fields": [], "filter_tag": "Antragstellung", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
-                "title": "Partner Application",
-                "description": "Complete the application form for your selected partner",
-                "order": 3,
-                "step_type": "form",
-                "fields": [
-                    {"name": "company_name", "field_type": "text", "label": "Company Name", "placeholder": "Your company name", "required": True},
-                    {"name": "business_type", "field_type": "select", "label": "Business Type", "options": ["Startup", "SMB", "Enterprise", "Non-profit"], "required": True},
-                    {"name": "project_description", "field_type": "textarea", "label": "Project Description", "placeholder": "Describe your project", "required": True},
-                    {"name": "documents", "field_type": "file", "label": "Supporting Documents", "required": False}
-                ],
-                "email_on_enter": False,
-                "email_on_edit": False,
-                "email_on_leave": True,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "title": "Meilenstein Antragstellung", "description": "Status Ihrer Antragstellung", "order": 3, "step_type": "milestone",
+                "fields": [], "pending_message": "Warten auf Abschluss der Antragstellung. Ihr Partner bearbeitet Ihren Antrag.",
+                "complete_message": "Alles erledigt! Sie können zum nächsten Schritt weitergehen.",
+                "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
-                "title": "Review & Confirm",
-                "description": "Review your information and confirm your submission",
-                "order": 4,
-                "step_type": "info",
-                "fields": [],
-                "email_on_enter": False,
-                "email_on_edit": False,
-                "email_on_leave": True,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "title": "FaMed", "description": "Weiter zur FaMed-Prüfung", "order": 4, "step_type": "display",
+                "fields": [], "action_label": "zur FaMed", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "title": "Service Kenntnisprüfung", "description": "Wählen Sie einen Partner für die Kenntnisprüfung", "order": 5, "step_type": "partner_selection",
+                "fields": [], "filter_tag": "Kenntnisprüfung", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "title": "Meilenstein Kenntnisprüfung", "description": "Status Ihrer Kenntnisprüfung", "order": 6, "step_type": "milestone",
+                "fields": [], "pending_message": "Warten auf Abschluss der Kenntnisprüfung. Ihr Partner bearbeitet Ihre Prüfung.",
+                "complete_message": "Alles erledigt! Sie können zum nächsten Schritt weitergehen.",
+                "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "title": "Service Weiterbildung", "description": "Wählen Sie einen Partner für die Weiterbildung", "order": 7, "step_type": "partner_selection",
+                "fields": [], "filter_tag": "Weiterbildung", "skippable": True, "skip_label": "Vorerst überspringen",
+                "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "title": "Meilenstein Job finden", "description": "Hier können wir Ihnen helfen!", "order": 8, "step_type": "display",
+                "fields": [], "pending_message": "Hier können wir Ihnen helfen!", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             }
         ]
         await db.steps.insert_many(default_steps)
-        logger.info("Default steps created")
+        logger.info("Default steps created (8 steps)")
     
     # Seed sample partners if none exist
     partner_count = await db.partners.count_documents({})
     if partner_count == 0:
         sample_partners = [
-            {
-                "name": "TechVenture Partners",
-                "description": "Leading technology investment firm focused on early-stage startups with innovative solutions.",
-                "logo_url": "https://images.unsplash.com/photo-1659893982147-e9ddb94de39a?w=200",
-                "website": "https://example.com/techventure",
-                "contact_email": "contact@techventure.example",
-                "category": "Investment",
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            },
-            {
-                "name": "Global Consulting Group",
-                "description": "Strategic consulting services for businesses looking to expand globally.",
-                "logo_url": "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200",
-                "website": "https://example.com/globalconsulting",
-                "contact_email": "info@globalconsulting.example",
-                "category": "Consulting",
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            },
-            {
-                "name": "Innovation Labs",
-                "description": "Research and development partner for cutting-edge technology projects.",
-                "logo_url": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=200",
-                "website": "https://example.com/innovationlabs",
-                "contact_email": "hello@innovationlabs.example",
-                "category": "R&D",
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
+            {"name": "ILS", "description": "Wir helfen bei allen Anträgen", "logo_url": "https://digifort-experts.de/wp-content/uploads/2026/02/digiFORT.png", "website": "https://www.ils.de/", "category": "Antragstellung", "tags": ["Antragstellung"], "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()},
+            {"name": "ILS2", "description": "Wir helfen bei allen Kenntnisprüfungen", "logo_url": "https://digifort-experts.de/wp-content/uploads/2026/02/digiFORT.png", "website": "https://www.ils.de/", "category": "Kenntnisprüfung", "tags": ["Kenntnisprüfung"], "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()},
+            {"name": "ILS3", "description": "Wir helfen bei allen Weiterbildungen", "logo_url": "https://digifort-experts.de/wp-content/uploads/2026/02/digiFORT.png", "website": "https://www.ils.de/", "category": "Weiterbildung", "tags": ["Weiterbildung"], "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
         ]
         await db.partners.insert_many(sample_partners)
-        logger.info("Sample partners created")
+        logger.info("Sample partners created (3 tagged)")
     
-    # Seed default CMS content if none exist
+    # Seed CMS
     for section, defaults in {
-        "home": {"hero_title": "Transform Your Business Journey", "hero_subtitle": "A guided experience to connect you with the right partners and accelerate your growth.", "hero_cta": "Get Started"},
-        "about": {"title": "About Us", "description": "We help businesses connect with the right partners through a streamlined onboarding process. Our platform simplifies the journey from initial contact to successful partnership.", "mission": "Our mission is to simplify business partnerships and create meaningful connections that drive growth and innovation."},
-        "partners": {"title": "Our Partners", "description": "Work with industry-leading partners to achieve your goals."}
+        "home": {"hero_title": "GERdoctor - Praktizieren in Deutschland", "hero_subtitle": "Vom Visum bis zur Arbeitserlaubnis unterstützen wir Sie auf Ihrem Weg", "hero_cta": "Jetzt starten"},
+        "about": {"title": "Über uns", "description": "Erhalte die Arbeitserlaubnis zum Praktizieren in Deutschland. Wir gehen mit dir alle Schritte bis zur Approbation und Praxis Findung.", "mission": "Der einfache Weg zur deutschen Approbation"},
+        "partners": {"title": "Unsere Partner unterstützen dich", "description": "Arbeiten Sie mit branchenführenden Partnern zusammen, um Ihre Ziele zu erreichen."}
     }.items():
         existing_cms = await db.cms_content.find_one({"section": section})
         if not existing_cms:
             await db.cms_content.insert_one({"section": section, "content": defaults, "created_at": datetime.now(timezone.utc).isoformat()})
-            logger.info(f"CMS content seeded: {section}")
     
-    # Seed a demo user if none exist (besides admin)
+    # Seed demo user
     demo_email = "demo@example.com"
     demo_password = "Demo123!"
-    existing_demo = await db.users.find_one({"email": demo_email})
-    if not existing_demo:
-        demo_hash = hash_password(demo_password)
-        result = await db.users.insert_one({
-            "email": demo_email,
-            "password_hash": demo_hash,
-            "name": "Demo User",
-            "role": "user",
-            "profile": {
-                "phone": "+1 555 123 4567",
-                "address": "123 Main Street",
-                "city": "Berlin",
-                "country": "Germany"
-            },
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
+    if not await db.users.find_one({"email": demo_email}):
+        result = await db.users.insert_one({"email": demo_email, "password_hash": hash_password(demo_password), "name": "Demo User", "role": "user", "profile": {}, "created_at": datetime.now(timezone.utc).isoformat()})
         demo_id = str(result.inserted_id)
-        # Create progress entries for demo user
         steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
         for step in steps:
-            await db.user_progress.insert_one({
-                "user_id": demo_id,
-                "step_id": str(step["_id"]),
-                "status": "pending",
-                "data": {},
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            })
-        logger.info(f"Demo user created: {demo_email}")
+            await db.user_progress.insert_one({"user_id": demo_id, "step_id": str(step["_id"]), "status": "pending", "data": {}, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
+        logger.info("Demo user created")
     
-    # Seed a partner user if none exist
+    # Seed partner user
     partner_email = "partner@example.com"
-    partner_password = "Partner123!"
-    existing_partner_user = await db.users.find_one({"email": partner_email})
-    if not existing_partner_user:
+    if not await db.users.find_one({"email": partner_email}):
         first_partner = await db.partners.find_one({"is_active": True})
         if first_partner:
-            partner_hash = hash_password(partner_password)
-            result = await db.users.insert_one({
-                "email": partner_email,
-                "password_hash": partner_hash,
-                "name": "TechVenture Admin",
-                "role": "partner",
-                "partner_id": str(first_partner["_id"]),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-            await db.partners.update_one(
-                {"_id": first_partner["_id"]},
-                {"$set": {"user_id": str(result.inserted_id)}}
-            )
-            logger.info(f"Partner user created: {partner_email}")
+            result = await db.users.insert_one({"email": partner_email, "password_hash": hash_password("Partner123!"), "name": "ILS Admin", "role": "partner", "partner_id": str(first_partner["_id"]), "created_at": datetime.now(timezone.utc).isoformat()})
+            await db.partners.update_one({"_id": first_partner["_id"]}, {"$set": {"user_id": str(result.inserted_id)}})
+            logger.info("Partner user created")
     
     # Write test credentials
     os.makedirs("/app/memory", exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
         f.write(f"""# Test Credentials
-
-## Admin Account
-- Email: {admin_email}
-- Password: {admin_password}
-- Role: admin
-
-## Demo User Account
-- Email: demo@example.com
-- Password: Demo123!
-- Role: user
-
-## Partner User Account
-- Email: partner@example.com
-- Password: Partner123!
-- Role: partner (linked to TechVenture Partners)
-
-## Seeded Data
-- 4 default steps (Profile, Partner Selection, Application, Review)
-- 3 sample partners (TechVenture, Global Consulting, Innovation Labs)
-- CMS content for home, about, partners sections
-- Demo user with profile data
-
-## Auth Endpoints
-- POST /api/auth/register - Register new user
-- POST /api/auth/login - Login
-- POST /api/auth/logout - Logout
-- GET /api/auth/me - Get current user
-- POST /api/auth/refresh - Refresh token
+## Admin: {admin_email} / {admin_password}
+## Demo User: demo@example.com / Demo123!
+## Partner: partner@example.com / Partner123! (linked to ILS)
+## Seeded: 8 steps, 3 tagged partners, German CMS, demo user, partner user
 """)
-    logger.info("Test credentials written to /app/memory/test_credentials.md")
+    logger.info("Startup seeding complete")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

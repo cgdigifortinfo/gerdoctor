@@ -1,17 +1,20 @@
+#!/usr/bin/env python3
+
 import requests
 import sys
 import json
 from datetime import datetime
 
-class GuidedJourneyAPITester:
-    def __init__(self, base_url="https://guided-journey-5.preview.emergentagent.com"):
+class GERdoctorAPITester:
+    def __init__(self, base_url="https://guided-journey-5.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.session = requests.Session()
         self.admin_token = None
-        self.user_token = None
+        self.demo_token = None
+        self.partner_token = None
         self.tests_run = 0
         self.tests_passed = 0
-        self.test_results = []
+        self.failed_tests = []
 
     def log_test(self, name, success, details=""):
         """Log test result"""
@@ -21,424 +24,362 @@ class GuidedJourneyAPITester:
             print(f"✅ {name}")
         else:
             print(f"❌ {name} - {details}")
-        
-        self.test_results.append({
-            "name": name,
-            "success": success,
-            "details": details
-        })
+            self.failed_tests.append(f"{name}: {details}")
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None, cookies=None):
-        """Run a single API test"""
-        url = f"{self.base_url}/api/{endpoint}"
-        
-        # Prepare headers
-        test_headers = {'Content-Type': 'application/json'}
+    def make_request(self, method, endpoint, data=None, headers=None, expected_status=200):
+        """Make HTTP request and return response"""
+        url = f"{self.base_url}{endpoint}"
+        default_headers = {'Content-Type': 'application/json'}
         if headers:
-            test_headers.update(headers)
-
+            default_headers.update(headers)
+        
         try:
             if method == 'GET':
-                response = self.session.get(url, headers=test_headers, cookies=cookies)
+                response = self.session.get(url, headers=default_headers)
             elif method == 'POST':
-                response = self.session.post(url, json=data, headers=test_headers, cookies=cookies)
+                response = self.session.post(url, json=data, headers=default_headers)
             elif method == 'PUT':
-                response = self.session.put(url, json=data, headers=test_headers, cookies=cookies)
+                response = self.session.put(url, json=data, headers=default_headers)
             elif method == 'DELETE':
-                response = self.session.delete(url, headers=test_headers, cookies=cookies)
-
-            success = response.status_code == expected_status
-            details = f"Status: {response.status_code}"
+                response = self.session.delete(url, headers=default_headers)
             
-            if not success:
-                try:
-                    error_data = response.json()
-                    details += f", Response: {error_data}"
-                except:
-                    details += f", Response: {response.text[:200]}"
-            
-            self.log_test(name, success, details)
-            
-            if success:
-                try:
-                    return response.json()
-                except:
-                    return {"status": "success"}
-            return None
-
+            return response
         except Exception as e:
-            self.log_test(name, False, f"Error: {str(e)}")
+            print(f"Request failed: {str(e)}")
             return None
 
     def test_admin_login(self):
-        """Test admin login and store token"""
-        print("\n🔐 Testing Admin Authentication...")
+        """Test admin login with seeded credentials"""
+        print("\n🔐 Testing Admin Login...")
+        response = self.make_request('POST', '/auth/login', {
+            'email': 'admin@example.com',
+            'password': 'Admin123!'
+        })
         
-        response = self.run_test(
-            "Admin Login",
-            "POST",
-            "auth/login",
-            200,
-            data={"email": "admin@example.com", "password": "Admin123!"}
-        )
-        
-        if response:
-            # Check if we got cookies (httpOnly)
-            if self.session.cookies:
-                print("✅ Admin login successful with cookies")
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('role') == 'admin':
+                self.log_test("Admin login successful", True)
+                # Extract token from cookies if available
+                if 'access_token' in response.cookies:
+                    self.admin_token = response.cookies['access_token']
                 return True
             else:
-                print("❌ Admin login successful but no cookies received")
-                return False
+                self.log_test("Admin login", False, f"Expected admin role, got {data.get('role')}")
+        else:
+            self.log_test("Admin login", False, f"Status: {response.status_code if response else 'No response'}")
         return False
 
-    def test_user_registration_and_login(self):
-        """Test user registration and login"""
-        print("\n👤 Testing User Registration & Login...")
+    def test_demo_user_login(self):
+        """Test demo user login"""
+        print("\n👤 Testing Demo User Login...")
+        response = self.make_request('POST', '/auth/login', {
+            'email': 'demo@example.com',
+            'password': 'Demo123!'
+        })
         
-        # Generate unique test user
-        timestamp = datetime.now().strftime('%H%M%S')
-        test_email = f"testuser_{timestamp}@example.com"
-        test_password = "TestPass123!"
-        test_name = f"Test User {timestamp}"
-        
-        # Test registration
-        response = self.run_test(
-            "User Registration",
-            "POST",
-            "auth/register",
-            200,
-            data={"email": test_email, "password": test_password, "name": test_name}
-        )
-        
-        if response:
-            # Test login with new user
-            login_response = self.run_test(
-                "User Login",
-                "POST",
-                "auth/login",
-                200,
-                data={"email": test_email, "password": test_password}
-            )
-            return login_response is not None
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('role') == 'user':
+                self.log_test("Demo user login successful", True)
+                return True
+            else:
+                self.log_test("Demo user login", False, f"Expected user role, got {data.get('role')}")
+        else:
+            self.log_test("Demo user login", False, f"Status: {response.status_code if response else 'No response'}")
         return False
 
-    def test_auth_endpoints(self):
-        """Test authentication endpoints"""
-        print("\n🔑 Testing Auth Endpoints...")
+    def test_partner_login(self):
+        """Test partner login"""
+        print("\n🏢 Testing Partner Login...")
+        response = self.make_request('POST', '/auth/login', {
+            'email': 'partner@example.com',
+            'password': 'Partner123!'
+        })
         
-        # Test /me endpoint
-        self.run_test("Get Current User", "GET", "auth/me", 200)
-        
-        # Test refresh token
-        self.run_test("Refresh Token", "POST", "auth/refresh", 200)
-        
-        # Test logout
-        self.run_test("Logout", "POST", "auth/logout", 200)
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get('role') == 'partner':
+                self.log_test("Partner login successful", True)
+                return True
+            else:
+                self.log_test("Partner login", False, f"Expected partner role, got {data.get('role')}")
+        else:
+            self.log_test("Partner login", False, f"Status: {response.status_code if response else 'No response'}")
+        return False
 
-    def test_steps_endpoints(self):
-        """Test steps endpoints"""
-        print("\n📋 Testing Steps Endpoints...")
+    def test_admin_steps_endpoint(self):
+        """Test admin steps endpoint returns 8 German steps"""
+        print("\n📋 Testing Admin Steps Endpoint...")
+        # Re-login as admin to ensure session is active
+        self.make_request('POST', '/auth/login', {
+            'email': 'admin@example.com',
+            'password': 'Admin123!'
+        })
+        response = self.make_request('GET', '/admin/steps')
         
-        # Re-login as admin for protected endpoints
-        self.test_admin_login()
-        
-        # Test get steps
-        self.run_test("Get Steps", "GET", "steps", 200)
-        
-        # Test get progress
-        self.run_test("Get User Progress", "GET", "steps/progress", 200)
-
-    def test_partners_endpoints(self):
-        """Test partners endpoints"""
-        print("\n🏢 Testing Partners Endpoints...")
-        
-        # Test get partners (public endpoint)
-        self.run_test("Get Partners", "GET", "partners", 200)
-
-    def test_cms_endpoints(self):
-        """Test CMS endpoints"""
-        print("\n📄 Testing CMS Endpoints...")
-        
-        # Test get CMS content
-        self.run_test("Get Home Content", "GET", "cms/home", 200)
-        self.run_test("Get About Content", "GET", "cms/about", 200)
-        self.run_test("Get Partners Content", "GET", "cms/partners", 200)
-
-    def test_admin_endpoints(self):
-        """Test admin endpoints"""
-        print("\n👑 Testing Admin Endpoints...")
-        
-        # Re-login as admin
-        self.test_admin_login()
-        
-        # Test admin endpoints
-        users_response = self.run_test("Admin Get Users", "GET", "admin/users", 200)
-        steps_response = self.run_test("Admin Get Steps", "GET", "admin/steps", 200)
-        self.run_test("Admin Get Partners", "GET", "admin/partners", 200)
-        
-        # Test NEW FEATURE for iteration 7: Step Reordering
-        print("\n🔄 Testing Step Reordering (Iteration 7)...")
-        if steps_response and len(steps_response) >= 2:
-            # Get original order
-            original_order = [step['id'] for step in sorted(steps_response, key=lambda x: x['order'])]
-            print(f"   Original step order: {[f'Step {i+1}' for i in range(len(original_order))]}")
-            
-            # Create new order (swap first two steps)
-            new_order = original_order.copy()
-            new_order[0], new_order[1] = new_order[1], new_order[0]
-            print(f"   New step order: {[f'Step {i+1}' for i in range(len(new_order))]}")
-            
-            # Test reorder endpoint
-            reorder_response = self.run_test(
-                "Admin Reorder Steps",
-                "PUT",
-                "admin/steps/reorder",
-                200,
-                data={"step_ids": new_order}
-            )
-            
-            if reorder_response:
-                # Verify the reorder worked
-                updated_steps_response = self.run_test("Verify Step Reorder", "GET", "admin/steps", 200)
+        if response and response.status_code == 200:
+            steps = response.json()
+            if len(steps) == 8:
+                self.log_test("Admin steps count (8)", True)
                 
-                if updated_steps_response:
-                    sorted_steps = sorted(updated_steps_response, key=lambda x: x['order'])
-                    actual_order = [step['id'] for step in sorted_steps]
+                # Check for specific German step titles
+                expected_titles = [
+                    "Persönliche Daten",
+                    "Service Antragstellung", 
+                    "Meilenstein Antragstellung",
+                    "FaMed",
+                    "Service Kenntnisprüfung",
+                    "Meilenstein Kenntnisprüfung", 
+                    "Service Weiterbildung",
+                    "Meilenstein Job finden"
+                ]
+                
+                actual_titles = [step.get('title', '') for step in steps]
+                missing_titles = [title for title in expected_titles if title not in actual_titles]
+                
+                if not missing_titles:
+                    self.log_test("German step titles present", True)
+                else:
+                    self.log_test("German step titles", False, f"Missing: {missing_titles}")
+                
+                # Check step types
+                step_types = [step.get('step_type') for step in steps]
+                expected_types = ['form', 'partner_selection', 'milestone', 'display', 'partner_selection', 'milestone', 'partner_selection', 'display']
+                
+                if step_types == expected_types:
+                    self.log_test("Step types correct", True)
+                else:
+                    self.log_test("Step types", False, f"Expected: {expected_types}, Got: {step_types}")
+                
+                # Check filter tags
+                filter_tags = [step.get('filter_tag', '') for step in steps]
+                expected_tags = ['', 'Antragstellung', '', '', 'Kenntnisprüfung', '', 'Weiterbildung', '']
+                
+                if filter_tags == expected_tags:
+                    self.log_test("Filter tags correct", True)
+                else:
+                    self.log_test("Filter tags", False, f"Expected: {expected_tags}, Got: {filter_tags}")
                     
-                    if actual_order == new_order:
-                        self.log_test("Step Reordering", True, "Step reordering verified successfully")
+                return True
+            else:
+                self.log_test("Admin steps count", False, f"Expected 8 steps, got {len(steps)}")
+        else:
+            self.log_test("Admin steps endpoint", False, f"Status: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_admin_partners_endpoint(self):
+        """Test admin partners endpoint returns 3 tagged partners"""
+        print("\n🏢 Testing Admin Partners Endpoint...")
+        # Re-login as admin to ensure session is active
+        self.make_request('POST', '/auth/login', {
+            'email': 'admin@example.com',
+            'password': 'Admin123!'
+        })
+        response = self.make_request('GET', '/admin/partners')
+        
+        if response and response.status_code == 200:
+            partners = response.json()
+            if len(partners) == 3:
+                self.log_test("Admin partners count (3)", True)
+                
+                # Check partner names
+                partner_names = [p.get('name', '') for p in partners]
+                expected_names = ['ILS', 'ILS2', 'ILS3']
+                
+                if all(name in partner_names for name in expected_names):
+                    self.log_test("Partner names (ILS, ILS2, ILS3)", True)
+                else:
+                    self.log_test("Partner names", False, f"Expected: {expected_names}, Got: {partner_names}")
+                
+                # Check tags
+                partner_tags = [p.get('tags', []) for p in partners]
+                expected_tag_sets = [['Antragstellung'], ['Kenntnisprüfung'], ['Weiterbildung']]
+                
+                tags_correct = True
+                for i, expected_tags in enumerate(expected_tag_sets):
+                    if i < len(partner_tags) and partner_tags[i] != expected_tags:
+                        tags_correct = False
+                        break
+                
+                if tags_correct:
+                    self.log_test("Partner tags correct", True)
+                else:
+                    self.log_test("Partner tags", False, f"Expected: {expected_tag_sets}, Got: {partner_tags}")
+                    
+                return True
+            else:
+                self.log_test("Admin partners count", False, f"Expected 3 partners, got {len(partners)}")
+        else:
+            self.log_test("Admin partners endpoint", False, f"Status: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_partners_tag_filtering(self):
+        """Test partner filtering by tags"""
+        print("\n🏷️ Testing Partner Tag Filtering...")
+        
+        # Test Antragstellung tag
+        response = self.make_request('GET', '/partners?tag=Antragstellung')
+        if response and response.status_code == 200:
+            partners = response.json()
+            if len(partners) == 1 and partners[0].get('name') == 'ILS':
+                self.log_test("Antragstellung tag filter (ILS only)", True)
+            else:
+                self.log_test("Antragstellung tag filter", False, f"Expected 1 ILS partner, got {len(partners)} partners")
+        else:
+            self.log_test("Antragstellung tag filter", False, f"Status: {response.status_code if response else 'No response'}")
+        
+        # Test Kenntnisprüfung tag
+        response = self.make_request('GET', '/partners?tag=Kenntnisprüfung')
+        if response and response.status_code == 200:
+            partners = response.json()
+            if len(partners) == 1 and partners[0].get('name') == 'ILS2':
+                self.log_test("Kenntnisprüfung tag filter (ILS2 only)", True)
+            else:
+                self.log_test("Kenntnisprüfung tag filter", False, f"Expected 1 ILS2 partner, got {len(partners)} partners")
+        else:
+            self.log_test("Kenntnisprüfung tag filter", False, f"Status: {response.status_code if response else 'No response'}")
+
+    def test_user_steps_endpoint(self):
+        """Test user steps endpoint"""
+        print("\n📝 Testing User Steps Endpoint...")
+        response = self.make_request('GET', '/steps')
+        
+        if response and response.status_code == 200:
+            steps = response.json()
+            if len(steps) == 8:
+                self.log_test("User steps count (8)", True)
+                
+                # Check first step has form fields
+                first_step = steps[0] if steps else {}
+                if first_step.get('title') == 'Persönliche Daten':
+                    self.log_test("First step is Persönliche Daten", True)
+                    
+                    fields = first_step.get('fields', [])
+                    field_names = [f.get('name') for f in fields]
+                    expected_fields = ['name', 'first_name', 'phone', 'address', 'field_of_study', 'documents']
+                    
+                    if all(field in field_names for field in expected_fields):
+                        self.log_test("First step has required fields", True)
                         
-                        # Restore original order
-                        self.run_test(
-                            "Restore Original Step Order",
-                            "PUT",
-                            "admin/steps/reorder",
-                            200,
-                            data={"step_ids": original_order}
-                        )
+                        # Check selectbox field
+                        field_of_study = next((f for f in fields if f.get('name') == 'field_of_study'), None)
+                        if field_of_study and field_of_study.get('field_type') == 'selectbox':
+                            options = field_of_study.get('options', [])
+                            expected_options = ['Allgemeinmedizin', 'Zahnmedizin', 'HNO']
+                            if options == expected_options:
+                                self.log_test("Fachgebiet selectbox options correct", True)
+                            else:
+                                self.log_test("Fachgebiet selectbox options", False, f"Expected: {expected_options}, Got: {options}")
+                        else:
+                            self.log_test("Fachgebiet selectbox field", False, "Field not found or wrong type")
+                        
+                        # Check multiupload field
+                        documents = next((f for f in fields if f.get('name') == 'documents'), None)
+                        if documents and documents.get('field_type') == 'multiupload':
+                            self.log_test("Documents multiupload field present", True)
+                        else:
+                            self.log_test("Documents multiupload field", False, "Field not found or wrong type")
                     else:
-                        self.log_test("Step Reordering", False, f"Order mismatch - Expected: {new_order}, Got: {actual_order}")
+                        missing = [f for f in expected_fields if f not in field_names]
+                        self.log_test("First step fields", False, f"Missing fields: {missing}")
                 else:
-                    self.log_test("Step Reordering", False, "Failed to verify reorder")
-            else:
-                self.log_test("Step Reordering", False, "Failed to reorder steps")
-        else:
-            self.log_test("Step Reordering", False, "Need at least 2 steps to test reordering")
-            
-        # Test user detail endpoint for profile image feature
-        print("\n👤 Testing User Detail with Profile Image (Iteration 7)...")
-        if users_response and len(users_response) > 0:
-            test_user = users_response[0]
-            user_detail_response = self.run_test(
-                f"Get User Detail - {test_user['name']}",
-                "GET",
-                f"admin/users/{test_user['id']}",
-                200
-            )
-            
-            if user_detail_response:
-                profile = user_detail_response.get('profile', {})
-                self.log_test("User Detail Endpoint", True, f"Profile keys: {list(profile.keys())}")
-                
-                if 'profile_image' in profile:
-                    self.log_test("Profile Image Field", True, f"Profile image field found: {profile['profile_image']}")
-                else:
-                    self.log_test("Profile Image Field", True, "No profile image set (expected for test user)")
-            else:
-                self.log_test("User Detail Endpoint", False, "Failed to get user detail")
-        else:
-            self.log_test("User Detail Endpoint", False, "No users available for testing")
-        
-        # Test new analytics endpoint
-        self.run_test("Admin Get Analytics", "GET", "admin/analytics", 200)
-        
-        # Test user search functionality
-        self.run_test("Admin Search Users (empty query)", "GET", "admin/users/search", 200)
-        self.run_test("Admin Search Users (by role)", "GET", "admin/users/search?role=admin", 200)
-        self.run_test("Admin Search Users (by query)", "GET", "admin/users/search?q=admin", 200)
-        
-        # Test NEW FEATURES for iteration 3
-        print("\n🆕 Testing New Admin Features (Iteration 3)...")
-        
-        # Test CSV export
-        try:
-            url = f"{self.base_url}/api/admin/export/users"
-            response = self.session.get(url, headers={'Content-Type': 'application/json'})
-            if response.status_code == 200 and 'text/csv' in response.headers.get('content-type', ''):
-                self.log_test("Admin CSV Export", True, "CSV file downloaded successfully")
-            else:
-                self.log_test("Admin CSV Export", False, f"Status: {response.status_code}, Content-Type: {response.headers.get('content-type', 'unknown')}")
-        except Exception as e:
-            self.log_test("Admin CSV Export", False, f"Error: {str(e)}")
-        
-        # Test bulk role update (if we have users)
-        if users_response and len(users_response) > 0:
-            # Get first user ID for testing
-            test_user_ids = [users_response[0]['id']] if users_response else []
-            if test_user_ids:
-                bulk_response = self.run_test(
-                    "Admin Bulk Role Update", 
-                    "PUT", 
-                    "admin/users/bulk-role", 
-                    200,
-                    data={"user_ids": test_user_ids, "role": "user"}
-                )
-                if bulk_response:
-                    print(f"✅ Bulk role update successful: {bulk_response.get('message', 'No message')}")
-        else:
-            self.log_test("Admin Bulk Role Update", False, "No users available for testing")
-
-    def test_audit_log_endpoints(self):
-        """Test audit log endpoints (NEW for iteration 5)"""
-        print("\n📋 Testing Audit Log Endpoints (Iteration 5)...")
-        
-        # Re-login as admin
-        self.test_admin_login()
-        
-        # Test get audit log
-        audit_response = self.run_test("Admin Get Audit Log", "GET", "admin/audit-log", 200)
-        
-        if audit_response:
-            logs = audit_response.get('logs', [])
-            total = audit_response.get('total', 0)
-            
-            if isinstance(logs, list):
-                self.log_test("Audit Log Structure", True, f"Found {len(logs)} logs out of {total} total")
-                
-                # Check if logs have required fields
-                if logs:
-                    first_log = logs[0]
-                    required_fields = ['actor_email', 'action', 'target_type', 'timestamp']
-                    missing_fields = [field for field in required_fields if field not in first_log]
+                    self.log_test("First step title", False, f"Expected 'Persönliche Daten', got '{first_step.get('title')}'")
                     
-                    if not missing_fields:
-                        self.log_test("Audit Log Fields", True, "All required fields present")
-                    else:
-                        self.log_test("Audit Log Fields", False, f"Missing fields: {missing_fields}")
-                else:
-                    self.log_test("Audit Log Content", True, "No audit logs yet (expected for new system)")
+                return True
             else:
-                self.log_test("Audit Log Structure", False, "Logs is not a list")
-        
-        # Test audit log with pagination
-        self.run_test("Admin Get Audit Log (Limited)", "GET", "admin/audit-log?limit=10&skip=0", 200)
-        
-        # Perform an action that should create an audit log entry
-        print("\n🔄 Testing Audit Log Creation...")
-        
-        # Update CMS content to trigger audit log
-        cms_update_response = self.run_test(
-            "Update CMS Content (for audit)", 
-            "PUT", 
-            "cms/home", 
-            200,
-            data={"section": "home", "content": {"hero_title": "Test Audit Log Update"}}
-        )
-        
-        if cms_update_response:
-            # Wait a moment and check if audit log was created
-            import time
-            time.sleep(1)
-            
-            # Get audit log again to see if new entry was created
-            new_audit_response = self.run_test("Check New Audit Log Entry", "GET", "admin/audit-log?limit=5", 200)
-            
-            if new_audit_response:
-                new_logs = new_audit_response.get('logs', [])
-                if new_logs:
-                    # Check if the most recent log is our CMS update
-                    recent_log = new_logs[0]
-                    if (recent_log.get('action') == 'cms_update' and 
-                        recent_log.get('target_type') == 'cms' and
-                        recent_log.get('actor_email') == 'admin@example.com'):
-                        self.log_test("Audit Log Creation", True, "CMS update audit log created successfully")
-                    else:
-                        self.log_test("Audit Log Creation", False, f"Expected cms_update audit log, got: {recent_log}")
-                else:
-                    self.log_test("Audit Log Creation", False, "No audit logs found after CMS update")
+                self.log_test("User steps count", False, f"Expected 8 steps, got {len(steps)}")
+        else:
+            self.log_test("User steps endpoint", False, f"Status: {response.status_code if response else 'No response'}")
+        return False
 
-    def test_notification_preferences(self):
-        """Test notification preferences endpoints"""
-        print("\n🔔 Testing Notification Preferences...")
+    def test_cms_content(self):
+        """Test German CMS content"""
+        print("\n🌐 Testing German CMS Content...")
         
-        # Test get notification preferences
-        prefs_response = self.run_test("Get Notification Preferences", "GET", "notifications/preferences", 200)
+        response = self.make_request('GET', '/cms/home')
+        if response and response.status_code == 200:
+            content = response.json().get('content', {})
+            hero_title = content.get('hero_title', '')
+            if 'GERdoctor' in hero_title and 'Deutschland' in hero_title:
+                self.log_test("German CMS home content", True)
+            else:
+                self.log_test("German CMS home content", False, f"Hero title: {hero_title}")
+        else:
+            self.log_test("CMS home endpoint", False, f"Status: {response.status_code if response else 'No response'}")
+
+    def test_user_registration_progress(self):
+        """Test that fresh registration creates 8 pending progress entries"""
+        print("\n📊 Testing User Registration Progress...")
         
-        # Test update notification preferences
-        if prefs_response:
-            # Update preferences
-            new_prefs = {
-                "email_on_step_enter": False,
-                "email_on_step_edit": True,
-                "email_on_step_leave": False
-            }
-            update_response = self.run_test(
-                "Update Notification Preferences", 
-                "PUT", 
-                "notifications/preferences", 
-                200,
-                data=new_prefs
-            )
+        # Create a test user
+        test_email = f"test_{datetime.now().strftime('%H%M%S')}@example.com"
+        response = self.make_request('POST', '/auth/register', {
+            'email': test_email,
+            'password': 'Test123!',
+            'name': 'Test User'
+        })
+        
+        if response and response.status_code == 200:
+            self.log_test("Test user registration", True)
             
-            if update_response:
-                # Verify the update by getting preferences again
-                verify_response = self.run_test("Verify Updated Preferences", "GET", "notifications/preferences", 200)
-                if verify_response:
-                    # Check if the preferences were actually updated
-                    if (verify_response.get('email_on_step_enter') == False and 
-                        verify_response.get('email_on_step_edit') == True and 
-                        verify_response.get('email_on_step_leave') == False):
-                        self.log_test("Notification Preferences Update Verification", True, "Preferences updated correctly")
+            # Check progress
+            progress_response = self.make_request('GET', '/steps/progress')
+            if progress_response and progress_response.status_code == 200:
+                progress = progress_response.json()
+                if len(progress) == 8:
+                    self.log_test("Fresh user has 8 progress entries", True)
+                    
+                    # Check all are pending
+                    pending_count = sum(1 for p in progress if p.get('status') == 'pending')
+                    if pending_count == 8:
+                        self.log_test("All progress entries are pending", True)
                     else:
-                        self.log_test("Notification Preferences Update Verification", False, f"Preferences not updated correctly: {verify_response}")
-    def test_profile_endpoints(self):
-        """Test profile endpoints"""
-        print("\n👤 Testing Profile Endpoints...")
-        
-        # Test get profile
-        self.run_test("Get Profile", "GET", "profile", 200)
+                        self.log_test("Progress entries status", False, f"Expected 8 pending, got {pending_count}")
+                else:
+                    self.log_test("Fresh user progress count", False, f"Expected 8 entries, got {len(progress)}")
+            else:
+                self.log_test("User progress endpoint", False, f"Status: {progress_response.status_code if progress_response else 'No response'}")
+        else:
+            self.log_test("Test user registration", False, f"Status: {response.status_code if response else 'No response'}")
 
     def run_all_tests(self):
-        """Run all API tests"""
-        print("🚀 Starting Guided Journey API Tests...")
-        print(f"Testing against: {self.base_url}")
+        """Run all tests"""
+        print("🧪 Starting GERdoctor API Tests...")
+        print("=" * 50)
         
-        # Test authentication first
-        if not self.test_admin_login():
-            print("❌ Admin login failed, stopping critical tests")
-            return False
+        # Authentication tests
+        admin_login_ok = self.test_admin_login()
+        demo_login_ok = self.test_demo_user_login()
+        partner_login_ok = self.test_partner_login()
         
-        # Test user registration and login
-        self.test_user_registration_and_login()
+        # Admin endpoint tests
+        if admin_login_ok:
+            self.test_admin_steps_endpoint()
+            self.test_admin_partners_endpoint()
         
-        # Test other endpoints
-        self.test_auth_endpoints()
-        self.test_steps_endpoints()
-        self.test_partners_endpoints()
-        self.test_cms_endpoints()
-        self.test_profile_endpoints()
-        self.test_notification_preferences()
-        self.test_admin_endpoints()
-        self.test_audit_log_endpoints()
+        # Public endpoint tests
+        self.test_partners_tag_filtering()
+        self.test_user_steps_endpoint()
+        self.test_cms_content()
+        
+        # User registration test
+        if demo_login_ok:
+            self.test_user_registration_progress()
         
         # Print summary
-        print(f"\n📊 Test Summary:")
-        print(f"Tests run: {self.tests_run}")
-        print(f"Tests passed: {self.tests_passed}")
-        print(f"Success rate: {(self.tests_passed/self.tests_run)*100:.1f}%")
+        print("\n" + "=" * 50)
+        print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
         
-        # Print failed tests
-        failed_tests = [t for t in self.test_results if not t['success']]
-        if failed_tests:
-            print(f"\n❌ Failed Tests ({len(failed_tests)}):")
-            for test in failed_tests:
-                print(f"  - {test['name']}: {test['details']}")
+        if self.failed_tests:
+            print("\n❌ Failed Tests:")
+            for failure in self.failed_tests:
+                print(f"  - {failure}")
         
         return self.tests_passed == self.tests_run
 
 def main():
-    tester = GuidedJourneyAPITester()
+    tester = GERdoctorAPITester()
     success = tester.run_all_tests()
     return 0 if success else 1
 

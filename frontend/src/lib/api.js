@@ -44,7 +44,7 @@ export const stepsAPI = {
 
 // Partners APIs
 export const partnersAPI = {
-    getAll: () => api.get('/partners'),
+    getAll: (tag) => api.get(`/partners${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`),
     getOne: (id) => api.get(`/partners/${id}`),
     submit: (partner_id, data) => api.post('/partners/submit', { partner_id, data }),
 };
