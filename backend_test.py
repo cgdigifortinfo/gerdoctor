@@ -174,8 +174,81 @@ class GuidedJourneyAPITester:
         
         # Test admin endpoints
         users_response = self.run_test("Admin Get Users", "GET", "admin/users", 200)
-        self.run_test("Admin Get Steps", "GET", "admin/steps", 200)
+        steps_response = self.run_test("Admin Get Steps", "GET", "admin/steps", 200)
         self.run_test("Admin Get Partners", "GET", "admin/partners", 200)
+        
+        # Test NEW FEATURE for iteration 7: Step Reordering
+        print("\n🔄 Testing Step Reordering (Iteration 7)...")
+        if steps_response and len(steps_response) >= 2:
+            # Get original order
+            original_order = [step['id'] for step in sorted(steps_response, key=lambda x: x['order'])]
+            print(f"   Original step order: {[f'Step {i+1}' for i in range(len(original_order))]}")
+            
+            # Create new order (swap first two steps)
+            new_order = original_order.copy()
+            new_order[0], new_order[1] = new_order[1], new_order[0]
+            print(f"   New step order: {[f'Step {i+1}' for i in range(len(new_order))]}")
+            
+            # Test reorder endpoint
+            reorder_response = self.run_test(
+                "Admin Reorder Steps",
+                "PUT",
+                "admin/steps/reorder",
+                200,
+                data={"step_ids": new_order}
+            )
+            
+            if reorder_response:
+                # Verify the reorder worked
+                updated_steps_response = self.run_test("Verify Step Reorder", "GET", "admin/steps", 200)
+                
+                if updated_steps_response:
+                    sorted_steps = sorted(updated_steps_response, key=lambda x: x['order'])
+                    actual_order = [step['id'] for step in sorted_steps]
+                    
+                    if actual_order == new_order:
+                        self.log_test("Step Reordering", True, "Step reordering verified successfully")
+                        
+                        # Restore original order
+                        self.run_test(
+                            "Restore Original Step Order",
+                            "PUT",
+                            "admin/steps/reorder",
+                            200,
+                            data={"step_ids": original_order}
+                        )
+                    else:
+                        self.log_test("Step Reordering", False, f"Order mismatch - Expected: {new_order}, Got: {actual_order}")
+                else:
+                    self.log_test("Step Reordering", False, "Failed to verify reorder")
+            else:
+                self.log_test("Step Reordering", False, "Failed to reorder steps")
+        else:
+            self.log_test("Step Reordering", False, "Need at least 2 steps to test reordering")
+            
+        # Test user detail endpoint for profile image feature
+        print("\n👤 Testing User Detail with Profile Image (Iteration 7)...")
+        if users_response and len(users_response) > 0:
+            test_user = users_response[0]
+            user_detail_response = self.run_test(
+                f"Get User Detail - {test_user['name']}",
+                "GET",
+                f"admin/users/{test_user['id']}",
+                200
+            )
+            
+            if user_detail_response:
+                profile = user_detail_response.get('profile', {})
+                self.log_test("User Detail Endpoint", True, f"Profile keys: {list(profile.keys())}")
+                
+                if 'profile_image' in profile:
+                    self.log_test("Profile Image Field", True, f"Profile image field found: {profile['profile_image']}")
+                else:
+                    self.log_test("Profile Image Field", True, "No profile image set (expected for test user)")
+            else:
+                self.log_test("User Detail Endpoint", False, "Failed to get user detail")
+        else:
+            self.log_test("User Detail Endpoint", False, "No users available for testing")
         
         # Test new analytics endpoint
         self.run_test("Admin Get Analytics", "GET", "admin/analytics", 200)

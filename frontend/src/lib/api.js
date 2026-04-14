@@ -84,6 +84,7 @@ export const adminAPI = {
     createStep: (data) => api.post('/admin/steps', data),
     updateStep: (id, data) => api.put(`/admin/steps/${id}`, data),
     deleteStep: (id) => api.delete(`/admin/steps/${id}`),
+    reorderSteps: (step_ids) => api.put('/admin/steps/reorder', { step_ids }),
     
     // Partners
     getPartners: () => api.get('/admin/partners'),

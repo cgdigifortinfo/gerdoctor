@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { adminAPI, formatApiError } from '../lib/api';
+import { adminAPI, formatApiError, filesAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -14,7 +14,8 @@ import { Progress } from '../components/ui/progress';
 import { 
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
-    LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise
+    LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise,
+    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
@@ -166,6 +167,25 @@ export default function AdminDashboard() {
         try {
             await adminAPI.deleteStep(stepId);
             toast.success('Step deleted');
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleMoveStep = async (stepId, direction) => {
+        const sorted = [...steps].sort((a, b) => a.order - b.order);
+        const idx = sorted.findIndex(s => s.id === stepId);
+        if (direction === 'up' && idx <= 0) return;
+        if (direction === 'down' && idx >= sorted.length - 1) return;
+        
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        const newOrder = sorted.map(s => s.id);
+        [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+        
+        try {
+            await adminAPI.reorderSteps(newOrder);
+            toast.success('Steps reordered');
             loadData();
         } catch (error) {
             toast.error(formatApiError(error));
@@ -554,9 +574,32 @@ export default function AdminDashboard() {
                                 </Button>
                             </div>
                             <div className="p-4 space-y-4">
-                                {steps.sort((a, b) => a.order - b.order).map((step) => (
+                                {steps.sort((a, b) => a.order - b.order).map((step, idx) => (
                                     <div key={step.id} className="border border-border rounded-sm p-4">
                                         <div className="flex justify-between items-start">
+                                            {/* Reorder arrows */}
+                                            <div className="flex flex-col gap-1 mr-3 flex-shrink-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleMoveStep(step.id, 'up')}
+                                                    disabled={idx === 0}
+                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20"
+                                                    data-testid={`step-move-up-${step.id}`}
+                                                >
+                                                    <ArrowUp size={14} />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleMoveStep(step.id, 'down')}
+                                                    disabled={idx === steps.length - 1}
+                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20"
+                                                    data-testid={`step-move-down-${step.id}`}
+                                                >
+                                                    <ArrowDown size={14} />
+                                                </Button>
+                                            </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
@@ -799,22 +842,40 @@ export default function AdminDashboard() {
                     </DialogHeader>
                     {selectedUser && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-muted-foreground">Name</Label>
-                                    <p className="font-medium">{selectedUser.name}</p>
+                            {/* Profile Image + Basic Info */}
+                            <div className="flex items-start gap-6">
+                                {/* Profile Image Preview */}
+                                <div className="flex-shrink-0">
+                                    {selectedUser.profile?.profile_image ? (
+                                        <img
+                                            src={filesAPI.getUrl(selectedUser.profile.profile_image)}
+                                            alt={selectedUser.name}
+                                            className="w-20 h-20 rounded-full object-cover border-2 border-border"
+                                            data-testid="user-profile-image"
+                                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                        />
+                                    ) : null}
+                                    <div className={`w-20 h-20 rounded-full bg-muted flex items-center justify-center ${selectedUser.profile?.profile_image ? 'hidden' : ''}`}>
+                                        <UserCircle size={40} className="text-muted-foreground" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Email</Label>
-                                    <p className="font-medium">{selectedUser.email}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Role</Label>
-                                    <p className="font-medium capitalize">{selectedUser.role}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Created</Label>
-                                    <p className="font-medium">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : '-'}</p>
+                                <div className="flex-1 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label className="text-muted-foreground">Name</Label>
+                                        <p className="font-medium">{selectedUser.name}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-muted-foreground">Email</Label>
+                                        <p className="font-medium">{selectedUser.email}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-muted-foreground">Role</Label>
+                                        <p className="font-medium capitalize">{selectedUser.role}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-muted-foreground">Created</Label>
+                                        <p className="font-medium">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : '-'}</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -823,10 +884,21 @@ export default function AdminDashboard() {
                                 <div>
                                     <h4 className="font-semibold mb-3">Profile</h4>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {Object.entries(selectedUser.profile).map(([key, value]) => (
+                                        {Object.entries(selectedUser.profile)
+                                            .filter(([key]) => key !== 'profile_image')
+                                            .map(([key, value]) => (
                                             <div key={key} className="p-2 bg-background rounded-sm">
                                                 <span className="text-xs text-muted-foreground uppercase">{key.replace(/_/g, ' ')}</span>
-                                                <p className="text-sm font-medium">{String(value)}</p>
+                                                {typeof value === 'string' && value.length === 36 && value.includes('-') ? (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <ImageIcon size={14} className="text-muted-foreground" />
+                                                        <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-[#114f55] hover:underline">
+                                                            View file
+                                                        </a>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm font-medium">{String(value)}</p>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

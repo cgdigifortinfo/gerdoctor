@@ -907,6 +907,25 @@ async def admin_create_step(data: StepCreate, request: Request):
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
     return {"id": str(result.inserted_id), "message": "Step created"}
 
+class StepReorder(BaseModel):
+    step_ids: List[str]
+
+@admin_router.put("/steps/reorder")
+async def admin_reorder_steps(data: StepReorder, request: Request):
+    admin_user = await require_role("admin")(request)
+    
+    for idx, step_id in enumerate(data.step_ids):
+        await db.steps.update_one(
+            {"_id": ObjectId(step_id)},
+            {"$set": {"order": idx + 1}}
+        )
+    
+    await create_audit_log(
+        admin_user["_id"], admin_user["email"], "steps_reorder", "step", "",
+        {"new_order": data.step_ids}
+    )
+    return {"message": "Steps reordered"}
+
 @admin_router.put("/steps/{step_id}")
 async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
     await require_role("admin")(request)
