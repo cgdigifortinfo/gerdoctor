@@ -515,6 +515,7 @@ export default function AdminDashboard() {
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Progress</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                         </tr>
@@ -543,6 +544,14 @@ export default function AdminDashboard() {
                                                         </SelectContent>
                                                     </Select>
                                                 </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                            <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${u.completion_pct || 0}%` }} />
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground font-medium">{u.completion_pct || 0}%</span>
+                                                    </div>
+                                                </td>
                                                 <td className="px-4 py-3 text-sm text-muted-foreground">
                                                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                                                 </td>
@@ -555,7 +564,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
+                                                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -879,6 +888,17 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
+                            {/* Completion bar */}
+                            <div className="p-4 bg-muted rounded-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium">Fortschritt</span>
+                                    <span className="text-sm font-bold text-[#114f55]">{selectedUser.completion_pct || 0}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-background rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${selectedUser.completion_pct || 0}%` }} />
+                                </div>
+                            </div>
+
                             {/* Profile Data */}
                             {selectedUser.profile && Object.keys(selectedUser.profile).length > 0 && (
                                 <div>
@@ -953,6 +973,36 @@ export default function AdminDashboard() {
                                                     <p className="text-sm text-muted-foreground">
                                                         Submitted: {new Date(sub.created_at).toLocaleDateString()}
                                                     </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* History Timeline */}
+                            {selectedUser.history?.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-3">Verlauf</h4>
+                                    <div className="relative max-h-[250px] overflow-y-auto pr-2">
+                                        <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
+                                        {selectedUser.history.map((h, idx) => {
+                                            const isDone = h.action === 'completed';
+                                            const isWip = h.action === 'in_progress';
+                                            return (
+                                                <div key={idx} className="relative flex items-start gap-3 py-2">
+                                                    <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-500 text-white' : isWip ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                        {isDone ? <Check size={10} /> : <ArrowRight size={10} />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="text-sm font-medium">{h.step_title}</span>
+                                                            <span className={`px-1.5 py-0.5 text-[10px] rounded-sm ${isDone ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                                                                {isDone ? 'Abgeschlossen' : isWip ? 'In Bearbeitung' : h.action}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground">{new Date(h.timestamp).toLocaleString('de-DE')}</p>
+                                                    </div>
                                                 </div>
                                             );
                                         })}
@@ -1347,12 +1397,47 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                         </div>
                     )}
 
-                    {/* NOTIFICATIONS */}
+                    {/* NOTIFICATIONS + EMAIL TEMPLATES */}
                     {activeSection === 'notifications' && (
-                        <div className="space-y-3">
-                            {[['email_on_enter', 'Bei Schritt-Eintritt'], ['email_on_edit', 'Bei Bearbeitung'], ['email_on_leave', 'Bei Schritt-Abschluss']].map(([key, label]) => (
-                                <div key={key} className="flex items-center justify-between"><span className="text-sm">{label}</span><Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} /></div>
-                            ))}
+                        <div className="space-y-4">
+                            <div className="space-y-3">
+                                {[['email_on_enter', 'Bei Schritt-Eintritt'], ['email_on_edit', 'Bei Bearbeitung'], ['email_on_leave', 'Bei Schritt-Abschluss']].map(([key, label]) => (
+                                    <div key={key} className="flex items-center justify-between"><span className="text-sm">{label}</span><Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} /></div>
+                                ))}
+                            </div>
+                            
+                            <div className="p-3 bg-muted rounded-sm">
+                                <p className="text-xs text-muted-foreground mb-1">Verfügbare Variablen für E-Mail-Vorlagen:</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {['{{user_name}}', '{{user_email}}', '{{step_title}}', '{{step_order}}', '{{step_description}}'].map(v => (
+                                        <code key={v} className="px-1.5 py-0.5 text-[10px] bg-card border border-border rounded">{v}</code>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {formData.email_on_enter && (
+                                <div className="p-3 border border-border rounded-sm space-y-2">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">E-Mail bei Eintritt</p>
+                                    <div><Label className="text-xs">Betreff</Label><Input value={formData.email_subject_enter || ''} onChange={(e) => setFormData({ ...formData, email_subject_enter: e.target.value })} className="h-8 text-sm mt-1" placeholder="Schritt gestartet: {{step_title}}" data-testid="email-subject-enter" /></div>
+                                    <div><Label className="text-xs">Inhalt (HTML)</Label><Textarea value={formData.email_body_enter || ''} onChange={(e) => setFormData({ ...formData, email_body_enter: e.target.value })} className="text-sm mt-1 min-h-[60px]" placeholder="<p>Hallo {{user_name}}, Sie haben {{step_title}} begonnen.</p>" data-testid="email-body-enter" /></div>
+                                </div>
+                            )}
+
+                            {formData.email_on_edit && (
+                                <div className="p-3 border border-border rounded-sm space-y-2">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">E-Mail bei Bearbeitung</p>
+                                    <div><Label className="text-xs">Betreff</Label><Input value={formData.email_subject_edit || ''} onChange={(e) => setFormData({ ...formData, email_subject_edit: e.target.value })} className="h-8 text-sm mt-1" placeholder="Schritt aktualisiert: {{step_title}}" data-testid="email-subject-edit" /></div>
+                                    <div><Label className="text-xs">Inhalt (HTML)</Label><Textarea value={formData.email_body_edit || ''} onChange={(e) => setFormData({ ...formData, email_body_edit: e.target.value })} className="text-sm mt-1 min-h-[60px]" placeholder="<p>Hallo {{user_name}}, {{step_title}} wurde aktualisiert.</p>" data-testid="email-body-edit" /></div>
+                                </div>
+                            )}
+
+                            {formData.email_on_leave && (
+                                <div className="p-3 border border-border rounded-sm space-y-2">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">E-Mail bei Abschluss</p>
+                                    <div><Label className="text-xs">Betreff</Label><Input value={formData.email_subject_leave || ''} onChange={(e) => setFormData({ ...formData, email_subject_leave: e.target.value })} className="h-8 text-sm mt-1" placeholder="Schritt abgeschlossen: {{step_title}}" data-testid="email-subject-leave" /></div>
+                                    <div><Label className="text-xs">Inhalt (HTML)</Label><Textarea value={formData.email_body_leave || ''} onChange={(e) => setFormData({ ...formData, email_body_leave: e.target.value })} className="text-sm mt-1 min-h-[60px]" placeholder="<p>Hallo {{user_name}}, herzlichen Glückwunsch! {{step_title}} ist abgeschlossen.</p>" data-testid="email-body-leave" /></div>
+                                </div>
+                            )}
                         </div>
                     )}
 

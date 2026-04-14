@@ -14,6 +14,7 @@ class GermanMedicalAppTester:
         self.tests_passed = 0
         self.admin_user = None
         self.demo_user = None
+        self.demo_user_id = None
 
     def log_test(self, name, success, details=""):
         """Log test result"""
@@ -57,6 +58,13 @@ class GermanMedicalAppTester:
         self.log_test("Demo User Login", success,
                      f"Role: {self.demo_user.get('role') if self.demo_user else 'Failed'}")
         return success
+    def switch_to_admin(self):
+        """Switch session to admin credentials"""
+        if self.admin_user:
+            # Re-login as admin to get fresh session
+            self.admin_user = self.login_user("admin@example.com", "Admin123!")
+            return self.admin_user is not None
+        return False
 
     def test_steps_history_endpoint(self):
         """Test GET /api/steps/history endpoint"""
@@ -207,9 +215,86 @@ class GermanMedicalAppTester:
             self.log_test("GET /api/steps/all-data", False, f"Exception: {str(e)}")
             return False
 
+    def test_admin_users_completion_pct(self):
+        """Test that GET /api/admin/users returns completion_pct for each user"""
+        try:
+            response = self.session.get(f"{self.base_url}/admin/users")
+            success = response.status_code == 200
+            
+            if success:
+                users = response.json()
+                self.log_test("GET /api/admin/users", True, f"Returned {len(users)} users")
+                
+                # Check if users have completion_pct field
+                completion_pct_found = True
+                for user in users:
+                    if 'completion_pct' not in user:
+                        completion_pct_found = False
+                        break
+                    else:
+                        if user.get('email') == 'demo@example.com':
+                            self.demo_user_id = user.get('id')
+                
+                self.log_test("Users have completion_pct field", completion_pct_found,
+                             f"All {len(users)} users have completion_pct field")
+                return completion_pct_found
+            else:
+                self.log_test("GET /api/admin/users", False, 
+                             f"Status: {response.status_code}, Response: {response.text}")
+                return False
+        except Exception as e:
+            self.log_test("GET /api/admin/users", False, f"Exception: {str(e)}")
+            return False
+
+    def test_admin_user_detail_with_history(self):
+        """Test that GET /api/admin/users/{id} returns history array and completion_pct"""
+        if not self.demo_user_id:
+            self.log_test("Admin User Detail with History", False, "Demo user ID not found")
+            return False
+            
+        try:
+            response = self.session.get(f"{self.base_url}/admin/users/{self.demo_user_id}")
+            success = response.status_code == 200
+            
+            if success:
+                user_detail = response.json()
+                
+                # Check for completion_pct
+                has_completion_pct = 'completion_pct' in user_detail
+                self.log_test("User detail has completion_pct", has_completion_pct,
+                             f"completion_pct: {user_detail.get('completion_pct', 'missing')}%")
+                
+                # Check for history array
+                has_history = 'history' in user_detail and isinstance(user_detail['history'], list)
+                self.log_test("User detail has history array", has_history,
+                             f"History entries: {len(user_detail.get('history', []))}")
+                
+                # Check history entry structure
+                history_structure_valid = True
+                if has_history and user_detail['history']:
+                    required_fields = ['user_id', 'step_id', 'step_title', 'step_order', 'action', 'timestamp']
+                    for entry in user_detail['history']:
+                        for field in required_fields:
+                            if field not in entry:
+                                history_structure_valid = False
+                                break
+                        if not history_structure_valid:
+                            break
+                
+                self.log_test("History entries structure valid", history_structure_valid,
+                             "All required fields present in history entries")
+                
+                return has_completion_pct and has_history and history_structure_valid
+            else:
+                self.log_test("GET /api/admin/users/{id}", False,
+                             f"Status: {response.status_code}, Response: {response.text}")
+                return False
+        except Exception as e:
+            self.log_test("GET /api/admin/users/{id}", False, f"Exception: {str(e)}")
+            return False
     def run_all_tests(self):
         """Run all backend tests"""
-        print("🧪 Starting German Medical Onboarding App Backend Tests (Iteration 11)")
+        print("🧪 Starting German Medical Onboarding App Backend Tests (Iteration 12)")
         print("=" * 70)
         
         # Test authentication
@@ -220,6 +305,13 @@ class GermanMedicalAppTester:
         if not demo_login_ok:
             print("❌ Cannot proceed with user tests - demo login failed")
             return False
+        
+        # Test Iteration 12 specific features
+        if admin_login_ok:
+            print("\n📋 Iteration 12 Features Tests:")
+            self.switch_to_admin()  # Ensure admin session
+            self.test_admin_users_completion_pct()
+            self.test_admin_user_detail_with_history()
         
         # Test new history functionality
         print("\n📋 Progress History Tests:")
@@ -233,6 +325,7 @@ class GermanMedicalAppTester:
         # Test admin endpoints if admin login worked
         if admin_login_ok:
             print("\n📋 Admin Tests:")
+            self.switch_to_admin()  # Ensure admin session
             self.test_admin_steps_endpoint()
         
         # Summary

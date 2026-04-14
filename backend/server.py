@@ -269,6 +269,12 @@ class StepCreate(BaseModel):
     email_on_enter: bool = False
     email_on_edit: bool = False
     email_on_leave: bool = False
+    email_subject_enter: Optional[str] = None
+    email_body_enter: Optional[str] = None
+    email_subject_edit: Optional[str] = None
+    email_body_edit: Optional[str] = None
+    email_subject_leave: Optional[str] = None
+    email_body_leave: Optional[str] = None
 
 class StepUpdate(BaseModel):
     title: Optional[str] = None
@@ -289,6 +295,12 @@ class StepUpdate(BaseModel):
     email_on_enter: Optional[bool] = None
     email_on_edit: Optional[bool] = None
     email_on_leave: Optional[bool] = None
+    email_subject_enter: Optional[str] = None
+    email_body_enter: Optional[str] = None
+    email_subject_edit: Optional[str] = None
+    email_body_edit: Optional[str] = None
+    email_subject_leave: Optional[str] = None
+    email_body_leave: Optional[str] = None
     is_active: Optional[bool] = None
 
 class UserProgressUpdate(BaseModel):
@@ -639,29 +651,38 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         "email_on_step_leave": True
     })
     
+    # Helper to render email template with variables
+    def render_template(template: str, variables: dict) -> str:
+        result = template
+        for key, val in variables.items():
+            result = result.replace(f'{{{{{key}}}}}', str(val))
+        return result
+    
+    email_vars = {
+        "user_name": user["name"],
+        "user_email": user["email"],
+        "step_title": step["title"],
+        "step_order": step["order"],
+        "step_description": step["description"]
+    }
+    
     # Send email on edit if step configured AND user opted in
     if existing and step.get("email_on_edit") and data.data and user_prefs.get("email_on_step_edit", False):
-        await send_email_notification(
-            user["email"],
-            f"Step Updated: {step['title']}",
-            f"<p>You have updated your progress on step: {step['title']}</p>"
-        )
+        subj = render_template(step.get("email_subject_edit") or "Schritt aktualisiert: {{step_title}}", email_vars)
+        body = render_template(step.get("email_body_edit") or "<p>Hallo {{user_name}},</p><p>Sie haben Ihren Fortschritt im Schritt <strong>{{step_title}}</strong> aktualisiert.</p>", email_vars)
+        await send_email_notification(user["email"], subj, body)
     
     # Send email on enter if step configured AND user opted in
     if not existing and step.get("email_on_enter") and user_prefs.get("email_on_step_enter", True):
-        await send_email_notification(
-            user["email"],
-            f"Step Started: {step['title']}",
-            f"<p>You have started step: {step['title']}</p>"
-        )
+        subj = render_template(step.get("email_subject_enter") or "Schritt gestartet: {{step_title}}", email_vars)
+        body = render_template(step.get("email_body_enter") or "<p>Hallo {{user_name}},</p><p>Sie haben den Schritt <strong>{{step_title}}</strong> begonnen.</p>", email_vars)
+        await send_email_notification(user["email"], subj, body)
     
     # Send email on leave (completion) if step configured AND user opted in
     if data.status == "completed" and step.get("email_on_leave") and user_prefs.get("email_on_step_leave", True):
-        await send_email_notification(
-            user["email"],
-            f"Step Completed: {step['title']}",
-            f"<p>Congratulations! You have completed step: {step['title']}</p>"
-        )
+        subj = render_template(step.get("email_subject_leave") or "Schritt abgeschlossen: {{step_title}}", email_vars)
+        body = render_template(step.get("email_body_leave") or "<p>Hallo {{user_name}},</p><p>Herzlichen Glückwunsch! Sie haben den Schritt <strong>{{step_title}}</strong> abgeschlossen.</p>", email_vars)
+        await send_email_notification(user["email"], subj, body)
     
     await db.user_progress.update_one(
         {"user_id": user["_id"], "step_id": data.step_id},
@@ -814,14 +835,20 @@ async def get_file(file_id: str, request: Request, auth: str = Query(None)):
 async def admin_get_users(request: Request):
     user = await require_role("admin")(request)
     users = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    total_steps = await db.steps.count_documents({"is_active": True})
+    
     result = []
     for u in users:
+        uid = str(u["_id"])
+        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
+        pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
         result.append({
-            "id": str(u["_id"]),
+            "id": uid,
             "email": u["email"],
             "name": u["name"],
             "role": u["role"],
-            "created_at": u.get("created_at")
+            "created_at": u.get("created_at"),
+            "completion_pct": pct
         })
     return result
 
@@ -861,6 +888,11 @@ async def admin_get_user(user_id: str, request: Request):
     
     progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     submissions = await db.partner_submissions.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    history = await db.progress_history.find({"user_id": user_id}, {"_id": 0}).sort("timestamp", -1).to_list(200)
+    
+    total_steps = await db.steps.count_documents({"is_active": True})
+    completed = len([p for p in progress if p.get("status") == "completed"])
+    completion_pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
     
     return {
         "id": str(user["_id"]),
@@ -870,7 +902,9 @@ async def admin_get_user(user_id: str, request: Request):
         "profile": user.get("profile", {}),
         "created_at": user.get("created_at"),
         "progress": progress,
-        "submissions": submissions
+        "submissions": submissions,
+        "history": history,
+        "completion_pct": completion_pct
     }
 
 @admin_router.put("/users/{user_id}/progress")
@@ -995,6 +1029,12 @@ async def admin_get_steps(request: Request):
             "email_on_enter": s.get("email_on_enter", False),
             "email_on_edit": s.get("email_on_edit", False),
             "email_on_leave": s.get("email_on_leave", False),
+            "email_subject_enter": s.get("email_subject_enter", ""),
+            "email_body_enter": s.get("email_body_enter", ""),
+            "email_subject_edit": s.get("email_subject_edit", ""),
+            "email_body_edit": s.get("email_body_edit", ""),
+            "email_subject_leave": s.get("email_subject_leave", ""),
+            "email_body_leave": s.get("email_body_leave", ""),
             "is_active": s.get("is_active", True)
         })
     return result
@@ -1022,6 +1062,12 @@ async def admin_create_step(data: StepCreate, request: Request):
         "email_on_enter": data.email_on_enter,
         "email_on_edit": data.email_on_edit,
         "email_on_leave": data.email_on_leave,
+        "email_subject_enter": data.email_subject_enter or "",
+        "email_body_enter": data.email_body_enter or "",
+        "email_subject_edit": data.email_subject_edit or "",
+        "email_body_edit": data.email_body_edit or "",
+        "email_subject_leave": data.email_subject_leave or "",
+        "email_body_leave": data.email_body_leave or "",
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
