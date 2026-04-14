@@ -285,26 +285,29 @@ export default function AdminDashboard() {
                                                     <span>Fields: {step.fields?.length || 0}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 flex-shrink-0">
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
                                                     onClick={() => {
                                                         setEditingStep(step);
                                                         setShowStepDialog(true);
                                                     }}
+                                                    className="border-[#E4E4E7] text-[#002FA7] hover:bg-blue-50"
                                                     data-testid={`edit-step-${step.id}`}
                                                 >
-                                                    <Pencil size={18} />
+                                                    <Pencil size={16} className="mr-1" />
+                                                    Edit
                                                 </Button>
                                                 <Button
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
                                                     onClick={() => handleDeleteStep(step.id)}
-                                                    className="text-red-500 hover:text-red-700"
+                                                    className="border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
                                                     data-testid={`delete-step-${step.id}`}
                                                 >
-                                                    <Trash size={18} />
+                                                    <Trash size={16} className="mr-1" />
+                                                    Delete
                                                 </Button>
                                             </div>
                                         </div>
