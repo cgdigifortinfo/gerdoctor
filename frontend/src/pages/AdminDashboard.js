@@ -1281,6 +1281,27 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                     {activeSection === 'conditions' && (
                         <div className="space-y-4">
                             <div className="flex justify-between items-center"><Label>Bedingungen (Zugangssteuerung basierend auf vorherigen Schritten)</Label><Button type="button" variant="outline" size="sm" onClick={addCondition}><Plus size={14} className="mr-1" /> Bedingung</Button></div>
+                            
+                            {/* Presets */}
+                            <div className="p-3 bg-[#114f55]/5 border border-[#114f55]/20 rounded-sm">
+                                <p className="text-xs font-semibold text-[#114f55] mb-2">Vorlagen (klicken zum Hinzufügen)</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { label: 'Vorheriger Schritt abgeschlossen', preset: { source_step_order: Math.max(1, formData.order - 1), field: 'status', operator: 'status_not', value: 'completed', action: 'block', message: 'Bitte schließen Sie zuerst den vorherigen Schritt ab.' } },
+                                        { label: 'Dokument vorhanden', preset: { source_step_order: 1, field: 'documents', operator: 'has_upload', value: 'Visum', action: 'allow_next', message: 'Visum liegt vor.' } },
+                                        { label: 'Dokument fehlt → blockieren', preset: { source_step_order: 1, field: 'documents', operator: 'missing_upload', value: 'Visum', action: 'block', message: 'Bitte laden Sie zuerst Ihr Visum hoch.' } },
+                                        { label: 'Feld ausgefüllt', preset: { source_step_order: 1, field: 'field_of_study', operator: 'not_empty', value: '', action: 'allow_next', message: '' } },
+                                        { label: 'Bestimmtes Fachgebiet', preset: { source_step_order: 1, field: 'field_of_study', operator: 'equals', value: 'Allgemeinmedizin', action: 'allow_next', message: 'Nur für Allgemeinmedizin.' } },
+                                        { label: 'Weiterleitung zu Schritt', preset: { source_step_order: 1, field: 'status', operator: 'status_is', value: 'completed', action: 'redirect', target_step_order: formData.order + 1, message: 'Weiterleitung...' } },
+                                    ].map((p, i) => (
+                                        <button key={i} type="button" onClick={() => setFormData({ ...formData, conditions: [...formData.conditions, { ...p.preset, target_step_order: p.preset.target_step_order || null }] })}
+                                            className="px-2 py-1 text-xs bg-card border border-border rounded-sm hover:bg-muted transition-colors" data-testid={`condition-preset-${i}`}>
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <p className="text-xs text-muted-foreground">Wenn eine Bedingung zutrifft, wird die konfigurierte Aktion ausgeführt.</p>
                             {formData.conditions.map((c, i) => (
                                 <div key={i} className="p-3 bg-muted rounded-sm space-y-2 border border-border">

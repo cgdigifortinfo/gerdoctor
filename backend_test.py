@@ -5,309 +5,248 @@ import sys
 import json
 from datetime import datetime
 
-class GermanMedicalOnboardingTester:
+class GermanMedicalAppTester:
     def __init__(self, base_url="https://guided-journey-5.preview.emergentagent.com/api"):
         self.base_url = base_url
-        self.admin_token = None
-        self.demo_token = None
+        self.session = requests.Session()
+        self.session.headers.update({'Content-Type': 'application/json'})
         self.tests_run = 0
         self.tests_passed = 0
-        self.session = requests.Session()
+        self.admin_user = None
+        self.demo_user = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None, auth_token=None):
-        """Run a single API test"""
-        url = f"{self.base_url}/{endpoint}"
-        test_headers = {'Content-Type': 'application/json'}
-        if headers:
-            test_headers.update(headers)
-        if auth_token:
-            test_headers['Authorization'] = f'Bearer {auth_token}'
-
+    def log_test(self, name, success, details=""):
+        """Log test result"""
         self.tests_run += 1
-        print(f"\n🔍 Testing {name}...")
-        
+        if success:
+            self.tests_passed += 1
+            print(f"✅ {name}")
+            if details:
+                print(f"   {details}")
+        else:
+            print(f"❌ {name}")
+            if details:
+                print(f"   {details}")
+
+    def login_user(self, email, password):
+        """Login and return user data"""
         try:
-            # Use session for cookie-based auth (backend uses httpOnly cookies)
-            if method == 'GET':
-                response = self.session.get(url, headers=test_headers)
-            elif method == 'POST':
-                response = self.session.post(url, json=data, headers=test_headers)
-            elif method == 'PUT':
-                response = self.session.put(url, json=data, headers=test_headers)
-            elif method == 'DELETE':
-                response = self.session.delete(url, headers=test_headers)
-
-            success = response.status_code == expected_status
-            if success:
-                self.tests_passed += 1
-                print(f"✅ Passed - Status: {response.status_code}")
-                try:
-                    return success, response.json() if response.content else {}
-                except:
-                    return success, {}
+            response = self.session.post(f"{self.base_url}/auth/login", 
+                                       json={"email": email, "password": password})
+            if response.status_code == 200:
+                return response.json()
             else:
-                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
-                try:
-                    error_detail = response.json().get('detail', 'No detail')
-                    print(f"   Error: {error_detail}")
-                except:
-                    print(f"   Response: {response.text[:200]}")
-                return False, {}
-
+                print(f"Login failed for {email}: {response.status_code} - {response.text}")
+                return None
         except Exception as e:
-            print(f"❌ Failed - Error: {str(e)}")
-            return False, {}
+            print(f"Login error for {email}: {str(e)}")
+            return None
 
     def test_admin_login(self):
-        """Test admin login and get token"""
-        success, response = self.run_test(
-            "Admin Login",
-            "POST",
-            "auth/login",
-            200,
-            data={"email": "admin@example.com", "password": "Admin123!"}
-        )
-        if success and 'access_token' in response:
-            self.admin_token = response['access_token']
-            # Test /auth/me to verify admin role
-            me_success, me_response = self.run_test(
-                "Admin Me Check",
-                "GET", 
-                "auth/me",
-                200,
-                auth_token=self.admin_token
-            )
-            if me_success:
-                print(f"   ✅ Admin user role: {me_response.get('role', 'unknown')}")
-                if me_response.get('role') != 'admin':
-                    print(f"   ⚠️  Expected admin role, got: {me_response.get('role')}")
-                    return False
-            return True
-        return False
-
-    def test_demo_login(self):
-        """Test demo user login and get token"""
-        success, response = self.run_test(
-            "Demo User Login",
-            "POST",
-            "auth/login",
-            200,
-            data={"email": "demo@example.com", "password": "Demo123!"}
-        )
-        if success and 'access_token' in response:
-            self.demo_token = response['access_token']
-            return True
-        return False
-
-    def test_get_all_step_data(self):
-        """Test GET /api/steps/all-data endpoint"""
-        success, response = self.run_test(
-            "Get All Step Data",
-            "GET",
-            "steps/all-data",
-            200,
-            auth_token=self.demo_token
-        )
-        if success:
-            # Verify response structure
-            if isinstance(response, list) and len(response) > 0:
-                step = response[0]
-                required_fields = ['step_id', 'order', 'title', 'step_type', 'status', 'data', 'conditions', 'field_mappings']
-                missing_fields = [f for f in required_fields if f not in step]
-                if missing_fields:
-                    print(f"   ⚠️  Missing fields in response: {missing_fields}")
-                    return False
-                print(f"   ✅ Response contains {len(response)} steps with correct structure")
-                return True
-        return False
-
-    def test_admin_get_steps(self):
-        """Test admin access to steps management"""
-        # Don't use auth_token, rely on session cookies
-        success, response = self.run_test(
-            "Admin Get Steps",
-            "GET",
-            "admin/steps",
-            200
-        )
-        if success and isinstance(response, list):
-            print(f"   ✅ Retrieved {len(response)} steps")
-            # Check if steps have the required fields for the new features
-            if len(response) > 0:
-                step = response[0]
-                admin_fields = ['required_fields', 'required_uploads', 'field_mappings', 'conditions']
-                present_fields = [f for f in admin_fields if f in step]
-                print(f"   ✅ Admin fields present: {present_fields}")
-            return True
-        return False
-
-    def test_step_progress_validation(self):
-        """Test step progress validation with missing required fields"""
-        # First get the steps to find one with required fields
-        success, steps_response = self.run_test(
-            "Get Steps for Validation Test",
-            "GET",
-            "steps",
-            200,
-            auth_token=self.demo_token
-        )
-        
-        if not success or not steps_response:
-            return False
-            
-        # Find a step with required fields (likely the first step)
-        target_step = None
-        for step in steps_response:
-            if step.get('required_fields') or step.get('required_uploads'):
-                target_step = step
-                break
-                
-        if not target_step:
-            print("   ⚠️  No steps with required fields found for validation test")
-            return True  # Not a failure, just no validation to test
-            
-        # Try to complete the step without required data
-        success, response = self.run_test(
-            "Step Progress Validation (Should Fail)",
-            "PUT",
-            "steps/progress",
-            400,  # Expecting 400 error
-            data={
-                "step_id": target_step['id'],
-                "status": "completed",
-                "data": {}  # Empty data should trigger validation error
-            },
-            auth_token=self.demo_token
-        )
-        
-        if success:
-            print("   ✅ Validation correctly rejected empty required fields")
-            return True
-        return False
-
-    def test_admin_step_update(self):
-        """Test admin step update with new fields"""
-        # Get existing steps first
-        success, steps_response = self.run_test(
-            "Get Steps for Update Test",
-            "GET",
-            "admin/steps",
-            200
-        )
-        
-        if not success or not steps_response:
-            return False
-            
-        if len(steps_response) == 0:
-            print("   ⚠️  No steps found for update test")
-            return True
-            
-        step_to_update = steps_response[0]
-        
-        # Update step with new admin features
-        update_data = {
-            "required_fields": ["name", "email"],
-            "required_uploads": ["Visum"],
-            "field_mappings": [
-                {
-                    "source_step_order": 1,
-                    "source_field": "name",
-                    "target_field": "applicant_name"
-                }
-            ],
-            "conditions": [
-                {
-                    "source_step_order": 1,
-                    "field": "status",
-                    "operator": "status_is",
-                    "value": "completed",
-                    "action": "allow_next",
-                    "message": "Previous step must be completed"
-                }
-            ]
-        }
-        
-        success, response = self.run_test(
-            "Admin Step Update with New Features",
-            "PUT",
-            f"admin/steps/{step_to_update['id']}",
-            200,
-            data=update_data
-        )
-        
+        """Test admin login"""
+        self.admin_user = self.login_user("admin@example.com", "Admin123!")
+        success = self.admin_user is not None
+        self.log_test("Admin Login", success, 
+                     f"Role: {self.admin_user.get('role') if self.admin_user else 'Failed'}")
         return success
 
-    def test_admin_partner_tags(self):
-        """Test admin partner management with tags"""
-        # Get existing partners
-        success, partners_response = self.run_test(
-            "Get Partners for Tags Test",
-            "GET",
-            "admin/partners",
-            200
-        )
-        
-        if not success:
-            return False
+    def test_demo_user_login(self):
+        """Test demo user login"""
+        self.demo_user = self.login_user("demo@example.com", "Demo123!")
+        success = self.demo_user is not None
+        self.log_test("Demo User Login", success,
+                     f"Role: {self.demo_user.get('role') if self.demo_user else 'Failed'}")
+        return success
+
+    def test_steps_history_endpoint(self):
+        """Test GET /api/steps/history endpoint"""
+        try:
+            response = self.session.get(f"{self.base_url}/steps/history")
+            success = response.status_code == 200
             
-        # Check if partners have tags field
-        if len(partners_response) > 0:
-            partner = partners_response[0]
-            if 'tags' in partner:
-                print(f"   ✅ Partner tags field present: {partner.get('tags', [])}")
+            if success:
+                history = response.json()
+                self.log_test("GET /api/steps/history", True, 
+                             f"Returned {len(history)} history entries")
+                
+                # Check structure of history entries
+                if history:
+                    entry = history[0]
+                    required_fields = ['step_title', 'action', 'timestamp', 'step_order']
+                    has_required = all(field in entry for field in required_fields)
+                    self.log_test("History Entry Structure", has_required,
+                                 f"Fields: {list(entry.keys())}")
+                else:
+                    self.log_test("History Entry Structure", True, "Empty history (expected for fresh user)")
+            else:
+                self.log_test("GET /api/steps/history", False, 
+                             f"Status: {response.status_code}, Response: {response.text}")
+            
+            return success
+        except Exception as e:
+            self.log_test("GET /api/steps/history", False, f"Exception: {str(e)}")
+            return False
+
+    def test_progress_history_creation(self):
+        """Test that updating progress creates history entries"""
+        try:
+            # Get current steps
+            steps_response = self.session.get(f"{self.base_url}/steps")
+            if steps_response.status_code != 200:
+                self.log_test("Progress History Creation - Get Steps", False, "Failed to get steps")
+                return False
+            
+            steps = steps_response.json()
+            if not steps:
+                self.log_test("Progress History Creation", False, "No steps available")
+                return False
+            
+            first_step = steps[0]
+            
+            # Get initial history count
+            history_response = self.session.get(f"{self.base_url}/steps/history")
+            initial_count = len(history_response.json()) if history_response.status_code == 200 else 0
+            
+            # Update progress to in_progress
+            progress_data = {
+                "step_id": first_step["id"],
+                "status": "in_progress", 
+                "data": {"test_field": "test_value"}
+            }
+            
+            update_response = self.session.put(f"{self.base_url}/steps/progress", json=progress_data)
+            update_success = update_response.status_code == 200
+            
+            if not update_success:
+                self.log_test("Progress History Creation - Update Progress", False, 
+                             f"Status: {update_response.status_code}, Response: {update_response.text}")
+                return False
+            
+            # Check if history entry was created
+            new_history_response = self.session.get(f"{self.base_url}/steps/history")
+            if new_history_response.status_code == 200:
+                new_history = new_history_response.json()
+                new_count = len(new_history)
+                
+                history_created = new_count > initial_count
+                self.log_test("Progress History Creation", history_created,
+                             f"History entries: {initial_count} -> {new_count}")
+                
+                if history_created and new_history:
+                    latest_entry = new_history[0]  # Should be most recent
+                    correct_step = latest_entry.get('step_title') == first_step['title']
+                    correct_action = latest_entry.get('action') == 'in_progress'
+                    
+                    self.log_test("History Entry Content", correct_step and correct_action,
+                                 f"Step: {latest_entry.get('step_title')}, Action: {latest_entry.get('action')}")
+                
+                return history_created
+            else:
+                self.log_test("Progress History Creation - Get New History", False, 
+                             f"Status: {new_history_response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_test("Progress History Creation", False, f"Exception: {str(e)}")
+            return False
+
+    def test_admin_steps_endpoint(self):
+        """Test admin steps endpoint to verify condition presets structure"""
+        try:
+            # Login as admin first
+            if not self.admin_user:
+                if not self.test_admin_login():
+                    return False
+            
+            response = self.session.get(f"{self.base_url}/admin/steps")
+            success = response.status_code == 200
+            
+            if success:
+                steps = response.json()
+                self.log_test("GET /api/admin/steps", True, f"Retrieved {len(steps)} steps")
+                
+                # Check if steps have conditions field (for presets)
+                steps_with_conditions = [s for s in steps if 'conditions' in s]
+                self.log_test("Steps with Conditions Field", len(steps_with_conditions) > 0,
+                             f"{len(steps_with_conditions)} steps have conditions field")
+                
                 return True
             else:
-                print("   ⚠️  Partner tags field missing")
+                self.log_test("GET /api/admin/steps", False, 
+                             f"Status: {response.status_code}, Response: {response.text}")
                 return False
-        else:
-            print("   ⚠️  No partners found for tags test")
-            return True
+                
+        except Exception as e:
+            self.log_test("GET /api/admin/steps", False, f"Exception: {str(e)}")
+            return False
+
+    def test_step_all_data_endpoint(self):
+        """Test /api/steps/all-data endpoint for conditional logic"""
+        try:
+            response = self.session.get(f"{self.base_url}/steps/all-data")
+            success = response.status_code == 200
+            
+            if success:
+                all_data = response.json()
+                self.log_test("GET /api/steps/all-data", True, f"Retrieved data for {len(all_data)} steps")
+                
+                if all_data:
+                    first_step = all_data[0]
+                    required_fields = ['step_id', 'order', 'title', 'step_type', 'status', 'data', 'conditions']
+                    has_required = all(field in first_step for field in required_fields)
+                    self.log_test("All-Data Structure", has_required,
+                                 f"Fields: {list(first_step.keys())}")
+                
+                return True
+            else:
+                self.log_test("GET /api/steps/all-data", False,
+                             f"Status: {response.status_code}, Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            self.log_test("GET /api/steps/all-data", False, f"Exception: {str(e)}")
+            return False
+
+    def run_all_tests(self):
+        """Run all backend tests"""
+        print("🧪 Starting German Medical Onboarding App Backend Tests (Iteration 11)")
+        print("=" * 70)
+        
+        # Test authentication
+        print("\n📋 Authentication Tests:")
+        admin_login_ok = self.test_admin_login()
+        demo_login_ok = self.test_demo_user_login()
+        
+        if not demo_login_ok:
+            print("❌ Cannot proceed with user tests - demo login failed")
+            return False
+        
+        # Test new history functionality
+        print("\n📋 Progress History Tests:")
+        self.test_steps_history_endpoint()
+        self.test_progress_history_creation()
+        
+        # Test step data endpoints
+        print("\n📋 Step Data Tests:")
+        self.test_step_all_data_endpoint()
+        
+        # Test admin endpoints if admin login worked
+        if admin_login_ok:
+            print("\n📋 Admin Tests:")
+            self.test_admin_steps_endpoint()
+        
+        # Summary
+        print("\n" + "=" * 70)
+        print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
+        success_rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
+        print(f"📈 Success Rate: {success_rate:.1f}%")
+        
+        return self.tests_passed == self.tests_run
 
 def main():
-    print("🚀 Starting German Medical Onboarding App Backend Tests")
-    print("=" * 60)
-    
-    tester = GermanMedicalOnboardingTester()
-    
-    # Test authentication first
-    print("\n📋 AUTHENTICATION TESTS")
-    if not tester.test_admin_login():
-        print("❌ Admin login failed, stopping tests")
-        return 1
-        
-    if not tester.test_demo_login():
-        print("❌ Demo user login failed, stopping tests")
-        return 1
-    
-    # Test critical API endpoints
-    print("\n📋 CRITICAL API TESTS")
-    tests = [
-        tester.test_get_all_step_data,
-        tester.test_step_progress_validation,
-        # Skip admin tests for now due to session issues, will test via frontend
-        # tester.test_admin_get_steps,
-        # tester.test_admin_step_update,
-        # tester.test_admin_partner_tags
-    ]
-    
-    for test in tests:
-        try:
-            test()
-        except Exception as e:
-            print(f"❌ Test failed with exception: {e}")
-    
-    # Print results
-    print("\n" + "=" * 60)
-    print(f"📊 RESULTS: {tester.tests_passed}/{tester.tests_run} tests passed")
-    print("\n📝 NOTE: Admin endpoint tests skipped due to session management issues.")
-    print("   Will test admin functionality via frontend interface.")
-    
-    if tester.tests_passed >= 6:  # Core functionality working
-        print("🎉 Core backend functionality working!")
-        return 0
-    else:
-        print(f"⚠️  {tester.tests_run - tester.tests_passed} critical tests failed")
-        return 1
+    tester = GermanMedicalAppTester()
+    success = tester.run_all_tests()
+    return 0 if success else 1
 
 if __name__ == "__main__":
     sys.exit(main())

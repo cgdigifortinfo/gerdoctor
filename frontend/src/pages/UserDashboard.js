@@ -12,7 +12,8 @@ import { Progress } from '../components/ui/progress';
 import { Switch } from '../components/ui/switch';
 import {
     SignOut, Check, ArrowRight, ArrowLeft, CloudArrowUp, X, CaretRight,
-    Bell, GearSix, Plus, Trash, WarningCircle, CheckCircle, SkipForward, Lock
+    Bell, GearSix, Plus, Trash, WarningCircle, CheckCircle, SkipForward, Lock,
+    ClockCounterClockwise
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
@@ -89,18 +90,22 @@ export default function UserDashboard() {
     const [submitting, setSubmitting] = useState(false);
     const [validationErrors, setValidationErrors] = useState([]);
     const [showSettings, setShowSettings] = useState(false);
+    const [showTimeline, setShowTimeline] = useState(false);
+    const [history, setHistory] = useState([]);
     const [notifPrefs, setNotifPrefs] = useState({ email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
 
     const loadData = useCallback(async () => {
         try {
-            const [stepsRes, progressRes, allDataRes, notifRes] = await Promise.all([
+            const [stepsRes, progressRes, allDataRes, notifRes, historyRes] = await Promise.all([
                 stepsAPI.getAll(), stepsAPI.getProgress(), stepsAPI.getAllData(),
-                notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } }))
+                notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } })),
+                stepsAPI.getHistory().catch(() => ({ data: [] }))
             ]);
             setSteps(stepsRes.data);
             setProgress(progressRes.data);
             setAllStepData(allDataRes.data);
             setNotifPrefs(notifRes.data);
+            setHistory(historyRes.data);
 
             const progressMap = {};
             progressRes.data.forEach(p => { progressMap[p.step_id] = p; });
@@ -451,7 +456,8 @@ export default function UserDashboard() {
                         <div className="flex items-center gap-3">
                             <span className="text-sm text-muted-foreground hidden sm:block">{t('dash_welcome')}, {user?.name}</span>
                             <ThemeLangToggle />
-                            <Button variant="ghost" size="sm" onClick={() => setShowSettings(!showSettings)} className="text-muted-foreground" data-testid="settings-btn"><GearSix size={20} /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => { setShowTimeline(!showTimeline); setShowSettings(false); }} className={`text-muted-foreground ${showTimeline ? 'bg-muted' : ''}`} data-testid="timeline-btn" title="Verlauf"><ClockCounterClockwise size={20} /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => { setShowSettings(!showSettings); setShowTimeline(false); }} className={`text-muted-foreground ${showSettings ? 'bg-muted' : ''}`} data-testid="settings-btn"><GearSix size={20} /></Button>
                             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="logout-btn"><SignOut size={20} /></Button>
                         </div>
                     </div>
@@ -527,6 +533,56 @@ export default function UserDashboard() {
                             ))}
                         </div>
                         <div className="mt-6"><Button onClick={async () => { try { await notificationAPI.updatePreferences(notifPrefs); toast.success('Gespeichert'); } catch { toast.error('Fehler'); } }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-notif-prefs-btn">{t('notif_save')}</Button></div>
+                    </div>
+                )}
+
+                {/* Timeline / History */}
+                {showTimeline && (
+                    <div className="mt-6 bg-card border border-border rounded-sm p-6 sm:p-8 animate-fadeIn" data-testid="timeline-panel">
+                        <div className="flex items-center gap-3 mb-6">
+                            <ClockCounterClockwise size={24} className="text-[#114f55]" />
+                            <h2 className="text-xl font-bold tracking-tight text-foreground">Verlauf</h2>
+                        </div>
+                        {history.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">Noch keine Aktivitäten vorhanden. Starten Sie mit dem ersten Schritt!</p>
+                        ) : (
+                            <div className="relative">
+                                {/* Timeline line */}
+                                <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+                                <div className="space-y-0">
+                                    {history.map((entry, idx) => {
+                                        const isCompleted = entry.action === 'completed';
+                                        const isInProgress = entry.action === 'in_progress';
+                                        return (
+                                            <div key={idx} className="relative flex items-start gap-4 py-3" data-testid={`timeline-entry-${idx}`}>
+                                                {/* Dot */}
+                                                <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                                    isCompleted ? 'bg-green-500 text-white' : isInProgress ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'
+                                                }`}>
+                                                    {isCompleted ? <Check size={14} /> : isInProgress ? <ArrowRight size={14} /> : <ClockCounterClockwise size={14} />}
+                                                </div>
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0 pt-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-medium text-sm text-foreground">{entry.step_title}</span>
+                                                        <span className={`px-2 py-0.5 text-xs rounded-sm font-medium ${
+                                                            isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                                            isInProgress ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                            'bg-muted text-muted-foreground'
+                                                        }`}>
+                                                            {isCompleted ? 'Abgeschlossen' : isInProgress ? 'In Bearbeitung' : entry.action}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        Schritt {entry.step_order} &middot; {new Date(entry.timestamp).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -675,7 +675,26 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         upsert=True
     )
     
+    # Log progress history
+    await db.progress_history.insert_one({
+        "user_id": user["_id"],
+        "step_id": data.step_id,
+        "step_title": step["title"],
+        "step_order": step["order"],
+        "action": data.status,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    
     return {"message": "Progress updated"}
+
+@steps_router.get("/history")
+async def get_user_history(request: Request):
+    """Get the user's progress history timeline."""
+    user = await get_current_user(request)
+    history = await db.progress_history.find(
+        {"user_id": user["_id"]}, {"_id": 0}
+    ).sort("timestamp", -1).to_list(200)
+    return history
 
 # ========================
 # PARTNERS ROUTES
