@@ -1,0 +1,151 @@
+{
+  "project_name": "SaaS Platform & Partner Portal",
+  "theme": "Light",
+  "archetype": {
+    "id": 4,
+    "name": "Swiss & High-Contrast",
+    "vibe": "Authority, clarity, functional, rigid, modern minimal startup vibe",
+    "rationale": "Perfect for a SaaS platform needing clear data hierarchy (Admin/Partner portals) and straightforward, high-conversion user flows (User progress stepper). Colors exist only to guide action."
+  },
+  "colors": {
+    "background": "#FAFAFA",
+    "surface": "#FFFFFF",
+    "text_primary": "#0A0A0A",
+    "text_secondary": "#52525B",
+    "primary": "#002FA7",
+    "primary_hover": "#002280",
+    "accent": "#FF3B30",
+    "border": "#E4E4E7",
+    "glass_bg": "rgba(255, 255, 255, 0.7)",
+    "glass_border": "rgba(0, 0, 0, 0.1)",
+    "rules": [
+      "Use #002FA7 strictly for primary CTAs and active states in the stepper.",
+      "Never use pure black; use #0A0A0A for deepest text and backgrounds.",
+      "Background should be stark white or off-white. Contrast is achieved through 1px sharp borders and typography.",
+      "Interactive elements must explicitly set hover colors with increased contrast (e.g., hover:bg-[#002280] hover:text-white)."
+    ]
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Cabinet Grotesk, sans-serif",
+      "body": "Satoshi, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-black",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold",
+      "h3": "text-xl sm:text-2xl tracking-tight leading-snug font-semibold",
+      "h4": "text-lg sm:text-xl tracking-tight font-medium",
+      "body": "text-base leading-relaxed font-normal",
+      "small": "text-sm leading-normal font-medium",
+      "overline": "text-xs tracking-[0.2em] uppercase font-bold"
+    },
+    "rules": [
+      "Never use Inter for headings.",
+      "Use extreme weight contrast: Black for headings, Regular/Medium for body.",
+      "Ensure tight letter spacing (tracking-tight) on all headings over 32px."
+    ]
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing for marketing, dense 'Control Room' grids for dashboards.",
+    "scale": "p-4, p-6, p-8, p-12, p-16, p-24, p-32",
+    "grids": {
+      "marketing": "grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-8 md:gap-12 (Mode A: Tetris Grid, aggressive asymmetry)",
+      "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 (Mode B: Control Room Grid, pure utility)"
+    },
+    "rules": [
+      "Mobile-first always. Images must not exceed max-h-[80vh] on mobile.",
+      "Grid children must be direct children. Use pure HTML/Tailwind for marketing layouts to ensure asymmetry.",
+      "Containers with borders must use internal padding (p-6 or p-8) to prevent text collision."
+    ]
+  },
+  "components": {
+    "surfaces": {
+      "header": "Crystal Glass variant: backdrop-blur-xl bg-white/70 border-b border-black/10 shadow-sm. Never transparent.",
+      "dashboard_cards": "Grid Borders variant: flat background, 1px subtle border (border-border), no shadow. Hover: slight lift (-translate-y-1) and shadow-lg."
+    },
+    "navigation": {
+      "desktop": "Visible links (Home, About Us, Partners), no hamburger menu.",
+      "mobile": "Hamburger menu allowed. Sticky header with z-50."
+    },
+    "forms_and_inputs": {
+      "style": "Shadcn based, sharp edges, no excessive border radius (max rounded-sm).",
+      "uploads": "Clear dropzones with dashed 1px borders, subtle hover state (bg-gray-50)."
+    },
+    "stepper": {
+      "mobile": "Full-width screen-by-screen flow. Sticky header showing step title. Bottom-anchored Next/Back buttons for thumb reach.",
+      "desktop": "Vertical milestone or compact horizontal bar. Gamified unlocking."
+    },
+    "testing": "All interactive elements MUST include data-testid attributes (kebab-case, role-based)."
+  },
+  "motion_and_interaction": {
+    "rules": [
+      "Minimalist animations. Micro-interactions for feedback.",
+      "Hover states on all interactables. Lighter hue of active state.",
+      "Respect prefers-reduced-motion."
+    ]
+  },
+  "media": {
+    "image_urls": [
+      {
+        "category": "hero_background",
+        "url": "https://images.pexels.com/photos/3137084/pexels-photo-3137084.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Minimalist facade against dark sky. Use with a light overlay or as a stark contrast piece in the hero section."
+      },
+      {
+        "category": "abstract_architecture",
+        "url": "https://images.unsplash.com/photo-1747727350761-a607eae63dc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG1pbmltYWwlMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Buildings and fabric. Use as a textural background or feature image for the SaaS landing page."
+      },
+      {
+        "category": "about_us_team",
+        "url": "https://images.unsplash.com/photo-1758873271902-a63ecd5b5235?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBzdGFydHVwJTIwdGVhbSUyMHdvcmtpbmd8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "People working in a modern office. Use for the About Us section."
+      },
+      {
+        "category": "about_us_office",
+        "url": "https://images.unsplash.com/photo-1758876203420-1ed6db481d4f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBzdGFydHVwJTIwdGVhbSUyMHdvcmtpbmd8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Colleagues collaborating at a desk. Secondary image for About Us."
+      },
+      {
+        "category": "partner_logo_1",
+        "url": "https://images.unsplash.com/photo-1659893982147-e9ddb94de39a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwyfHxjb21wYW55JTIwbG9nbyUyMGlzb2xhdGVkfGVufDB8fHx8MTc3NjE0MDAwMHww&ixlib=rb-4.1.0&q=85",
+        "description": "Company logo isolated. Use in the Partners listing or slider."
+      }
+    ],
+    "rules": [
+      "Hero image overlays must be bg-white/20 to bg-white/40 to ensure the image breathes, or use gradient overlay.",
+      "NEVER use placeholder images."
+    ]
+  },
+  "pages": {
+    "landing": {
+      "description": "Public facing. Hero section with abstract minimal architecture, high contrast typography. Sections for About Us (using team images) and Partners.",
+      "nav": "Crystal glass sticky header. Links: Home, About Us, Partner, Login."
+    },
+    "auth": {
+      "description": "JWT-based custom auth. Clean, minimalist split-screen layout with abstract image on one side and a sharp, border-defined form on the other."
+    },
+    "user_dashboard": {
+      "description": "Mobile-first progress stepper. Starts with profile form (with file uploads). Moves to Partner List (bento grid of partners). Partner detail subpage with CTA to fill subsequent form.",
+      "stepper_ui": "Mobile: full screen per step, sticky title, bottom actions. Desktop: horizontal top bar or left vertical timeline."
+    },
+    "admin_dashboard": {
+      "description": "CMS for steps and user progress. 'Control Room' grid layout. Tables for user list, specific user detail page to view/edit progress. Strict utilitarian design, pure data hierarchy."
+    },
+    "partner_dashboard": {
+      "description": "Dashboard for partner companies to view submissions. Similar utilitarian grid layout to Admin, focusing on metrics and tables."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Use Phosphor Icons (@phosphor-icons/react) for a high-end, clean look. (yarn add @phosphor-icons/react)",
+    "Implement the landing page using raw HTML/Tailwind for structural creativity and Shadcn for interactive forms/dialogs.",
+    "For the Stepper: ensure state is managed cleanly (e.g., React Context or Zustand) to handle navigation between Profile, Partner List, and Forms.",
+    "Use Cabinet Grotesk for Headings and Satoshi for Body. Configure Tailwind theme to include these font families.",
+    "Strictly adhere to the 'Swiss & High-Contrast' archetype. Avoid rounded bubbly UIs; use sharp or minimally rounded edges (max rounded-sm).",
+    "All forms (Profile, Auth, Partner forms) must use customized Shadcn components.",
+    "For file uploads, create a dedicated drag-and-drop zone using standard Shadcn components and HTML input type file.",
+    "Do not add any dummy/placeholder images from via.placeholder.com. Use the provided URLs in the media section.",
+    "Ensure the progress steps are dynamically rendered based on a configuration that the Admin can technically edit later (CMS approach)."
+  ]
+}
