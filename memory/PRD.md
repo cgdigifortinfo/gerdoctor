@@ -7,13 +7,13 @@ Build a mobile-first app with CMS-style landing page, progress stepper for users
 - **Frontend**: React + Tailwind CSS + Shadcn UI + Phosphor Icons
 - **Backend**: FastAPI + MongoDB (Motor async driver)
 - **Auth**: JWT with httpOnly cookies, role-based access control
-- **Email**: Mailgun SMTP integration (gerdoc@digifort-experts.de)
-- **File Storage**: Emergent Object Storage (EMERGENT_LLM_KEY)
+- **Email**: Mailgun SMTP (smtp.eu.mailgun.org)
+- **File Storage**: Emergent Object Storage
 - **Design**: Swiss & High-Contrast archetype, Cabinet Grotesk + Satoshi fonts
 
 ## User Personas
-1. **Regular User**: Completes guided onboarding steps (profile, partner selection, application, review)
-2. **Admin**: Manages steps, users, partners via CMS dashboard
+1. **Regular User**: Completes guided onboarding steps
+2. **Admin**: Manages steps, users, partners, CMS content via dashboard
 3. **Partner Company**: Views user submissions, edits own profile
 
 ## Core Requirements
@@ -25,38 +25,38 @@ Build a mobile-first app with CMS-style landing page, progress stepper for users
 - [x] Partner dashboard: view submissions, edit profile
 - [x] File uploads (documents, images)
 - [x] Mailgun SMTP email notifications
-- [x] Configurable email triggers per step (on enter, edit, leave)
+- [x] Configurable email triggers per step
 
-## What's Been Implemented (April 2026)
+## What's Been Implemented
+
+### Phase 1 (April 14, 2026)
 - Complete backend API (auth, steps, partners, files, admin, CMS)
-- Landing page with hero, features, about us, partners sections
-- Login/Register with split-screen design
-- User dashboard with progress stepper
-- Admin dashboard with Users/Steps/Partners tabs
-- Partner dashboard with submissions/profile tabs
+- Landing page, Login/Register, User Dashboard, Admin Dashboard, Partner Dashboard
 - Mailgun SMTP email integration
-- Emergent Object Storage for file uploads
+- Object Storage for file uploads
 - Default seeded data (4 steps, 3 partners, admin account)
 
-## Prioritized Backlog
-### P0 (Critical)
-- All core features implemented ✅
+### Phase 2 (April 14, 2026)
+- CMS content editor (admin can edit landing page hero, about, partners text)
+- Admin analytics dashboard (stats, user distribution, step completion rates)
+- User search/filter (by name, email, role)
+- Partner-user linking workflow (link/unlink user accounts to partner orgs)
+- Admin can edit user progress status directly
 
+## Prioritized Backlog
 ### P1 (Important)
-- CMS content editor for landing page sections (admin)
-- Admin: ability to edit user progress status directly
 - Password strength indicator on registration
+- User notification preferences (opt-in/out per step)
+- Bulk user actions in admin
 
 ### P2 (Nice to Have)
-- Partner linking workflow (admin links user account to partner org)
-- User notification preferences (opt-in/out per step)
-- Dashboard analytics for admin (user completion rates)
 - Dark mode support
 - Multi-language support
+- Export user data to CSV
+- Admin audit log
 
 ## Next Tasks
-1. Enhance admin user detail view with progress editing
-2. Add CMS editor for landing page content
-3. Add partner user linking workflow
-4. Add search/filter to admin user list
-5. Implement user notification preferences
+1. Add notification preferences for users
+2. Implement bulk actions in admin user list
+3. Add CSV export for admin reports
+4. Add dark mode toggle
