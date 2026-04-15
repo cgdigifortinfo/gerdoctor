@@ -105,7 +105,7 @@ def send_email_sync(to_email: str, subject: str, html_content: str) -> dict:
         return {"status": "skipped", "message": "Email not configured"}
     try:
         msg = MIMEMultipart("alternative")
-        msg["From"] = formataddr(("GuidedJourney", MAILGUN_FROM_EMAIL))
+        msg["From"] = formataddr(("GERdoctor", MAILGUN_FROM_EMAIL))
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.attach(MIMEText(html_content, "html"))
@@ -1440,7 +1440,7 @@ api_router.include_router(cms_router)
 # Root endpoint
 @api_router.get("/")
 async def root():
-    return {"message": "Guided Journey API"}
+    return {"message": "GERdoctor API"}
 
 app.include_router(api_router)
 

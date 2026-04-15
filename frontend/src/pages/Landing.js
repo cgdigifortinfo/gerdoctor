@@ -337,8 +337,11 @@ export default function Landing() {
             <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="font-black text-lg text-foreground">GuidedJourney</p>
-                        <p className="text-sm text-muted-foreground">&copy; 2026 GuidedJourney. All rights reserved.</p>
+                        <div className="flex items-baseline">
+                            <span className="font-black text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>GER</span>
+                            <span className="font-light text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>doctor</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">&copy; 2026 GERdoctor. All rights reserved.</p>
                     </div>
                 </div>
             </footer>
