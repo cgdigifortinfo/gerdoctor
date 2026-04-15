@@ -9,7 +9,8 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { SignOut, FileText, Gear, Eye } from '@phosphor-icons/react';
+import { Progress } from '../components/ui/progress';
+import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
@@ -23,6 +24,8 @@ export default function PartnerDashboard() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('submissions');
     const [selectedSubmission, setSelectedSubmission] = useState(null);
+    const [userDetail, setUserDetail] = useState(null);
+    const [userDetailLoading, setUserDetailLoading] = useState(false);
     const [editingProfile, setEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({});
 
@@ -60,6 +63,32 @@ export default function PartnerDashboard() {
             toast.success('Profile updated');
             setEditingProfile(false);
             loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleViewSubmission = async (sub) => {
+        setSelectedSubmission(sub);
+        setUserDetail(null);
+        setUserDetailLoading(true);
+        try {
+            const res = await partnerDashboardAPI.getUserDetail(sub.user_id);
+            setUserDetail(res.data);
+        } catch (error) {
+            console.error('Failed to load user detail:', error);
+        } finally {
+            setUserDetailLoading(false);
+        }
+    };
+
+    const handleUpdateStepStatus = async (userId, stepId, newStatus) => {
+        try {
+            await partnerDashboardAPI.updateUserProgress(userId, stepId, newStatus, {});
+            toast.success('Step status updated');
+            // Reload user detail
+            const res = await partnerDashboardAPI.getUserDetail(userId);
+            setUserDetail(res.data);
         } catch (error) {
             toast.error(formatApiError(error));
         }
@@ -172,10 +201,10 @@ export default function PartnerDashboard() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => setSelectedSubmission(sub)}
+                                                                onClick={() => handleViewSubmission(sub)}
                                                                 data-testid={`view-submission-${sub.id}`}
                                                             >
-                                                                <Eye size={18} />
+                                                                <Eye size={18} className="mr-1" /> Details
                                                             </Button>
                                                         </td>
                                                     </tr>
@@ -208,95 +237,40 @@ export default function PartnerDashboard() {
                                         <div className="space-y-4 max-w-lg">
                                             <div>
                                                 <Label>Organization Name</Label>
-                                                <Input
-                                                    value={profileForm.name || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-name-input"
-                                                />
+                                                <Input value={profileForm.name || ''} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="mt-1" data-testid="profile-name-input" />
                                             </div>
                                             <div>
                                                 <Label>Description</Label>
-                                                <Textarea
-                                                    value={profileForm.description || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-description-input"
-                                                />
+                                                <Textarea value={profileForm.description || ''} onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })} className="mt-1" data-testid="profile-description-input" />
                                             </div>
                                             <div>
                                                 <Label>Logo URL</Label>
-                                                <Input
-                                                    value={profileForm.logo_url || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, logo_url: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-logo-input"
-                                                />
+                                                <Input value={profileForm.logo_url || ''} onChange={(e) => setProfileForm({ ...profileForm, logo_url: e.target.value })} className="mt-1" data-testid="profile-logo-input" />
                                             </div>
                                             <div>
                                                 <Label>Website</Label>
-                                                <Input
-                                                    value={profileForm.website || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-website-input"
-                                                />
+                                                <Input value={profileForm.website || ''} onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })} className="mt-1" data-testid="profile-website-input" />
                                             </div>
                                             <div>
                                                 <Label>Contact Email</Label>
-                                                <Input
-                                                    type="email"
-                                                    value={profileForm.contact_email || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, contact_email: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-email-input"
-                                                />
+                                                <Input type="email" value={profileForm.contact_email || ''} onChange={(e) => setProfileForm({ ...profileForm, contact_email: e.target.value })} className="mt-1" data-testid="profile-email-input" />
                                             </div>
                                             <div>
                                                 <Label>Category</Label>
-                                                <Input
-                                                    value={profileForm.category || ''}
-                                                    onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
-                                                    className="mt-1"
-                                                    data-testid="profile-category-input"
-                                                />
+                                                <Input value={profileForm.category || ''} onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })} className="mt-1" data-testid="profile-category-input" />
                                             </div>
                                             <div className="flex gap-3 pt-4">
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        setEditingProfile(false);
-                                                        setProfileForm(profile);
-                                                    }}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                                <Button
-                                                    onClick={handleSaveProfile}
-                                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
-                                                    data-testid="save-profile-btn"
-                                                >
-                                                    Save Changes
-                                                </Button>
+                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>Cancel</Button>
+                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">Save Changes</Button>
                                             </div>
                                         </div>
                                     ) : (
                                         <div className="space-y-6">
                                             <div className="flex items-start gap-6">
-                                                {profile.logo_url && (
-                                                    <img 
-                                                        src={profile.logo_url} 
-                                                        alt={profile.name}
-                                                        className="w-24 h-24 object-cover rounded-sm"
-                                                    />
-                                                )}
+                                                {profile.logo_url && <img src={profile.logo_url} alt={profile.name} className="w-24 h-24 object-cover rounded-sm" />}
                                                 <div>
                                                     <h3 className="text-xl font-semibold text-foreground">{profile.name}</h3>
-                                                    {profile.category && (
-                                                        <span className="inline-block mt-1 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">
-                                                            {profile.category}
-                                                        </span>
-                                                    )}
+                                                    {profile.category && <span className="inline-block mt-1 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">{profile.category}</span>}
                                                 </div>
                                             </div>
                                             <div>
@@ -306,13 +280,7 @@ export default function PartnerDashboard() {
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <div>
                                                     <Label className="text-muted-foreground">Website</Label>
-                                                    <p className="mt-1">
-                                                        {profile.website ? (
-                                                            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline">
-                                                                {profile.website}
-                                                            </a>
-                                                        ) : '-'}
-                                                    </p>
+                                                    <p className="mt-1">{profile.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline">{profile.website}</a> : '-'}</p>
                                                 </div>
                                                 <div>
                                                     <Label className="text-muted-foreground">Contact Email</Label>
@@ -329,21 +297,22 @@ export default function PartnerDashboard() {
             </div>
 
             {/* Submission Detail Dialog */}
-            <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-                <DialogContent className="max-w-lg">
+            <Dialog open={!!selectedSubmission} onOpenChange={() => { setSelectedSubmission(null); setUserDetail(null); }}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Submission Details</DialogTitle>
+                        <DialogTitle>User Details</DialogTitle>
                     </DialogHeader>
                     {selectedSubmission && (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
+                            {/* User info */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label className="text-muted-foreground">User Name</Label>
-                                    <p className="font-medium">{selectedSubmission.user_name}</p>
+                                    <p className="font-medium" data-testid="detail-user-name">{selectedSubmission.user_name}</p>
                                 </div>
                                 <div>
                                     <Label className="text-muted-foreground">Email</Label>
-                                    <p className="font-medium">{selectedSubmission.user_email}</p>
+                                    <p className="font-medium" data-testid="detail-user-email">{selectedSubmission.user_email}</p>
                                 </div>
                                 <div>
                                     <Label className="text-muted-foreground">Submitted</Label>
@@ -354,7 +323,8 @@ export default function PartnerDashboard() {
                                     <p className="font-medium capitalize">{selectedSubmission.status}</p>
                                 </div>
                             </div>
-                            
+
+                            {/* Submission data */}
                             {selectedSubmission.data && Object.keys(selectedSubmission.data).length > 0 && (
                                 <div>
                                     <Label className="text-muted-foreground">Submission Data</Label>
@@ -368,6 +338,84 @@ export default function PartnerDashboard() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Step progress */}
+                            {userDetailLoading ? (
+                                <div className="text-center py-4 text-muted-foreground">Loading step data...</div>
+                            ) : userDetail ? (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <Label className="text-muted-foreground">Step Progress</Label>
+                                        <span className="text-sm font-medium text-[#114f55]" data-testid="detail-completion-pct">{userDetail.completion_pct}% Complete</span>
+                                    </div>
+                                    <Progress value={userDetail.completion_pct} className="h-2 mb-4" />
+
+                                    <div className="space-y-3">
+                                        {userDetail.steps?.map((step) => {
+                                            const prog = userDetail.progress?.find(p => p.step_id === step.id);
+                                            const status = prog?.status || 'pending';
+                                            const stepData = prog?.data || {};
+
+                                            return (
+                                                <div key={step.id} className="border border-border rounded-sm overflow-hidden" data-testid={`detail-step-${step.order}`}>
+                                                    <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                                                                ${status === 'completed' ? 'bg-green-500 text-white' :
+                                                                status === 'in_progress' ? 'bg-[#114f55] text-white' :
+                                                                'bg-muted text-muted-foreground'}`}>
+                                                                {status === 'completed' ? <Check size={12} weight="bold" /> : step.order}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                                                                <p className="text-xs text-muted-foreground">{step.step_type}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-sm
+                                                                ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                                                status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                                'bg-muted text-muted-foreground'}`}>
+                                                                {status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Pending'}
+                                                            </span>
+                                                            {status !== 'completed' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')}
+                                                                    className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2"
+                                                                    data-testid={`complete-step-${step.order}`}
+                                                                >
+                                                                    <CheckCircle size={14} className="mr-1" /> Complete
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Show step data if any */}
+                                                    {stepData && Object.keys(stepData).length > 0 && (
+                                                        <div className="px-4 py-3 border-t border-border">
+                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                                                {Object.entries(stepData).map(([key, value]) => {
+                                                                    if (key === 'skipped' || key === 'selected_partner_id') return null;
+                                                                    const displayValue = Array.isArray(value)
+                                                                        ? value.map(v => typeof v === 'object' ? `${v.document_type || ''}: ${v.filename || v.file_id || ''}` : String(v)).join(', ')
+                                                                        : typeof value === 'object' ? JSON.stringify(value) : String(value);
+                                                                    return (
+                                                                        <div key={key}>
+                                                                            <span className="text-xs text-muted-foreground">{key.replace(/_/g, ' ')}</span>
+                                                                            <p className="text-sm font-medium text-foreground">{displayValue}</p>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </DialogContent>

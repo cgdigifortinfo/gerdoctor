@@ -1,0 +1,76 @@
+{
+  "summary": "Completed comprehensive testing of GERdoctor iteration 16 features. All three requested features are working correctly: 1) LOGOUT BUG FIXED - single click logout works for demo user, admin, and partner (redirects to landing/login and clears authentication), 2) PARTNER DETAIL DIALOG - shows user name, email, submitted date, status, step progress with completion percentage, progress bar, all step rows with number/title/type/status/data, and Complete button for non-completed steps, 3) DESKTOP AUTO-SCROLL - active step card scrolls into view on page load (verified with scrollLeft=692 when user is on step 6).",
+  
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  
+  "passed_tests": [
+    "LOGOUT BUG: Demo user single-click logout redirects to /login and clears auth",
+    "LOGOUT BUG: Admin single-click logout redirects to /login and clears auth",
+    "LOGOUT BUG: Partner single-click logout redirects to /login and clears auth",
+    "PARTNER API: GET /api/partner/users/{user_id} returns user step data (200)",
+    "PARTNER API: GET /api/partner/users/{user_id} returns 403 for non-submitted user",
+    "PARTNER API: PUT /api/partner/users/{user_id}/progress updates step status (200)",
+    "PARTNER API: PUT /api/partner/users/{user_id}/progress returns 403 for non-submitted user",
+    "PARTNER API: Regular user cannot access partner endpoints (401/403)",
+    "PARTNER API: Unauthenticated cannot access partner endpoints (401)",
+    "PARTNER DETAIL: Dialog shows User Name (Chris)",
+    "PARTNER DETAIL: Dialog shows Email (cg@digifort.info)",
+    "PARTNER DETAIL: Dialog shows Submitted date and Status",
+    "PARTNER DETAIL: Dialog shows Step Progress section with completion percentage",
+    "PARTNER DETAIL: Dialog shows progress bar",
+    "PARTNER DETAIL: Dialog shows 8 step rows with data-testid",
+    "PARTNER DETAIL: Step rows show step number, title, type, status badge",
+    "PARTNER DETAIL: Step rows show step data (selected partner name: ILS)",
+    "PARTNER DETAIL: Complete button appears on non-completed steps",
+    "PARTNER DETAIL: Complete button click updates status and shows toast",
+    "DESKTOP SCROLL: Step bar auto-scrolls to active step on load (scrollLeft=692 for step 6)"
+  ],
+  
+  "test_report_links": [
+    "/app/backend/tests/test_partner_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  
+  "action_items": [],
+  
+  "critical_code_review_comments": [],
+  
+  "updated_files": [
+    "/app/backend/tests/test_partner_api.py"
+  ],
+  
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  
+  "test_credentials": {
+    "admin": "admin@example.com / Admin123!",
+    "demo_user": "demo@example.com / Demo123!",
+    "partner": "partner@example.com / Partner123!"
+  },
+  
+  "seed_data_creation": "Temporarily modified Chris's step 3 and step 6 to pending status to test Complete button and auto-scroll features, then restored",
+  
+  "retest_needed": false,
+  
+  "should_main_agent_self_test": false,
+  
+  "context_for_next_testing_agent": "Iteration 16 added three features: 1) Logout bug fix - AuthContext now uses useRef(tokenRef) instead of useState(token) to prevent checkAuth re-trigger on logout. 2) Partner Dashboard submission detail dialog now shows full user step data with progress bar, completion percentage, step rows with data-testid='detail-step-{order}', and Complete button with data-testid='complete-step-{order}' for non-completed steps. New backend endpoints: GET /api/partner/users/{user_id} and PUT /api/partner/users/{user_id}/progress. 3) Desktop step bar auto-scrolls active step into view using desktopStepRefs and scrollIntoView. All features working correctly.",
+  
+  "screenshots": [
+    ".screenshots/partner_detail_dialog.png - Partner detail dialog showing user info and step progress",
+    ".screenshots/partner_detail_with_complete_btn.png - Dialog showing Complete button on pending step",
+    ".screenshots/partner_detail_after_complete.png - Dialog after clicking Complete with toast",
+    ".screenshots/demo_dashboard_step6_autoscroll.png - Desktop dashboard with auto-scroll to step 6"
+  ]
+}

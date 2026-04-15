@@ -130,6 +130,9 @@ export const partnerDashboardAPI = {
     getSubmissions: () => api.get('/partner/submissions'),
     getProfile: () => api.get('/partner/profile'),
     updateProfile: (data) => api.put('/partner/profile', data),
+    getUserDetail: (userId) => api.get(`/partner/users/${userId}`),
+    updateUserProgress: (userId, step_id, status, data) =>
+        api.put(`/partner/users/${userId}/progress`, { step_id, status, data }),
 };
 
 export default api;

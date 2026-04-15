@@ -94,6 +94,7 @@ export default function UserDashboard() {
     const [expandedStep, setExpandedStep] = useState(null);
     const stepRefs = useRef({});
     const containerRef = useRef(null);
+    const desktopStepRefs = useRef({});
 
     const loadData = useCallback(async () => {
         try {
@@ -136,14 +137,18 @@ export default function UserDashboard() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // Auto-scroll to active step on mobile
+    // Auto-scroll to active step on mobile and desktop
     useEffect(() => {
-        if (!loading && expandedStep !== null && stepRefs.current[expandedStep]) {
+        if (!loading && expandedStep !== null) {
             const isMobile = window.innerWidth < 768;
-            if (isMobile) {
+            if (isMobile && stepRefs.current[expandedStep]) {
                 setTimeout(() => {
                     stepRefs.current[expandedStep]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 300);
+            } else if (!isMobile && desktopStepRefs.current[expandedStep]) {
+                setTimeout(() => {
+                    desktopStepRefs.current[expandedStep]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }, 200);
             }
         }
     }, [loading, expandedStep]);
@@ -520,6 +525,7 @@ export default function UserDashboard() {
                                 return (
                                     <button
                                         key={step.id}
+                                        ref={el => desktopStepRefs.current[index] = el}
                                         onClick={() => navigable && handleStepClick(index)}
                                         disabled={!navigable}
                                         className={`relative text-left transition-all duration-200

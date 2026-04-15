@@ -1354,6 +1354,77 @@ async def update_partner_profile(data: PartnerUpdate, request: Request):
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
     return {"message": "Partner profile updated"}
 
+@api_router.get("/partner/users/{user_id}")
+async def get_partner_user_detail(user_id: str, request: Request):
+    """Partner can view full step progress for a user who submitted to them."""
+    partner_user = await require_role("partner")(request)
+    partner_id = partner_user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    
+    # Verify the user has a submission to this partner
+    submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
+    if not submission:
+        raise HTTPException(status_code=403, detail="No submission from this user to your partner")
+    
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    steps = await db.steps.find({"is_active": True}, {"_id": 0}).sort("order", 1).to_list(100)
+    # Add id field for steps
+    all_steps = []
+    async for s in db.steps.find({"is_active": True}).sort("order", 1):
+        all_steps.append({**{k: v for k, v in s.items() if k != "_id"}, "id": str(s["_id"])})
+    
+    total_steps = len(all_steps)
+    completed = len([p for p in progress if p.get("status") == "completed"])
+    completion_pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
+    
+    return {
+        "id": str(target_user["_id"]),
+        "email": target_user["email"],
+        "name": target_user["name"],
+        "progress": progress,
+        "steps": all_steps,
+        "completion_pct": completion_pct
+    }
+
+@api_router.put("/partner/users/{user_id}/progress")
+async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
+    """Partner can complete a step for a user who submitted to them."""
+    partner_user = await require_role("partner")(request)
+    partner_id = partner_user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    
+    # Verify the user has a submission to this partner
+    submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
+    if not submission:
+        raise HTTPException(status_code=403, detail="No submission from this user to your partner")
+    
+    await db.user_progress.update_one(
+        {"user_id": user_id, "step_id": data.step_id},
+        {"$set": {"status": data.status, "data": data.data or {}, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    
+    # Record in history
+    step = await db.steps.find_one({"_id": ObjectId(data.step_id)})
+    if step:
+        await db.progress_history.insert_one({
+            "user_id": user_id,
+            "step_id": data.step_id,
+            "step_title": step.get("title", ""),
+            "step_order": step.get("order", 0),
+            "action": data.status,
+            "changed_by": partner_user["email"],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    
+    return {"message": "User progress updated"}
+
 # ========================
 # SETTINGS ROUTES
 # ========================

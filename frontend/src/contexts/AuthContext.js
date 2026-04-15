@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -8,11 +8,11 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null); // null = checking, false = not auth, object = auth
     const [loading, setLoading] = useState(true);
-    const [token, setToken] = useState(null);
+    const tokenRef = useRef(null);
 
     const checkAuth = useCallback(async () => {
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const headers = tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {};
             const response = await axios.get(`${API}/auth/me`, { withCredentials: true, headers });
             setUser(response.data);
         } catch (err) {
@@ -25,11 +25,11 @@ export function AuthProvider({ children }) {
                 } catch {}
             }
             setUser(false);
-            setToken(null);
+            tokenRef.current = null;
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, []);
 
     useEffect(() => {
         checkAuth();
@@ -37,22 +37,24 @@ export function AuthProvider({ children }) {
 
     const login = async (email, password) => {
         const response = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
-        if (response.data.access_token) setToken(response.data.access_token);
+        if (response.data.access_token) tokenRef.current = response.data.access_token;
         setUser(response.data);
         return response.data;
     };
 
     const register = async (email, password, name) => {
         const response = await axios.post(`${API}/auth/register`, { email, password, name }, { withCredentials: true });
-        if (response.data.access_token) setToken(response.data.access_token);
+        if (response.data.access_token) tokenRef.current = response.data.access_token;
         setUser(response.data);
         return response.data;
     };
 
     const logout = async () => {
-        await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+        try {
+            await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+        } catch {}
+        tokenRef.current = null;
         setUser(false);
-        setToken(null);
     };
 
     const refreshToken = async () => {
