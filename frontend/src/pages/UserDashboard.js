@@ -537,8 +537,8 @@ export default function UserDashboard() {
                                                 className="h-full transition-all ease-out"
                                                 style={{
                                                     width: animateProgress ? `${stepProg}%` : '0%',
-                                                    transitionDuration: `${0.8 + index * 0.15}s`,
-                                                    transitionDelay: `${index * 0.1}s`,
+                                                    transitionDuration: '0.35s',
+                                                    transitionDelay: `${index * 0.35}s`,
                                                     backgroundColor: isCompleted ? '#22c55e' : '#114f55',
                                                 }}
                                             />
