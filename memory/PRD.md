@@ -27,7 +27,7 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (co
 - GERdoctor wordmark logo (GER bold, doctor light) across all pages
 
 ## User Dashboard UI
-- Desktop: Horizontal grid of step cards (max 4 cols) with progress bars at top, animated fill on load, active step highlighted
+- Desktop: Single horizontal row of step cards in a rounded container, unified continuous progress bar at top, horizontal scroll when viewport is narrow, active step highlighted
 - Mobile: Vertical accordion with left progress line, auto-scroll to active step, expand/collapse on tap
 - Smooth CSS transitions and staggered entry animations
 
@@ -40,9 +40,10 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (co
 - [x] Complex Step Engine: multiupload, selectbox, conditions, field mapping
 - [x] Email Template editor per step
 - [x] User History Timeline
-- [x] User Dashboard redesign: desktop horizontal cards + mobile accordion with progress animations
+- [x] User Dashboard redesign: desktop single-row cards + mobile accordion with progress animations
 - [x] GERdoctor wordmark logo component integrated across all pages
 - [x] Admin Settings page: site title, logo config, contact email, primary color, footer text
+- [x] Desktop steps: unified continuous progress bar, no separate "Your Progress" bar
 
 ## Backlog
 - [ ] P1: Step template library (save/reuse step configurations)
