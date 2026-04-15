@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { adminAPI, formatApiError, filesAPI } from '../lib/api';
+import { adminAPI, formatApiError, filesAPI, settingsAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -15,12 +15,13 @@ import {
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
     LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise,
-    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon
+    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
+import { Logo } from '../components/Logo';
 
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
@@ -63,9 +64,16 @@ export default function AdminDashboard() {
     const [selectedUserIds, setSelectedUserIds] = useState([]);
     const [bulkRole, setBulkRole] = useState('user');
 
+    // Settings state
+    const [siteSettings, setSiteSettings] = useState({
+        site_title: '', logo_text: '', logo_bold_part: '', logo_light_part: '',
+        contact_email: '', footer_text: '', primary_color: '', meta_description: ''
+    });
+    const [settingsSaving, setSettingsSaving] = useState(false);
+
     const loadData = useCallback(async () => {
         try {
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes] = await Promise.all([
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes, settingsRes] = await Promise.all([
                 adminAPI.getUsers(),
                 adminAPI.getSteps(),
                 adminAPI.getPartners(),
@@ -73,7 +81,8 @@ export default function AdminDashboard() {
                 adminAPI.getCmsContent('home'),
                 adminAPI.getCmsContent('about'),
                 adminAPI.getCmsContent('partners'),
-                adminAPI.getAuditLog(50)
+                adminAPI.getAuditLog(50),
+                settingsAPI.get().catch(() => ({ data: {} }))
             ]);
             setUsers(usersRes.data);
             setSteps(stepsRes.data);
@@ -84,6 +93,7 @@ export default function AdminDashboard() {
             setCmsPartners(partnersContentRes.data.content || {});
             setAuditLogs(auditRes.data.logs || []);
             setAuditActionTypes(auditRes.data.action_types || []);
+            if (settingsRes.data) setSiteSettings(settingsRes.data);
         } catch (error) {
             toast.error('Failed to load data');
         } finally {
@@ -322,6 +332,20 @@ export default function AdminDashboard() {
         }
     };
 
+    // Settings save
+    const handleSaveSettings = async () => {
+        setSettingsSaving(true);
+        try {
+            await settingsAPI.update(siteSettings);
+            toast.success('Settings saved');
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -337,9 +361,7 @@ export default function AdminDashboard() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <Link to="/" className="font-black text-xl tracking-tight text-foreground">
-                                GuidedJourney
-                            </Link>
+                            <Logo />
                             <span className="text-xs font-bold tracking-wider uppercase text-[#114f55] px-2 py-1 bg-teal-50 rounded">
                                 Admin
                             </span>
@@ -381,6 +403,10 @@ export default function AdminDashboard() {
                         <TabsTrigger value="audit" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ClockCounterClockwise size={18} className="mr-2" />
                             {t('admin_audit')}
+                        </TabsTrigger>
+                        <TabsTrigger value="settings" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="admin-settings-tab">
+                            <GearSix size={18} className="mr-2" />
+                            Settings
                         </TabsTrigger>
                     </TabsList>
 
@@ -837,6 +863,74 @@ export default function AdminDashboard() {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    {/* ============ SETTINGS TAB ============ */}
+                    <TabsContent value="settings">
+                        <div className="space-y-6">
+                            <div className="bg-card border border-border rounded-sm p-6">
+                                <h2 className="text-lg font-semibold text-foreground mb-6">Site Settings</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label>Site Title</Label>
+                                        <Input value={siteSettings.site_title || ''} onChange={e => setSiteSettings(s => ({ ...s, site_title: e.target.value }))} placeholder="GERdoctor" data-testid="settings-site-title" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Meta Description</Label>
+                                        <Input value={siteSettings.meta_description || ''} onChange={e => setSiteSettings(s => ({ ...s, meta_description: e.target.value }))} placeholder="Praktizieren in Deutschland" data-testid="settings-meta-desc" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-card border border-border rounded-sm p-6">
+                                <h2 className="text-lg font-semibold text-foreground mb-2">Logo Configuration</h2>
+                                <p className="text-sm text-muted-foreground mb-6">The logo is displayed as a wordmark: the bold part followed by the light part.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label>Bold Part (e.g. "GER")</Label>
+                                        <Input value={siteSettings.logo_bold_part || ''} onChange={e => setSiteSettings(s => ({ ...s, logo_bold_part: e.target.value }))} placeholder="GER" data-testid="settings-logo-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Light Part (e.g. "doctor")</Label>
+                                        <Input value={siteSettings.logo_light_part || ''} onChange={e => setSiteSettings(s => ({ ...s, logo_light_part: e.target.value }))} placeholder="doctor" data-testid="settings-logo-light" />
+                                    </div>
+                                </div>
+                                <div className="mt-4 p-4 bg-muted rounded-sm">
+                                    <Label className="text-xs text-muted-foreground mb-2 block">Preview</Label>
+                                    <div className="flex items-baseline">
+                                        <span className="font-black text-2xl tracking-tight text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>{siteSettings.logo_bold_part || 'GER'}</span>
+                                        <span className="font-light text-2xl tracking-tight text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>{siteSettings.logo_light_part || 'doctor'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-card border border-border rounded-sm p-6">
+                                <h2 className="text-lg font-semibold text-foreground mb-6">General</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label>Contact Email</Label>
+                                        <Input value={siteSettings.contact_email || ''} onChange={e => setSiteSettings(s => ({ ...s, contact_email: e.target.value }))} placeholder="info@gerdoctor.de" data-testid="settings-contact-email" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Primary Color</Label>
+                                        <div className="flex items-center gap-3">
+                                            <input type="color" value={siteSettings.primary_color || '#114f55'} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} className="w-10 h-10 rounded cursor-pointer border border-border" data-testid="settings-primary-color" />
+                                            <Input value={siteSettings.primary_color || ''} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} placeholder="#114f55" className="flex-1" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label>Footer Text</Label>
+                                        <Input value={siteSettings.footer_text || ''} onChange={e => setSiteSettings(s => ({ ...s, footer_text: e.target.value }))} placeholder="Optional footer text" data-testid="settings-footer-text" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-settings-btn">
+                                    {settingsSaving ? 'Saving...' : 'Save Settings'}
+                                </Button>
                             </div>
                         </div>
                     </TabsContent>

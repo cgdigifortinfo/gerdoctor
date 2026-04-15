@@ -6,6 +6,7 @@ import { cmsAPI, partnersAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { List, X, ArrowRight, Buildings, Users, CheckCircle } from '@phosphor-icons/react';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
+import { Logo } from '../components/Logo';
 
 export default function Landing() {
     const { user, loading } = useAuth();
@@ -63,9 +64,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
-                        <Link to="/" className="font-black text-xl tracking-tight text-foreground" data-testid="logo">
-                            GuidedJourney
-                        </Link>
+                        <Logo />
 
                         {/* Desktop Nav */}
                         <nav className="hidden md:flex items-center gap-8">

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { SignOut, FileText, Gear, Eye } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
+import { Logo } from '../components/Logo';
 
 export default function PartnerDashboard() {
     const { user, logout } = useAuth();
@@ -79,9 +80,7 @@ export default function PartnerDashboard() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
-                            <Link to="/" className="font-black text-xl tracking-tight text-foreground">
-                                GuidedJourney
-                            </Link>
+                            <Logo />
                             <span className="text-xs font-bold tracking-wider uppercase text-green-700 px-2 py-1 bg-green-50 rounded">
                                 Partner
                             </span>

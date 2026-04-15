@@ -325,6 +325,16 @@ class BulkRoleUpdate(BaseModel):
     user_ids: List[str]
     role: str
 
+class SiteSettingsUpdate(BaseModel):
+    site_title: Optional[str] = None
+    logo_text: Optional[str] = None
+    logo_bold_part: Optional[str] = None
+    logo_light_part: Optional[str] = None
+    contact_email: Optional[str] = None
+    footer_text: Optional[str] = None
+    primary_color: Optional[str] = None
+    meta_description: Optional[str] = None
+
 # Audit log helper
 async def create_audit_log(actor_id: str, actor_email: str, action: str, target_type: str, target_id: str = "", details: dict = None):
     """Record an admin action in the audit log."""
@@ -1345,6 +1355,41 @@ async def update_partner_profile(data: PartnerUpdate, request: Request):
     return {"message": "Partner profile updated"}
 
 # ========================
+# SETTINGS ROUTES
+# ========================
+
+SETTINGS_DEFAULTS = {
+    "site_title": "GERdoctor",
+    "logo_text": "GERdoctor",
+    "logo_bold_part": "GER",
+    "logo_light_part": "doctor",
+    "contact_email": "",
+    "footer_text": "",
+    "primary_color": "#114f55",
+    "meta_description": "Praktizieren in Deutschland"
+}
+
+@api_router.get("/settings")
+async def get_site_settings():
+    settings = await db.site_settings.find_one({"_key": "global"}, {"_id": 0, "_key": 0})
+    if not settings:
+        return SETTINGS_DEFAULTS
+    return {**SETTINGS_DEFAULTS, **settings}
+
+@admin_router.put("/settings")
+async def update_site_settings(data: SiteSettingsUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.site_settings.update_one(
+        {"_key": "global"},
+        {"$set": update_data},
+        upsert=True
+    )
+    await create_audit_log(admin_user["_id"], admin_user["email"], "settings_update", "settings", "global", update_data)
+    return {"message": "Settings updated"}
+
+# ========================
 # CMS ROUTES
 # ========================
 
@@ -1523,6 +1568,22 @@ async def startup():
         existing_cms = await db.cms_content.find_one({"section": section})
         if not existing_cms:
             await db.cms_content.insert_one({"section": section, "content": defaults, "created_at": datetime.now(timezone.utc).isoformat()})
+    
+    # Seed site settings
+    existing_settings = await db.site_settings.find_one({"_key": "global"})
+    if not existing_settings:
+        await db.site_settings.insert_one({
+            "_key": "global",
+            "site_title": "GERdoctor",
+            "logo_text": "GERdoctor",
+            "logo_bold_part": "GER",
+            "logo_light_part": "doctor",
+            "contact_email": "",
+            "footer_text": "",
+            "primary_color": "#114f55",
+            "meta_description": "Praktizieren in Deutschland",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
     
     # Seed demo user
     demo_email = "demo@example.com"

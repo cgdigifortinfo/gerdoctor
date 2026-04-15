@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Progress } from '../components/ui/progress';
 import { Switch } from '../components/ui/switch';
 import {
-    SignOut, Check, ArrowRight, ArrowLeft, CloudArrowUp, X, CaretRight,
+    SignOut, Check, ArrowRight, ArrowLeft, CloudArrowUp, X, CaretRight, CaretDown,
     Bell, GearSix, Plus, Trash, WarningCircle, CheckCircle, SkipForward, Lock,
     ClockCounterClockwise
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
+import { Logo } from '../components/Logo';
 
 // Evaluate a single condition against all step data
 function evaluateCondition(cond, allStepData) {
@@ -33,7 +34,6 @@ function evaluateCondition(cond, allStepData) {
         case 'status_is': return sourceStep.status === expected;
         case 'status_not': return sourceStep.status !== expected;
         case 'has_upload': {
-            // Check if multiupload field contains a specific document type
             const uploads = sourceStep.data?.[cond.field] || [];
             return Array.isArray(uploads) && uploads.some(u => u.document_type === expected && u.file_id);
         }
@@ -45,11 +45,9 @@ function evaluateCondition(cond, allStepData) {
     }
 }
 
-// Evaluate all conditions for a step and return the action result
 function evaluateStepConditions(step, allStepData) {
     const conditions = step.conditions || [];
     if (conditions.length === 0) return { allowed: true, blocked: false, message: '', redirectStep: null };
-
     for (const cond of conditions) {
         const result = evaluateCondition(cond, allStepData);
         if (result) {
@@ -61,7 +59,6 @@ function evaluateStepConditions(step, allStepData) {
     return { allowed: true, blocked: false, message: '', redirectStep: null };
 }
 
-// Apply field mappings: prefill data from source steps
 function applyFieldMappings(step, allStepData) {
     const mappings = step.field_mappings || [];
     const prefilled = {};
@@ -93,6 +90,10 @@ export default function UserDashboard() {
     const [showTimeline, setShowTimeline] = useState(false);
     const [history, setHistory] = useState([]);
     const [notifPrefs, setNotifPrefs] = useState({ email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
+    const [animateProgress, setAnimateProgress] = useState(false);
+    const [expandedStep, setExpandedStep] = useState(null);
+    const stepRefs = useRef({});
+    const containerRef = useRef(null);
 
     const loadData = useCallback(async () => {
         try {
@@ -117,27 +118,41 @@ export default function UserDashboard() {
                 if (i === stepsRes.data.length - 1) currentIdx = i;
             }
             setCurrentStepIndex(currentIdx);
+            setExpandedStep(currentIdx);
 
             const currentProgress = progressMap[stepsRes.data[currentIdx]?.id];
             if (currentProgress?.data && Object.keys(currentProgress.data).length > 0) {
                 setFormData(currentProgress.data);
             } else {
-                // Apply field mappings to prefill
                 const prefilled = applyFieldMappings(stepsRes.data[currentIdx] || {}, allDataRes.data);
                 setFormData(prefilled);
             }
+
+            // Trigger progress bar animation after data loads
+            setTimeout(() => setAnimateProgress(true), 150);
         } catch (error) { console.error('Failed to load data:', error); }
         finally { setLoading(false); }
     }, []);
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    // Auto-scroll to active step on mobile
+    useEffect(() => {
+        if (!loading && expandedStep !== null && stepRefs.current[expandedStep]) {
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                setTimeout(() => {
+                    stepRefs.current[expandedStep]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
+        }
+    }, [loading, expandedStep]);
+
     useEffect(() => {
         const currentStep = steps[currentStepIndex];
         if (currentStep?.step_type === 'partner_selection') {
             partnersAPI.getAll(currentStep.filter_tag || '').then(res => setPartners(res.data)).catch(() => {});
         }
-        // Apply mappings when step changes
         if (currentStep && allStepData.length > 0) {
             const existing = progress.find(p => p.step_id === currentStep.id);
             if (!existing?.data || Object.keys(existing.data).length === 0) {
@@ -184,14 +199,12 @@ export default function UserDashboard() {
         setFormData(prev => ({ ...prev, [fieldName]: c }));
     };
 
-    // Validate form before completion
     const validateStep = () => {
         const currentStep = steps[currentStepIndex];
         if (!currentStep) return true;
         const errors = [];
         const reqFields = currentStep.required_fields || [];
         const reqUploads = currentStep.required_uploads || [];
-
         for (const rf of reqFields) {
             const val = formData[rf];
             if (!val || (typeof val === 'string' && !val.trim())) {
@@ -199,7 +212,6 @@ export default function UserDashboard() {
                 errors.push(`${fieldDef?.label || rf} ist ein Pflichtfeld`);
             }
         }
-
         if (reqUploads.length > 0) {
             const uploadedTypes = new Set();
             for (const field of (currentStep.fields || [])) {
@@ -227,7 +239,13 @@ export default function UserDashboard() {
             await stepsAPI.updateProgress(currentStep.id, status, formData);
             if (markComplete) {
                 toast.success('Schritt abgeschlossen!');
-                if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setFormData({}); setSelectedPartner(null); }
+                if (currentStepIndex < steps.length - 1) {
+                    const nextIdx = currentStepIndex + 1;
+                    setCurrentStepIndex(nextIdx);
+                    setExpandedStep(nextIdx);
+                    setFormData({});
+                    setSelectedPartner(null);
+                }
             } else { toast.success('Fortschritt gespeichert'); }
             await loadData();
         } catch (error) { toast.error(formatApiError(error)); }
@@ -241,7 +259,13 @@ export default function UserDashboard() {
         try {
             await stepsAPI.updateProgress(currentStep.id, 'completed', { skipped: true });
             toast.success('Schritt übersprungen');
-            if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setFormData({}); setSelectedPartner(null); }
+            if (currentStepIndex < steps.length - 1) {
+                const nextIdx = currentStepIndex + 1;
+                setCurrentStepIndex(nextIdx);
+                setExpandedStep(nextIdx);
+                setFormData({});
+                setSelectedPartner(null);
+            }
             await loadData();
         } catch (error) { toast.error(formatApiError(error)); }
         finally { setSubmitting(false); }
@@ -262,19 +286,30 @@ export default function UserDashboard() {
         finally { setSubmitting(false); }
     };
 
-    // Can the user navigate to a given step?
     const canNavigateToStep = (idx) => {
         const step = steps[idx];
         if (!step) return false;
         const status = getStepStatus(step.id);
         if (status === 'completed') return true;
         if (idx <= currentStepIndex) return true;
-        // Check conditions
         if (allStepData.length > 0) {
             const condResult = evaluateStepConditions(step, allStepData);
             if (condResult.blocked) return false;
         }
         return false;
+    };
+
+    const handleStepClick = (idx) => {
+        if (!canNavigateToStep(idx)) return;
+        setCurrentStepIndex(idx);
+        setExpandedStep(expandedStep === idx ? null : idx);
+        const stepProgress = progress.find(p => p.step_id === steps[idx]?.id);
+        if (stepProgress?.data && Object.keys(stepProgress.data).length > 0) {
+            setFormData(stepProgress.data);
+        } else {
+            const prefilled = applyFieldMappings(steps[idx] || {}, allStepData);
+            setFormData(prefilled);
+        }
     };
 
     // Render form field
@@ -341,8 +376,6 @@ export default function UserDashboard() {
         const currentStep = steps[currentStepIndex];
         if (!currentStep) return null;
         const stepStatus = getStepStatus(currentStep.id);
-
-        // Evaluate conditions
         const condResult = allStepData.length > 0 ? evaluateStepConditions(currentStep, allStepData) : { allowed: true, blocked: false, message: '' };
         if (condResult.blocked) {
             return (
@@ -405,7 +438,7 @@ export default function UserDashboard() {
                             <div className="p-8 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm text-center">
                                 <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
                                 <p className="text-lg font-semibold text-green-800 dark:text-green-300">{currentStep.complete_message || 'Alles erledigt!'}</p>
-                                <Button onClick={() => { if (currentStepIndex < steps.length - 1) setCurrentStepIndex(currentStepIndex + 1); }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => { if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             </div>
                         ) : (
                             <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm text-center">
@@ -420,7 +453,6 @@ export default function UserDashboard() {
                 return (
                     <div className="space-y-6">
                         {currentStep.pending_message && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{currentStep.pending_message}</p></div>}
-                        {/* Show data from previous steps if mappings exist */}
                         {currentStep.field_mappings?.length > 0 && (
                             <div className="p-4 bg-muted rounded-sm border border-border space-y-2">
                                 <p className="text-sm font-semibold text-muted-foreground">Ihre Daten:</p>
@@ -447,12 +479,14 @@ export default function UserDashboard() {
 
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
 
+    const overallProgress = getProgressPercentage();
+
     return (
         <div className="min-h-screen bg-background">
             <header className="sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
-                        <Link to="/" className="font-black text-xl tracking-tight text-foreground">GuidedJourney</Link>
+                        <Logo />
                         <div className="flex items-center gap-3">
                             <span className="text-sm text-muted-foreground hidden sm:block">{t('dash_welcome')}, {user?.name}</span>
                             <ThemeLangToggle />
@@ -464,64 +498,205 @@ export default function UserDashboard() {
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
+                {/* Overall progress */}
                 <div className="mb-8">
                     <div className="flex justify-between items-center mb-2">
                         <h2 className="text-lg font-semibold text-foreground">{t('dash_your_progress')}</h2>
-                        <span className="text-sm text-muted-foreground">{getProgressPercentage()}% {t('dash_complete')}</span>
+                        <span className="text-sm text-muted-foreground">{overallProgress}% {t('dash_complete')}</span>
                     </div>
-                    <Progress value={getProgressPercentage()} className="h-2" />
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-[#114f55] rounded-full transition-all ease-out"
+                            style={{
+                                width: animateProgress ? `${overallProgress}%` : '0%',
+                                transitionDuration: '1.2s',
+                            }}
+                            data-testid="overall-progress-bar"
+                        />
+                    </div>
                 </div>
 
-                <div className="mb-6 overflow-x-auto">
-                    <div className="flex items-center gap-2 pb-2 min-w-max">
+                {/* ====== DESKTOP: Horizontal Step Cards ====== */}
+                <div className="hidden md:block mb-8">
+                    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(steps.length, 4)}, 1fr)` }}>
                         {steps.map((step, index) => {
                             const status = getStepStatus(step.id);
                             const isActive = index === currentStepIndex;
                             const isCompleted = status === 'completed';
                             const navigable = canNavigateToStep(index);
-                            // Check if blocked by conditions
                             const condResult = allStepData.length > 0 ? evaluateStepConditions(step, allStepData) : { blocked: false };
                             const isBlocked = condResult.blocked && !isCompleted;
+
+                            // Individual step progress
+                            let stepProg = 0;
+                            if (isCompleted) stepProg = 100;
+                            else if (status === 'in_progress') stepProg = 50;
+                            else if (isActive) stepProg = 10;
+
                             return (
-                                <div key={step.id} className="flex items-center">
-                                    <button onClick={() => navigable && setCurrentStepIndex(index)} disabled={!navigable}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors text-sm ${
-                                            isBlocked ? 'bg-muted text-muted-foreground opacity-40' :
-                                            isActive ? 'bg-[#114f55] text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'
-                                        } ${navigable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                                        data-testid={`step-nav-${index}`}>
-                                        <span className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
-                                            {isBlocked ? <Lock size={10} /> : isCompleted ? <Check size={10} /> : index + 1}
-                                        </span>
-                                        <span className="hidden lg:block">{step.title}</span>
-                                    </button>
-                                    {index < steps.length - 1 && <CaretRight size={16} className="mx-1 text-muted-foreground" />}
-                                </div>
+                                <button
+                                    key={step.id}
+                                    onClick={() => navigable && handleStepClick(index)}
+                                    disabled={!navigable}
+                                    className={`relative group text-left rounded-lg border-2 p-4 transition-all duration-300 overflow-hidden
+                                        ${isBlocked ? 'border-border bg-muted opacity-50 cursor-not-allowed' :
+                                        isActive ? 'border-[#114f55] bg-card shadow-lg shadow-[#114f55]/10 scale-[1.02]' :
+                                        isCompleted ? 'border-green-400/50 bg-card hover:shadow-md' :
+                                        'border-border bg-card hover:border-[#114f55]/30 hover:shadow-sm'}
+                                        ${navigable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                    style={{ animationDelay: `${index * 80}ms` }}
+                                    data-testid={`step-card-${index}`}
+                                >
+                                    {/* Progress bar at top */}
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-muted">
+                                        <div
+                                            className="h-full rounded-r-full transition-all ease-out"
+                                            style={{
+                                                width: animateProgress ? `${stepProg}%` : '0%',
+                                                transitionDuration: `${0.8 + index * 0.15}s`,
+                                                transitionDelay: `${index * 0.1}s`,
+                                                backgroundColor: isCompleted ? '#22c55e' : '#114f55',
+                                            }}
+                                            data-testid={`step-progress-${index}`}
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors duration-300
+                                            ${isBlocked ? 'bg-muted text-muted-foreground' :
+                                            isCompleted ? 'bg-green-500 text-white' :
+                                            isActive ? 'bg-[#114f55] text-white' :
+                                            'bg-muted text-muted-foreground'}`}>
+                                            {isBlocked ? <Lock size={12} /> : isCompleted ? <Check size={12} weight="bold" /> : index + 1}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</p>
+                                            <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                                        </div>
+                                    </div>
+                                </button>
                             );
                         })}
                     </div>
                 </div>
 
-                <div className="bg-card border border-border rounded-sm p-6 sm:p-8">
-                    {steps[currentStepIndex] && (
-                        <>
-                            <div className="mb-6">
-                                <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">{steps[currentStepIndex].title}</h1>
-                                <p className="text-muted-foreground">{steps[currentStepIndex].description}</p>
-                            </div>
-                            {renderStepContent()}
-                        </>
-                    )}
-                    {currentStepIndex > 0 && (
-                        <div className="mt-8 pt-6 border-t border-border">
-                            <Button variant="ghost" onClick={() => setCurrentStepIndex(currentStepIndex - 1)} className="text-muted-foreground" data-testid="prev-step-btn"><ArrowLeft className="mr-2" size={16} /> {t('dash_prev_step')}</Button>
+                {/* ====== MOBILE: Vertical Accordion with Progress Line ====== */}
+                <div className="md:hidden mb-6">
+                    <div className="relative">
+                        {/* Vertical progress line */}
+                        <div className="absolute left-[19px] top-4 bottom-4 w-[3px] bg-border rounded-full overflow-hidden">
+                            <div
+                                className="w-full bg-[#114f55] rounded-full transition-all ease-out"
+                                style={{
+                                    height: animateProgress ? `${overallProgress}%` : '0%',
+                                    transitionDuration: '1.4s',
+                                }}
+                                data-testid="mobile-vertical-progress"
+                            />
                         </div>
-                    )}
+
+                        <div className="space-y-0">
+                            {steps.map((step, index) => {
+                                const status = getStepStatus(step.id);
+                                const isActive = index === currentStepIndex;
+                                const isCompleted = status === 'completed';
+                                const isExpanded = expandedStep === index;
+                                const navigable = canNavigateToStep(index);
+                                const condResult = allStepData.length > 0 ? evaluateStepConditions(step, allStepData) : { blocked: false };
+                                const isBlocked = condResult.blocked && !isCompleted;
+
+                                return (
+                                    <div
+                                        key={step.id}
+                                        ref={el => stepRefs.current[index] = el}
+                                        className="relative"
+                                        data-testid={`mobile-step-${index}`}
+                                    >
+                                        {/* Step header (accordion trigger) */}
+                                        <button
+                                            onClick={() => navigable && handleStepClick(index)}
+                                            disabled={!navigable}
+                                            className={`relative z-10 flex items-center gap-3 w-full text-left py-4 pl-1 pr-3 transition-all duration-200
+                                                ${!navigable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            data-testid={`step-nav-${index}`}
+                                        >
+                                            {/* Circle on the progress line */}
+                                            <div className={`relative z-20 w-[38px] h-[38px] rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-[3px] transition-all duration-300
+                                                ${isBlocked ? 'border-border bg-muted text-muted-foreground' :
+                                                isCompleted ? 'border-green-500 bg-green-500 text-white' :
+                                                isActive ? 'border-[#114f55] bg-[#114f55] text-white ring-4 ring-[#114f55]/20' :
+                                                'border-border bg-card text-muted-foreground'}`}
+                                            >
+                                                {isBlocked ? <Lock size={12} /> : isCompleted ? <Check size={14} weight="bold" /> : index + 1}
+                                            </div>
+
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : isCompleted ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
+                                                    {step.title}
+                                                </p>
+                                                {!isExpanded && (
+                                                    <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                                                )}
+                                            </div>
+
+                                            <CaretDown
+                                                size={16}
+                                                className={`text-muted-foreground flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                            />
+                                        </button>
+
+                                        {/* Accordion content */}
+                                        <div
+                                            className={`overflow-hidden transition-all duration-400 ease-in-out ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+                                        >
+                                            <div className="ml-[50px] pb-6 pr-2">
+                                                <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
+                                                    <p className="text-sm text-muted-foreground mb-4">{step.description}</p>
+                                                    {isActive && renderStepContent()}
+                                                    {!isActive && isCompleted && (
+                                                        <div className="flex items-center gap-2 text-green-600 text-sm">
+                                                            <CheckCircle size={16} /> Abgeschlossen
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
+                {/* ====== DESKTOP: Active step content ====== */}
+                <div className="hidden md:block">
+                    <div className="bg-card border border-border rounded-lg p-6 sm:p-8 shadow-sm animate-fadeIn">
+                        {steps[currentStepIndex] && (
+                            <>
+                                <div className="mb-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold">
+                                            {currentStepIndex + 1}
+                                        </div>
+                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{steps[currentStepIndex].title}</h1>
+                                    </div>
+                                    <p className="text-muted-foreground ml-11">{steps[currentStepIndex].description}</p>
+                                </div>
+                                {renderStepContent()}
+                            </>
+                        )}
+                        {currentStepIndex > 0 && (
+                            <div className="mt-8 pt-6 border-t border-border">
+                                <Button variant="ghost" onClick={() => { setCurrentStepIndex(currentStepIndex - 1); setExpandedStep(currentStepIndex - 1); }} className="text-muted-foreground" data-testid="prev-step-btn"><ArrowLeft className="mr-2" size={16} /> {t('dash_prev_step')}</Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Settings panel */}
                 {showSettings && (
-                    <div className="mt-6 bg-card border border-border rounded-sm p-6 sm:p-8 animate-fadeIn">
+                    <div className="mt-6 bg-card border border-border rounded-lg p-6 sm:p-8 animate-fadeIn">
                         <div className="flex items-center gap-3 mb-6"><Bell size={24} className="text-[#114f55]" /><h2 className="text-xl font-bold tracking-tight text-foreground">{t('notif_title')}</h2></div>
                         <p className="text-sm text-muted-foreground mb-6">{t('notif_desc')}</p>
                         <div className="space-y-4">
@@ -538,7 +713,7 @@ export default function UserDashboard() {
 
                 {/* Timeline / History */}
                 {showTimeline && (
-                    <div className="mt-6 bg-card border border-border rounded-sm p-6 sm:p-8 animate-fadeIn" data-testid="timeline-panel">
+                    <div className="mt-6 bg-card border border-border rounded-lg p-6 sm:p-8 animate-fadeIn" data-testid="timeline-panel">
                         <div className="flex items-center gap-3 mb-6">
                             <ClockCounterClockwise size={24} className="text-[#114f55]" />
                             <h2 className="text-xl font-bold tracking-tight text-foreground">Verlauf</h2>
@@ -547,7 +722,6 @@ export default function UserDashboard() {
                             <p className="text-sm text-muted-foreground text-center py-6">Noch keine Aktivitäten vorhanden. Starten Sie mit dem ersten Schritt!</p>
                         ) : (
                             <div className="relative">
-                                {/* Timeline line */}
                                 <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
                                 <div className="space-y-0">
                                     {history.map((entry, idx) => {
@@ -555,13 +729,11 @@ export default function UserDashboard() {
                                         const isInProgress = entry.action === 'in_progress';
                                         return (
                                             <div key={idx} className="relative flex items-start gap-4 py-3" data-testid={`timeline-entry-${idx}`}>
-                                                {/* Dot */}
                                                 <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                                                     isCompleted ? 'bg-green-500 text-white' : isInProgress ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'
                                                 }`}>
                                                     {isCompleted ? <Check size={14} /> : isInProgress ? <ArrowRight size={14} /> : <ClockCounterClockwise size={14} />}
                                                 </div>
-                                                {/* Content */}
                                                 <div className="flex-1 min-w-0 pt-1">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-medium text-sm text-foreground">{entry.step_title}</span>

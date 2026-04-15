@@ -119,6 +119,12 @@ export const notificationAPI = {
     updatePreferences: (prefs) => api.put('/notifications/preferences', prefs),
 };
 
+// Settings APIs
+export const settingsAPI = {
+    get: () => api.get('/settings'),
+    update: (data) => api.put('/admin/settings', data),
+};
+
 // Partner Dashboard APIs
 export const partnerDashboardAPI = {
     getSubmissions: () => api.get('/partner/submissions'),
