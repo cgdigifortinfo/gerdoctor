@@ -479,7 +479,8 @@ export default function UserDashboard() {
 
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
 
-    const overallProgress = getProgressPercentage();
+    const completedCount = progress.filter(p => p.status === 'completed').length;
+    const mobileProgress = steps.length === 0 ? 0 : Math.round((completedCount / steps.length) * 100);
 
     return (
         <div className="min-h-screen bg-background">
@@ -499,85 +500,76 @@ export default function UserDashboard() {
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
-                {/* Overall progress */}
-                <div className="mb-8">
-                    <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-lg font-semibold text-foreground">{t('dash_your_progress')}</h2>
-                        <span className="text-sm text-muted-foreground">{overallProgress}% {t('dash_complete')}</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-[#114f55] rounded-full transition-all ease-out"
-                            style={{
-                                width: animateProgress ? `${overallProgress}%` : '0%',
-                                transitionDuration: '1.2s',
-                            }}
-                            data-testid="overall-progress-bar"
-                        />
-                    </div>
-                </div>
-
-                {/* ====== DESKTOP: Horizontal Step Cards ====== */}
+                {/* ====== DESKTOP: Horizontal Step Cards in single row ====== */}
                 <div className="hidden md:block mb-8">
-                    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(steps.length, 4)}, 1fr)` }}>
-                        {steps.map((step, index) => {
-                            const status = getStepStatus(step.id);
-                            const isActive = index === currentStepIndex;
-                            const isCompleted = status === 'completed';
-                            const navigable = canNavigateToStep(index);
-                            const condResult = allStepData.length > 0 ? evaluateStepConditions(step, allStepData) : { blocked: false };
-                            const isBlocked = condResult.blocked && !isCompleted;
+                    <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+                        {/* Unified progress bar */}
+                        <div className="flex h-[5px] bg-muted">
+                            {steps.map((step, index) => {
+                                const status = getStepStatus(step.id);
+                                const isCompleted = status === 'completed';
+                                const isActive = index === currentStepIndex;
+                                let stepProg = 0;
+                                if (isCompleted) stepProg = 100;
+                                else if (status === 'in_progress') stepProg = 50;
+                                else if (isActive) stepProg = 15;
 
-                            // Individual step progress
-                            let stepProg = 0;
-                            if (isCompleted) stepProg = 100;
-                            else if (status === 'in_progress') stepProg = 50;
-                            else if (isActive) stepProg = 10;
-
-                            return (
-                                <button
-                                    key={step.id}
-                                    onClick={() => navigable && handleStepClick(index)}
-                                    disabled={!navigable}
-                                    className={`relative group text-left rounded-lg border-2 p-4 transition-all duration-300 overflow-hidden
-                                        ${isBlocked ? 'border-border bg-muted opacity-50 cursor-not-allowed' :
-                                        isActive ? 'border-[#114f55] bg-card shadow-lg shadow-[#114f55]/10 scale-[1.02]' :
-                                        isCompleted ? 'border-green-400/50 bg-card hover:shadow-md' :
-                                        'border-border bg-card hover:border-[#114f55]/30 hover:shadow-sm'}
-                                        ${navigable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                                    style={{ animationDelay: `${index * 80}ms` }}
-                                    data-testid={`step-card-${index}`}
-                                >
-                                    {/* Progress bar at top */}
-                                    <div className="absolute top-0 left-0 right-0 h-1 bg-muted">
+                                return (
+                                    <div key={step.id} className="flex-1 bg-muted" data-testid={`step-progress-${index}`}>
                                         <div
-                                            className="h-full rounded-r-full transition-all ease-out"
+                                            className="h-full transition-all ease-out"
                                             style={{
                                                 width: animateProgress ? `${stepProg}%` : '0%',
                                                 transitionDuration: `${0.8 + index * 0.15}s`,
                                                 transitionDelay: `${index * 0.1}s`,
                                                 backgroundColor: isCompleted ? '#22c55e' : '#114f55',
                                             }}
-                                            data-testid={`step-progress-${index}`}
                                         />
                                     </div>
+                                );
+                            })}
+                        </div>
 
-                                    <div className="flex items-center gap-3 mt-1">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors duration-300
-                                            ${isBlocked ? 'bg-muted text-muted-foreground' :
-                                            isCompleted ? 'bg-green-500 text-white' :
-                                            isActive ? 'bg-[#114f55] text-white' :
-                                            'bg-muted text-muted-foreground'}`}>
-                                            {isBlocked ? <Lock size={12} /> : isCompleted ? <Check size={12} weight="bold" /> : index + 1}
+                        {/* Step cards in a single scrollable row */}
+                        <div className="flex overflow-x-auto">
+                            {steps.map((step, index) => {
+                                const status = getStepStatus(step.id);
+                                const isActive = index === currentStepIndex;
+                                const isCompleted = status === 'completed';
+                                const navigable = canNavigateToStep(index);
+                                const condResult = allStepData.length > 0 ? evaluateStepConditions(step, allStepData) : { blocked: false };
+                                const isBlocked = condResult.blocked && !isCompleted;
+
+                                return (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => navigable && handleStepClick(index)}
+                                        disabled={!navigable}
+                                        className={`relative flex-1 min-w-[140px] text-left px-4 py-3 transition-all duration-200
+                                            ${index < steps.length - 1 ? 'border-r border-border' : ''}
+                                            ${isBlocked ? 'opacity-40 cursor-not-allowed' :
+                                            isActive ? 'bg-[#114f55]/5' :
+                                            isCompleted ? 'bg-green-50/50 dark:bg-green-900/10' :
+                                            'hover:bg-muted/50'}
+                                            ${navigable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                        data-testid={`step-card-${index}`}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors duration-300
+                                                ${isBlocked ? 'bg-muted text-muted-foreground' :
+                                                isCompleted ? 'bg-green-500 text-white' :
+                                                isActive ? 'bg-[#114f55] text-white' :
+                                                'bg-muted text-muted-foreground'}`}>
+                                                {isBlocked ? <Lock size={11} /> : isCompleted ? <Check size={11} weight="bold" /> : index + 1}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</p>
-                                            <p className="text-xs text-muted-foreground truncate">{step.description}</p>
-                                        </div>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
@@ -589,7 +581,7 @@ export default function UserDashboard() {
                             <div
                                 className="w-full bg-[#114f55] rounded-full transition-all ease-out"
                                 style={{
-                                    height: animateProgress ? `${overallProgress}%` : '0%',
+                                    height: animateProgress ? `${mobileProgress}%` : '0%',
                                     transitionDuration: '1.4s',
                                 }}
                                 data-testid="mobile-vertical-progress"
