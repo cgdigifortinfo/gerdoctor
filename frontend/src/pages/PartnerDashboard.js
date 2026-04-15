@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { partnerDashboardAPI, formatApiError } from '../lib/api';
+import { partnerDashboardAPI, formatApiError, filesAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -10,7 +10,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Progress } from '../components/ui/progress';
-import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle } from '@phosphor-icons/react';
+import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle, DownloadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
@@ -394,24 +394,63 @@ export default function PartnerDashboard() {
                                                     {/* Show step data below each step */}
                                                     {stepData && Object.keys(stepData).length > 0 && (
                                                         <div className="px-4 py-3 border-t border-border bg-background/50">
-                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                                                 {Object.entries(stepData).map(([key, value]) => {
                                                                     if (key === 'skipped') return null;
-                                                                    // Use field label from step definition if available
                                                                     const fieldDef = step.fields?.find(f => f.name === key);
                                                                     const label = fieldDef?.label || key.replace(/_/g, ' ');
+                                                                    const fieldType = fieldDef?.field_type;
+
+                                                                    // Multiupload: show each document with type + download link
+                                                                    if (fieldType === 'multiupload' && Array.isArray(value)) {
+                                                                        return (
+                                                                            <div key={key} className="col-span-2" data-testid={`step-data-${step.order}-${key}`}>
+                                                                                <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                                <div className="mt-1 space-y-1.5">
+                                                                                    {value.map((entry, i) => (
+                                                                                        <div key={i} className="flex items-center gap-2 text-sm">
+                                                                                            {entry.document_type && (
+                                                                                                <span className="px-2 py-0.5 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>
+                                                                                            )}
+                                                                                            {entry.file_id ? (
+                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer"
+                                                                                                    className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium"
+                                                                                                    data-testid={`download-${step.order}-${key}-${i}`}>
+                                                                                                    <DownloadSimple size={14} />
+                                                                                                    {entry.filename || 'Download'}
+                                                                                                </a>
+                                                                                            ) : (
+                                                                                                <span className="text-muted-foreground">{entry.filename || '-'}</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                    {value.length === 0 && <p className="text-sm text-muted-foreground">-</p>}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    // Single file field: show download link
+                                                                    if (fieldType === 'file' && value) {
+                                                                        return (
+                                                                            <div key={key} data-testid={`step-data-${step.order}-${key}`}>
+                                                                                <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                                <div className="mt-0.5">
+                                                                                    <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer"
+                                                                                        className="inline-flex items-center gap-1 text-sm text-[#114f55] hover:underline font-medium"
+                                                                                        data-testid={`download-${step.order}-${key}`}>
+                                                                                        <DownloadSimple size={14} />
+                                                                                        Download
+                                                                                    </a>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    // Regular fields: text display
                                                                     let displayValue;
                                                                     if (Array.isArray(value)) {
-                                                                        displayValue = value.map(v => {
-                                                                            if (typeof v === 'object' && v !== null) {
-                                                                                const parts = [];
-                                                                                if (v.document_type) parts.push(v.document_type);
-                                                                                if (v.filename) parts.push(v.filename);
-                                                                                else if (v.file_id) parts.push(v.file_id);
-                                                                                return parts.join(': ') || JSON.stringify(v);
-                                                                            }
-                                                                            return String(v);
-                                                                        }).join(', ') || '-';
+                                                                        displayValue = value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ') || '-';
                                                                     } else if (typeof value === 'object' && value !== null) {
                                                                         displayValue = JSON.stringify(value);
                                                                     } else {
