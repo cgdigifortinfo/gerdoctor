@@ -1,0 +1,65 @@
+{
+  "summary": "Completed testing of GERdoctor iteration 17 features. Both requested fixes are working correctly: 1) DUPLICATE FIX - Backend submit endpoint now upserts by user_id+partner_id combo, submitting twice to same partner updates existing instead of creating duplicate. Partner submission list shows each user only ONCE. 2) STEP DATA DISPLAY - Partner detail dialog shows data section below EACH step with field labels (falls back to raw key names when no field definition exists), shows 'Keine Daten eingegeben' for completed steps without data, partner_selection steps show selected_partner_id and selected_partner_name.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "DUPLICATE FIX: POST /api/partners/submit creates submission (200)",
+    "DUPLICATE FIX: POST /api/partners/submit twice to same partner updates not duplicates",
+    "DUPLICATE FIX: Partner submission list shows each user only ONCE (no duplicates)",
+    "STEP DATA DISPLAY: GET /api/partner/users/{user_id} returns steps with field definitions",
+    "STEP DATA DISPLAY: GET /api/partner/users/{user_id} returns progress with step data",
+    "STEP DATA DISPLAY: Partner selection steps have selected_partner_id in data",
+    "STEP DATA DISPLAY: UI shows data section below each step",
+    "STEP DATA DISPLAY: UI shows 'Keine Daten eingegeben' for steps without data",
+    "STEP DATA DISPLAY: UI shows field labels (or raw key names as fallback)",
+    "PARTNER COMPLETE: Complete button works for non-completed steps (API verified)"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_iteration17_features.py",
+    "/app/test_reports/pytest/pytest_results_iter17.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_iteration17_features.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (6/6 tests passed, 1 skipped - all steps already completed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+
+  "test_credentials": {
+    "admin": "admin@example.com / Admin123!",
+    "demo_user": "demo@example.com / Demo123!",
+    "partner": "partner@example.com / Partner123!"
+  },
+
+  "seed_data_creation": "Demo user now has a submission to ILS partner (created during duplicate fix testing)",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Iteration 17 fixed two issues: 1) Duplicate partner submissions - backend submit_to_partner endpoint now upserts by user_id+partner_id combo (line 778-784 in server.py). 2) Step data display in partner detail dialog - PartnerDashboard.js now shows data section below each step with field labels from step.fields[].label (falls back to raw key with underscores replaced by spaces), shows 'Keine Daten eingegeben' for completed steps without data. Note: partner_selection steps don't have field definitions, so they show raw key names like 'selected partner id'. Test user Chris (cg@digifort.info) has all 8 steps completed with partner selection data in steps 2, 5, 7. Demo user now also has a submission to ILS partner.",
+
+  "screenshots": [
+    ".screenshots/partner_dashboard_submissions.png - Partner dashboard showing 2 unique users (no duplicates)",
+    ".screenshots/partner_detail_dialog_step_data.png - Detail dialog showing step data sections",
+    ".screenshots/partner_detail_dialog_scrolled.png - Dialog scrolled showing all steps with data"
+  ]
+}

@@ -391,23 +391,46 @@ export default function PartnerDashboard() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Show step data if any */}
+                                                    {/* Show step data below each step */}
                                                     {stepData && Object.keys(stepData).length > 0 && (
-                                                        <div className="px-4 py-3 border-t border-border">
+                                                        <div className="px-4 py-3 border-t border-border bg-background/50">
                                                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                                                 {Object.entries(stepData).map(([key, value]) => {
-                                                                    if (key === 'skipped' || key === 'selected_partner_id') return null;
-                                                                    const displayValue = Array.isArray(value)
-                                                                        ? value.map(v => typeof v === 'object' ? `${v.document_type || ''}: ${v.filename || v.file_id || ''}` : String(v)).join(', ')
-                                                                        : typeof value === 'object' ? JSON.stringify(value) : String(value);
+                                                                    if (key === 'skipped') return null;
+                                                                    // Use field label from step definition if available
+                                                                    const fieldDef = step.fields?.find(f => f.name === key);
+                                                                    const label = fieldDef?.label || key.replace(/_/g, ' ');
+                                                                    let displayValue;
+                                                                    if (Array.isArray(value)) {
+                                                                        displayValue = value.map(v => {
+                                                                            if (typeof v === 'object' && v !== null) {
+                                                                                const parts = [];
+                                                                                if (v.document_type) parts.push(v.document_type);
+                                                                                if (v.filename) parts.push(v.filename);
+                                                                                else if (v.file_id) parts.push(v.file_id);
+                                                                                return parts.join(': ') || JSON.stringify(v);
+                                                                            }
+                                                                            return String(v);
+                                                                        }).join(', ') || '-';
+                                                                    } else if (typeof value === 'object' && value !== null) {
+                                                                        displayValue = JSON.stringify(value);
+                                                                    } else {
+                                                                        displayValue = String(value || '-');
+                                                                    }
                                                                     return (
-                                                                        <div key={key}>
-                                                                            <span className="text-xs text-muted-foreground">{key.replace(/_/g, ' ')}</span>
+                                                                        <div key={key} data-testid={`step-data-${step.order}-${key}`}>
+                                                                            <span className="text-xs text-muted-foreground capitalize">{label}</span>
                                                                             <p className="text-sm font-medium text-foreground">{displayValue}</p>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
+                                                        </div>
+                                                    )}
+                                                    {/* Show empty state for steps with no data */}
+                                                    {(!stepData || Object.keys(stepData).length === 0) && status !== 'pending' && (
+                                                        <div className="px-4 py-2 border-t border-border bg-background/50">
+                                                            <p className="text-xs text-muted-foreground italic">Keine Daten eingegeben</p>
                                                         </div>
                                                     )}
                                                 </div>

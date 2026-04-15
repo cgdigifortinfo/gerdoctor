@@ -774,6 +774,15 @@ async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
     
+    # Upsert: one submission per user+partner combination
+    existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": data.partner_id})
+    if existing:
+        await db.partner_submissions.update_one(
+            {"user_id": user["_id"], "partner_id": data.partner_id},
+            {"$set": {"data": data.data, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        return {"message": "Submission updated", "submission_id": existing["id"]}
+    
     submission = {
         "id": str(uuid.uuid4()),
         "user_id": user["_id"],
