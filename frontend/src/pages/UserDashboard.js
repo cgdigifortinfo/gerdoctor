@@ -502,36 +502,8 @@ export default function UserDashboard() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
                 {/* ====== DESKTOP: Horizontal Step Cards in single row ====== */}
                 <div className="hidden md:block mb-8">
-                    <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
-                        {/* Unified progress bar */}
-                        <div className="flex h-[5px] bg-muted">
-                            {steps.map((step, index) => {
-                                const status = getStepStatus(step.id);
-                                const isCompleted = status === 'completed';
-                                const isActive = index === currentStepIndex;
-                                let stepProg = 0;
-                                if (isCompleted) stepProg = 100;
-                                else if (status === 'in_progress') stepProg = 50;
-                                else if (isActive) stepProg = 15;
-
-                                return (
-                                    <div key={step.id} className="flex-1 bg-muted" data-testid={`step-progress-${index}`}>
-                                        <div
-                                            className="h-full transition-all ease-out"
-                                            style={{
-                                                width: animateProgress ? `${stepProg}%` : '0%',
-                                                transitionDuration: `${0.8 + index * 0.15}s`,
-                                                transitionDelay: `${index * 0.1}s`,
-                                                backgroundColor: isCompleted ? '#22c55e' : '#114f55',
-                                            }}
-                                        />
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Step cards in a single scrollable row */}
-                        <div className="flex overflow-x-auto">
+                    <div className="rounded-lg overflow-hidden overflow-x-auto shadow-sm border border-border">
+                        <div className="flex min-w-max">
                             {steps.map((step, index) => {
                                 const status = getStepStatus(step.id);
                                 const isActive = index === currentStepIndex;
@@ -540,21 +512,38 @@ export default function UserDashboard() {
                                 const condResult = allStepData.length > 0 ? evaluateStepConditions(step, allStepData) : { blocked: false };
                                 const isBlocked = condResult.blocked && !isCompleted;
 
+                                let stepProg = 0;
+                                if (isCompleted) stepProg = 100;
+                                else if (status === 'in_progress') stepProg = 50;
+                                else if (isActive) stepProg = 15;
+
                                 return (
                                     <button
                                         key={step.id}
                                         onClick={() => navigable && handleStepClick(index)}
                                         disabled={!navigable}
-                                        className={`relative flex-1 min-w-[140px] text-left px-4 py-3 transition-all duration-200
+                                        className={`relative text-left transition-all duration-200
                                             ${index < steps.length - 1 ? 'border-r border-border' : ''}
-                                            ${isBlocked ? 'opacity-40 cursor-not-allowed' :
+                                            ${isBlocked ? 'opacity-40 cursor-not-allowed bg-card' :
                                             isActive ? 'bg-[#114f55]/5' :
                                             isCompleted ? 'bg-green-50/50 dark:bg-green-900/10' :
-                                            'hover:bg-muted/50'}
+                                            'bg-card hover:bg-muted/50'}
                                             ${navigable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                         data-testid={`step-card-${index}`}
                                     >
-                                        <div className="flex items-center gap-2.5">
+                                        {/* Progress bar inside each tile */}
+                                        <div className="h-[5px] bg-muted" data-testid={`step-progress-${index}`}>
+                                            <div
+                                                className="h-full transition-all ease-out"
+                                                style={{
+                                                    width: animateProgress ? `${stepProg}%` : '0%',
+                                                    transitionDuration: `${0.8 + index * 0.15}s`,
+                                                    transitionDelay: `${index * 0.1}s`,
+                                                    backgroundColor: isCompleted ? '#22c55e' : '#114f55',
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2.5 px-4 py-3 whitespace-nowrap">
                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors duration-300
                                                 ${isBlocked ? 'bg-muted text-muted-foreground' :
                                                 isCompleted ? 'bg-green-500 text-white' :
@@ -562,9 +551,7 @@ export default function UserDashboard() {
                                                 'bg-muted text-muted-foreground'}`}>
                                                 {isBlocked ? <Lock size={11} /> : isCompleted ? <Check size={11} weight="bold" /> : index + 1}
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</p>
-                                            </div>
+                                            <span className={`text-sm font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</span>
                                         </div>
                                     </button>
                                 );
