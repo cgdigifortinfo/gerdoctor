@@ -1,0 +1,79 @@
+{
+  "summary": "Fixed critical impersonation bug - Backend was prioritizing cookies over Bearer token, causing impersonated user's data to not load. Changed get_current_user() to check Bearer token first. All impersonation features now working correctly.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/partner/users/{user_id}", "issue": "Test expects 403 for non-submitted user but returns 200 (Demo User now has submission)", "priority": "LOW"},
+      {"endpoint": "/api/partner/users/{user_id}/progress", "issue": "Test expects 403 but returns 500 for edge case", "priority": "LOW"}
+    ]
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "IMPERSONATE USER BUG FIX: Admin impersonates Chris (100% complete) → all 8 steps show green checkmarks",
+    "IMPERSONATE USER BUG FIX: Admin impersonates Demo User → Step 1 completed, Step 2 current (partner selection)",
+    "IMPERSONATE USER BUG FIX: Estimated completion badge shows correct date for impersonated user",
+    "IMPERSONATE PARTNER BUG FIX: Admin impersonates partner@example.com → Partner Dashboard loads with ILS profile",
+    "IMPERSONATE PARTNER BUG FIX: Partner submissions load correctly (3 submissions visible)",
+    "IMPERSONATE RETURN: Click 'Beenden' from user dashboard → returns to admin",
+    "IMPERSONATE RETURN: Click 'Beenden' from partner dashboard → returns to admin",
+    "IMPERSONATE TOKEN: API calls use Bearer token (verified via network requests)",
+    "LOGOUT STILL WORKS: Regular login as demo user, logout single click, redirected to login",
+    "BACKEND: All 7 impersonation tests pass",
+    "BACKEND: 42/44 tests pass overall"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_impersonation.py",
+    "/app/test_reports/pytest/pytest_results_iter21.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/server.py (line 159-166: Changed get_current_user to prioritize Bearer token over cookies)"
+  ],
+
+  "success_rate": {
+    "backend": "95% (42/44 tests passed, 1 skipped)",
+    "frontend": "100% (all impersonation flows working)"
+  },
+
+  "test_credentials": {
+    "admin": "admin@example.com / Admin123!",
+    "demo_user": "demo@example.com / Demo123!",
+    "partner": "partner@example.com / Partner123!",
+    "chris": "cg@digifort.info (100% complete user)"
+  },
+
+  "seed_data_creation": "No new seed data created",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Iteration 21 fixed the critical impersonation bug. Root cause: get_current_user() in server.py was checking cookies BEFORE Bearer token. When browser sent both admin's cookie and impersonated user's Bearer token, the cookie (admin) won. Fix: Changed order to check Bearer token first (lines 159-166). All impersonation features now work: user impersonation shows correct step progress, partner impersonation shows ILS profile and submissions, Beenden returns to admin. The 2 failed tests are unrelated edge cases in partner access control.",
+
+  "rca_of_the_issue": {
+    "bug_description": "Impersonating a user showed them at the beginning with no data loaded. Impersonating a partner showed 'Account Not Linked' error.",
+    "root_cause": "Backend's get_current_user() function prioritized cookies over Bearer token. When admin impersonated a user, the browser sent BOTH: (1) admin's httpOnly cookie from original login, (2) impersonated user's Bearer token from axios interceptor. Backend checked cookie first, so it authenticated as admin instead of impersonated user.",
+    "reproduction_steps": [
+      "1. Login as admin (sets httpOnly cookie)",
+      "2. Go to Users tab, click impersonate on Chris",
+      "3. Frontend stores impersonate_token in sessionStorage and sets it via setAuthToken()",
+      "4. axios interceptor adds Bearer header to all requests",
+      "5. BUT browser also sends admin's cookie automatically",
+      "6. Backend's get_current_user() checked cookie first → returned admin's data"
+    ],
+    "fix_applied": "Changed get_current_user() to check Authorization header (Bearer token) BEFORE checking cookies. This ensures impersonation token takes priority.",
+    "code_change": "server.py lines 159-166: Swapped order of token extraction - now checks auth_header.startswith('Bearer ') first, then falls back to cookies.get('access_token')"
+  }
+}

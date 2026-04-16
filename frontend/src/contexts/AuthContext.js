@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { setAuthToken } from '../lib/api';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
             }
             setUser(false);
             tokenRef.current = null;
+            setAuthToken(null);
         } finally {
             setLoading(false);
         }
@@ -42,6 +44,12 @@ export function AuthProvider({ children }) {
                 const parsed = JSON.parse(savedAdmin);
                 adminTokenRef.current = parsed.token;
                 adminUserRef.current = parsed.user;
+                // Restore impersonated token
+                const savedImpToken = sessionStorage.getItem('impersonate_token');
+                if (savedImpToken) {
+                    tokenRef.current = savedImpToken;
+                    setAuthToken(savedImpToken);
+                }
                 setImpersonating(true);
             } catch {}
         }
@@ -50,14 +58,20 @@ export function AuthProvider({ children }) {
 
     const login = async (email, password) => {
         const response = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
-        if (response.data.access_token) tokenRef.current = response.data.access_token;
+        if (response.data.access_token) {
+            tokenRef.current = response.data.access_token;
+            setAuthToken(response.data.access_token);
+        }
         setUser(response.data);
         return response.data;
     };
 
     const register = async (email, password, name) => {
         const response = await axios.post(`${API}/auth/register`, { email, password, name }, { withCredentials: true });
-        if (response.data.access_token) tokenRef.current = response.data.access_token;
+        if (response.data.access_token) {
+            tokenRef.current = response.data.access_token;
+            setAuthToken(response.data.access_token);
+        }
         setUser(response.data);
         return response.data;
     };
@@ -69,7 +83,9 @@ export function AuthProvider({ children }) {
         tokenRef.current = null;
         adminTokenRef.current = null;
         adminUserRef.current = null;
+        setAuthToken(null);
         sessionStorage.removeItem('admin_impersonate');
+        sessionStorage.removeItem('impersonate_token');
         setImpersonating(false);
         setUser(false);
     };
@@ -79,8 +95,10 @@ export function AuthProvider({ children }) {
         adminTokenRef.current = tokenRef.current;
         adminUserRef.current = user;
         sessionStorage.setItem('admin_impersonate', JSON.stringify({ token: tokenRef.current, user }));
+        sessionStorage.setItem('impersonate_token', targetToken);
         // Switch to target user
         tokenRef.current = targetToken;
+        setAuthToken(targetToken);
         setUser(targetUser);
         setImpersonating(true);
     };
@@ -88,10 +106,12 @@ export function AuthProvider({ children }) {
     const stopImpersonation = () => {
         // Restore admin token
         tokenRef.current = adminTokenRef.current;
+        setAuthToken(adminTokenRef.current);
         setUser(adminUserRef.current);
         adminTokenRef.current = null;
         adminUserRef.current = null;
         sessionStorage.removeItem('admin_impersonate');
+        sessionStorage.removeItem('impersonate_token');
         setImpersonating(false);
     };
 

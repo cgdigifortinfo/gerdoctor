@@ -19,6 +19,20 @@ const api = axios.create({
     withCredentials: true,
 });
 
+// Token management for impersonation
+let _authToken = null;
+export function setAuthToken(token) {
+    _authToken = token;
+}
+
+// Interceptor: inject Bearer token when available (needed for impersonation)
+api.interceptors.request.use((config) => {
+    if (_authToken) {
+        config.headers.Authorization = `Bearer ${_authToken}`;
+    }
+    return config;
+});
+
 // Auth APIs
 export const authAPI = {
     login: (email, password) => api.post('/auth/login', { email, password }),
