@@ -13,7 +13,7 @@ import { Switch } from '../components/ui/switch';
 import {
     SignOut, Check, ArrowRight, ArrowLeft, CloudArrowUp, X, CaretRight, CaretDown,
     Bell, GearSix, Plus, Trash, WarningCircle, CheckCircle, SkipForward, Lock,
-    ClockCounterClockwise
+    ClockCounterClockwise, CalendarCheck, UserSwitch
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
@@ -72,7 +72,7 @@ function applyFieldMappings(step, allStepData) {
 }
 
 export default function UserDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [steps, setSteps] = useState([]);
@@ -497,31 +497,44 @@ export default function UserDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <Logo />
                         <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground hidden sm:block">{t('dash_welcome')}, {user?.name}</span>
+                            {/* Estimated completion in header */}
+                            {estimatedCompletion && (
+                                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full" data-testid="estimated-completion-banner">
+                                    <CalendarCheck size={16} weight="bold" />
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-xs opacity-80">Abschluss</span>
+                                        <span className="text-sm font-bold" data-testid="estimated-completion-date">
+                                            {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            <span className="text-sm text-muted-foreground hidden lg:block">{t('dash_welcome')}, {user?.name}</span>
                             <ThemeLangToggle />
                             <Button variant="ghost" size="sm" onClick={() => { setShowTimeline(!showTimeline); setShowSettings(false); }} className={`text-muted-foreground ${showTimeline ? 'bg-muted' : ''}`} data-testid="timeline-btn" title="Verlauf"><ClockCounterClockwise size={20} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => { setShowSettings(!showSettings); setShowTimeline(false); }} className={`text-muted-foreground ${showSettings ? 'bg-muted' : ''}`} data-testid="settings-btn"><GearSix size={20} /></Button>
-                            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="logout-btn"><SignOut size={20} /></Button>
+                            {impersonating && (
+                                <Button size="sm" onClick={() => { stopImpersonation(); navigate('/admin'); }} className="bg-red-600 hover:bg-red-700 text-white" data-testid="stop-impersonation-btn">
+                                    <UserSwitch size={16} className="mr-1" /> Beenden
+                                </Button>
+                            )}
+                            {!impersonating && <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="logout-btn"><SignOut size={20} /></Button>}
                         </div>
                     </div>
+                    {/* Mobile estimated completion */}
+                    {estimatedCompletion && (
+                        <div className="sm:hidden flex items-center gap-2 pb-3 -mt-1" data-testid="estimated-completion-banner-mobile">
+                            <CalendarCheck size={14} className="text-[#114f55]" />
+                            <span className="text-xs text-muted-foreground">Abschluss</span>
+                            <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
+                                {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
-                {/* Estimated completion */}
-                {estimatedCompletion && (
-                    <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg" data-testid="estimated-completion-banner">
-                        <div className="w-8 h-8 rounded-full bg-[#114f55]/10 flex items-center justify-center flex-shrink-0">
-                            <ClockCounterClockwise size={16} className="text-[#114f55]" />
-                        </div>
-                        <div>
-                            <span className="text-xs text-muted-foreground">Voraussichtlicher Abschluss</span>
-                            <p className="text-sm font-semibold text-foreground" data-testid="estimated-completion-date">
-                                {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                            </p>
-                        </div>
-                    </div>
-                )}
                 {/* ====== DESKTOP: Horizontal Step Cards in single row ====== */}
                 <div className="hidden md:block mb-8">
                     <div className="rounded-lg overflow-hidden overflow-x-auto shadow-sm border border-border">

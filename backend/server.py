@@ -520,6 +520,21 @@ async def get_me(request: Request):
     user = await get_current_user(request)
     return {"id": user["_id"], "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {})}
 
+@admin_router.post("/impersonate/{user_id}")
+async def admin_impersonate_user(user_id: str, request: Request):
+    """Admin can impersonate any user by getting a token for them."""
+    admin_user = await require_role("admin")(request)
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    tid = str(target["_id"])
+    access_token = create_access_token(tid, target["email"], target["role"])
+    
+    await create_audit_log(admin_user["_id"], admin_user["email"], "impersonate", "user", tid, {"target_email": target["email"]})
+    
+    return {"access_token": access_token, "user": {"id": tid, "email": target["email"], "name": target["name"], "role": target["role"]}}
+
 @auth_router.post("/refresh")
 async def refresh_token(request: Request, response: Response):
     token = request.cookies.get("refresh_token")

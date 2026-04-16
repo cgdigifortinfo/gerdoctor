@@ -6,9 +6,12 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null); // null = checking, false = not auth, object = auth
+    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [impersonating, setImpersonating] = useState(false);
     const tokenRef = useRef(null);
+    const adminTokenRef = useRef(null);
+    const adminUserRef = useRef(null);
 
     const checkAuth = useCallback(async () => {
         try {
@@ -32,6 +35,16 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
+        // Restore impersonation state from sessionStorage
+        const savedAdmin = sessionStorage.getItem('admin_impersonate');
+        if (savedAdmin) {
+            try {
+                const parsed = JSON.parse(savedAdmin);
+                adminTokenRef.current = parsed.token;
+                adminUserRef.current = parsed.user;
+                setImpersonating(true);
+            } catch {}
+        }
         checkAuth();
     }, [checkAuth]);
 
@@ -54,7 +67,32 @@ export function AuthProvider({ children }) {
             await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
         } catch {}
         tokenRef.current = null;
+        adminTokenRef.current = null;
+        adminUserRef.current = null;
+        sessionStorage.removeItem('admin_impersonate');
+        setImpersonating(false);
         setUser(false);
+    };
+
+    const impersonate = async (targetToken, targetUser) => {
+        // Save current admin token
+        adminTokenRef.current = tokenRef.current;
+        adminUserRef.current = user;
+        sessionStorage.setItem('admin_impersonate', JSON.stringify({ token: tokenRef.current, user }));
+        // Switch to target user
+        tokenRef.current = targetToken;
+        setUser(targetUser);
+        setImpersonating(true);
+    };
+
+    const stopImpersonation = () => {
+        // Restore admin token
+        tokenRef.current = adminTokenRef.current;
+        setUser(adminUserRef.current);
+        adminTokenRef.current = null;
+        adminUserRef.current = null;
+        sessionStorage.removeItem('admin_impersonate');
+        setImpersonating(false);
     };
 
     const refreshToken = async () => {
@@ -67,7 +105,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, refreshToken, checkAuth }}>
+        <AuthContext.Provider value={{ user, loading, login, register, logout, refreshToken, checkAuth, impersonate, stopImpersonation, impersonating }}>
             {children}
         </AuthContext.Provider>
     );

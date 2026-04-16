@@ -109,6 +109,9 @@ export const adminAPI = {
         return api.get(`/admin/audit-log?${params.toString()}`);
     },
     
+    // Impersonate
+    impersonateUser: (userId) => api.post(`/admin/impersonate/${userId}`),
+    
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
     updateCmsContent: (section, content) => api.put(`/cms/${section}`, { section, content }),

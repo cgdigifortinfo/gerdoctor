@@ -15,7 +15,7 @@ import {
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
     LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise,
-    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix
+    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix, UserSwitch
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
@@ -24,10 +24,23 @@ import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 
 export default function AdminDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, impersonate } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('analytics');
+
+    const handleImpersonate = async (userId) => {
+        try {
+            const res = await adminAPI.impersonateUser(userId);
+            const { access_token, user: targetUser } = res.data;
+            await impersonate(access_token, targetUser);
+            // Navigate based on target role
+            if (targetUser.role === 'partner') navigate('/partner-dashboard');
+            else navigate('/dashboard');
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
     const [users, setUsers] = useState([]);
     const [steps, setSteps] = useState([]);
     const [partners, setPartners] = useState([]);
@@ -586,9 +599,16 @@ export default function AdminDashboard() {
                                                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-border" data-testid={`view-user-${u.id}`}>
-                                                        <Eye size={16} className="mr-1" /> View
-                                                    </Button>
+                                                    <div className="flex gap-1">
+                                                        <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-border" data-testid={`view-user-${u.id}`}>
+                                                            <Eye size={16} className="mr-1" /> View
+                                                        </Button>
+                                                        {u.role !== 'admin' && (
+                                                            <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-[#114f55] hover:border-[#114f55]" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
+                                                                <UserSwitch size={16} />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

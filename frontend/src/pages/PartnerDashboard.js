@@ -10,13 +10,13 @@ import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Progress } from '../components/ui/progress';
-import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle, DownloadSimple } from '@phosphor-icons/react';
+import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle, DownloadSimple, UserSwitch } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 
 export default function PartnerDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [submissions, setSubmissions] = useState([]);
@@ -119,15 +119,22 @@ export default function PartnerDashboard() {
                                 {profile?.name || user?.name}
                             </span>
                             <ThemeLangToggle />
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="text-muted-foreground"
-                                data-testid="partner-logout-btn"
-                            >
-                                <SignOut size={20} />
-                            </Button>
+                            {impersonating && (
+                                <Button size="sm" onClick={() => { stopImpersonation(); navigate('/admin'); }} className="bg-red-600 hover:bg-red-700 text-white" data-testid="stop-impersonation-btn">
+                                    <UserSwitch size={16} className="mr-1" /> Beenden
+                                </Button>
+                            )}
+                            {!impersonating && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleLogout}
+                                    className="text-muted-foreground"
+                                    data-testid="partner-logout-btn"
+                                >
+                                    <SignOut size={20} />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
