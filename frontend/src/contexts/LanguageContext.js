@@ -106,7 +106,7 @@ const translations = {
     partner_filter: 'Filter', partner_filter_fachgebiet: 'Specialty', partner_filter_all: 'All',
     partner_filter_forecast_from: 'Forecast from', partner_filter_forecast_to: 'Forecast to',
     partner_filter_reset: 'Reset', partner_no_access: 'This user has not submitted to your organization. Detailed step data is not available.',
-    partner_step_progress: 'Step Progress', partner_complete_step: 'Complete',
+    partner_step_progress: 'Step Progress', partner_complete_step: 'Complete', partner_approve_step: 'Approve', partner_your_step: 'Your Step',
     // Create User Dialog
     create_user_title: 'Create User', create_user_name: 'Name', create_user_email: 'Email',
     create_user_password: 'Password', create_user_role: 'Role', create_user_partner: 'Assign Partner (optional)',
@@ -223,7 +223,7 @@ const translations = {
     partner_filter: 'Filter', partner_filter_fachgebiet: 'Fachgebiet', partner_filter_all: 'Alle',
     partner_filter_forecast_from: 'Prognose von', partner_filter_forecast_to: 'Prognose bis',
     partner_filter_reset: 'Zurücksetzen', partner_no_access: 'Dieser Nutzer hat noch keinen Antrag bei Ihnen eingereicht. Detaillierte Schrittdaten sind daher nicht verfügbar.',
-    partner_step_progress: 'Schrittfortschritt', partner_complete_step: 'Abschließen',
+    partner_step_progress: 'Schrittfortschritt', partner_complete_step: 'Abschliessen', partner_approve_step: 'Freigeben', partner_your_step: 'Ihr Schritt',
     // Create User Dialog
     create_user_title: 'Benutzer anlegen', create_user_name: 'Name', create_user_email: 'E-Mail',
     create_user_password: 'Passwort', create_user_role: 'Rolle', create_user_partner: 'Partner zuweisen (optional)',

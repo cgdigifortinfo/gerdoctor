@@ -402,8 +402,10 @@ export default function PartnerDashboard() {
                                             const prog = userDetail.progress?.find(p => p.step_id === step.id);
                                             const status = prog?.status || 'pending';
                                             const stepData = prog?.data || {};
+                                            const isPartnerStep = step.id === userDetail.partner_step_id;
+                                            const canComplete = status !== 'completed' && (isPartnerStep || status === 'in_progress');
                                             return (
-                                                <div key={step.id} className="border border-border rounded-sm overflow-hidden" data-testid={`detail-step-${step.order}`}>
+                                                <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[#114f55] ring-1 ring-[#114f55]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
                                                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
                                                         <div className="flex items-center gap-3">
                                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
@@ -411,16 +413,16 @@ export default function PartnerDashboard() {
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                                                                <p className="text-xs text-muted-foreground">{step.step_type}</p>
+                                                                <p className="text-xs text-muted-foreground">{step.step_type}{isPartnerStep ? ` — ${t('partner_your_step')}` : ''}</p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className={`px-2 py-0.5 text-xs font-medium rounded-sm ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? t('completed') : status === 'in_progress' ? t('in_progress') : t('pending')}
                                                             </span>
-                                                            {status !== 'completed' && (
-                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2" data-testid={`complete-step-${step.order}`}>
-                                                                    <CheckCircle size={14} className="mr-1" /> {t('partner_complete_step')}
+                                                            {canComplete && (
+                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className={`text-white text-xs h-7 px-2 ${isPartnerStep ? 'bg-[#114f55] hover:bg-[#0d3d42]' : 'bg-green-600 hover:bg-green-700'}`} data-testid={`complete-step-${step.order}`}>
+                                                                    <CheckCircle size={14} className="mr-1" /> {isPartnerStep ? t('partner_approve_step') : t('partner_complete_step')}
                                                                 </Button>
                                                             )}
                                                         </div>

@@ -1713,24 +1713,24 @@ async def update_partner_profile(data: PartnerUpdate, request: Request):
 
 @api_router.get("/partner/users/{user_id}")
 async def get_partner_user_detail(user_id: str, request: Request):
-    """Partner can view full step progress for a user who submitted to them."""
+    """Partner can view full step progress for a user who submitted to them or is linked."""
     partner_user = await require_role("partner")(request)
     partner_id = partner_user.get("partner_id")
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
-    # Verify the user has a submission to this partner
+    # Verify access: submission OR linked_user_ids
     submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
-    if not submission:
-        raise HTTPException(status_code=403, detail="No submission from this user to your partner")
+    partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    is_linked = user_id in (partner_doc.get("linked_user_ids", []) if partner_doc else [])
+    if not submission and not is_linked:
+        raise HTTPException(status_code=403, detail="No access to this user")
     
     target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
     
     progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
-    steps = await db.steps.find({"is_active": True}, {"_id": 0}).sort("order", 1).to_list(100)
-    # Add id field for steps
     all_steps = []
     async for s in db.steps.find({"is_active": True}).sort("order", 1):
         all_steps.append({**{k: v for k, v in s.items() if k != "_id"}, "id": str(s["_id"])})
@@ -1739,46 +1739,160 @@ async def get_partner_user_detail(user_id: str, request: Request):
     completed = len([p for p in progress if p.get("status") == "completed"])
     completion_pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
     
+    # Find which step is the "partner step" (partner_selection step matching this partner's tag)
+    partner_step_id = None
+    if partner_doc:
+        partner_tags = set(partner_doc.get("tags", []))
+        for s in all_steps:
+            if s.get("step_type") in ("partner_selection", "partner_multiselection"):
+                if s.get("filter_tag") in partner_tags:
+                    partner_step_id = s["id"]
+                    break
+    
     return {
         "id": str(target_user["_id"]),
         "email": target_user["email"],
         "name": target_user["name"],
         "progress": progress,
         "steps": all_steps,
-        "completion_pct": completion_pct
+        "completion_pct": completion_pct,
+        "partner_step_id": partner_step_id
     }
 
 @api_router.put("/partner/users/{user_id}/progress")
 async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
-    """Partner can complete a step for a user who submitted to them."""
+    """Partner can complete a step for a user who submitted to them or is linked."""
     partner_user = await require_role("partner")(request)
     partner_id = partner_user.get("partner_id")
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
-    # Verify the user has a submission to this partner
+    # Verify access: submission OR linked_user_ids
     submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
-    if not submission:
-        raise HTTPException(status_code=403, detail="No submission from this user to your partner")
+    partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    is_linked = user_id in (partner_doc.get("linked_user_ids", []) if partner_doc else [])
+    if not submission and not is_linked:
+        raise HTTPException(status_code=403, detail="No access to this user")
+    
+    # Get step and target user for email sending
+    step = await db.steps.find_one({"_id": ObjectId(data.step_id)})
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
+    existing = await db.user_progress.find_one({"user_id": user_id, "step_id": data.step_id})
+    
+    update_fields = {
+        "status": data.status,
+        "updated_at": now_iso
+    }
+    # Preserve existing data, merge with new data if provided
+    if data.data:
+        update_fields["data"] = data.data
+    elif existing and existing.get("data"):
+        update_fields["data"] = existing["data"]
+    else:
+        update_fields["data"] = {}
+    
+    # Set timestamps
+    if not existing or not existing.get("started_at"):
+        update_fields["started_at"] = now_iso
+    if data.status == "completed":
+        update_fields["completed_at"] = now_iso
     
     await db.user_progress.update_one(
         {"user_id": user_id, "step_id": data.step_id},
-        {"$set": {"status": data.status, "data": data.data or {}, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": update_fields},
         upsert=True
     )
     
     # Record in history
-    step = await db.steps.find_one({"_id": ObjectId(data.step_id)})
-    if step:
-        await db.progress_history.insert_one({
-            "user_id": user_id,
-            "step_id": data.step_id,
-            "step_title": step.get("title", ""),
-            "step_order": step.get("order", 0),
-            "action": data.status,
-            "changed_by": partner_user["email"],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+    await db.progress_history.insert_one({
+        "user_id": user_id,
+        "step_id": data.step_id,
+        "step_title": step.get("title", ""),
+        "step_order": step.get("order", 0),
+        "action": data.status,
+        "changed_by": partner_user["email"],
+        "timestamp": now_iso
+    })
+    
+    # Send email notification to user on completion
+    if data.status == "completed":
+        # Get user notification preferences
+        user_prefs = target_user.get("notification_preferences", {
+            "email_on_step_enter": True,
+            "email_on_step_edit": False,
+            "email_on_step_leave": True
         })
+        
+        partner_name = partner_doc.get("name", "") if partner_doc else ""
+        
+        def render_template(template: str, variables: dict) -> str:
+            result = template
+            for key, val in variables.items():
+                result = result.replace(f'{{{{{key}}}}}', str(val))
+            return result
+        
+        email_vars = {
+            "user_name": target_user["name"],
+            "user_email": target_user["email"],
+            "step_title": step["title"],
+            "step_order": step["order"],
+            "step_description": step.get("description", ""),
+            "partner_name": partner_name
+        }
+        
+        # Send completion email
+        if step.get("email_on_leave") and user_prefs.get("email_on_step_leave", True):
+            subj = render_template(
+                step.get("email_subject_leave") or "Schritt abgeschlossen: {{step_title}}",
+                email_vars
+            )
+            body = render_template(
+                step.get("email_body_leave") or "<p>Hallo {{user_name}},</p><p>Herzlichen Glueckwunsch! Ihr Schritt <strong>{{step_title}}</strong> wurde von {{partner_name}} abgeschlossen.</p><p>Sie koennen nun mit dem naechsten Schritt fortfahren.</p>",
+                email_vars
+            )
+            await send_email_notification(target_user["email"], subj, body)
+            logger.info(f"Step completion email sent to {target_user['email']} for step '{step['title']}' by partner {partner_name}")
+        
+        # Activate next step: set to in_progress if currently pending
+        all_steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+        current_order = step.get("order", 0)
+        next_step = None
+        for s in all_steps:
+            if s["order"] > current_order:
+                next_step = s
+                break
+        
+        if next_step:
+            next_sid = str(next_step["_id"])
+            next_prog = await db.user_progress.find_one({"user_id": user_id, "step_id": next_sid})
+            if not next_prog or next_prog.get("status") == "pending":
+                await db.user_progress.update_one(
+                    {"user_id": user_id, "step_id": next_sid},
+                    {"$set": {"status": "in_progress", "started_at": now_iso, "updated_at": now_iso}},
+                    upsert=True
+                )
+                logger.info(f"Next step '{next_step['title']}' activated for user {user_id}")
+                
+                # Send email for entering next step
+                if next_step.get("email_on_enter") and user_prefs.get("email_on_step_enter", True):
+                    next_vars = {**email_vars, "step_title": next_step["title"], "step_order": next_step["order"], "step_description": next_step.get("description", "")}
+                    next_subj = render_template(
+                        next_step.get("email_subject_enter") or "Naechster Schritt: {{step_title}}",
+                        next_vars
+                    )
+                    next_body = render_template(
+                        next_step.get("email_body_enter") or "<p>Hallo {{user_name}},</p><p>Ihr naechster Schritt <strong>{{step_title}}</strong> ist jetzt freigeschaltet. Bitte setzen Sie Ihren Prozess fort.</p>",
+                        next_vars
+                    )
+                    await send_email_notification(target_user["email"], next_subj, next_body)
     
     return {"message": "User progress updated"}
 
