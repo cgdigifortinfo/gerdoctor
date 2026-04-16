@@ -1060,32 +1060,66 @@ export default function AdminDashboard() {
                                 </div>
                             )}
 
-                            {/* Progress with edit ability */}
+                            {/* Progress with edit ability + step data */}
                             <div>
                                 <h4 className="font-semibold mb-3">Progress</h4>
                                 <div className="space-y-2">
                                     {selectedUser.progress?.map((p) => {
                                         const step = steps.find(s => s.id === p.step_id);
+                                        const stepData = p.data || {};
+                                        const hasData = Object.keys(stepData).filter(k => k !== 'skipped').length > 0;
                                         return (
-                                            <div key={p.step_id} className="flex items-center justify-between p-3 bg-background rounded-sm">
-                                                <span className="text-sm">{step?.title || 'Unknown Step'}</span>
-                                                <Select
-                                                    value={p.status}
-                                                    onValueChange={(val) => handleUpdateUserProgress(selectedUser.id, p.step_id, val)}
-                                                >
-                                                    <SelectTrigger className={`w-36 h-8 text-xs border-0 ${
-                                                        p.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                        p.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-gray-100 text-gray-700'
-                                                    }`} data-testid={`user-progress-${p.step_id}`}>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="pending">Pending</SelectItem>
-                                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                                        <SelectItem value="completed">Completed</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                            <div key={p.step_id} className="border border-border rounded-sm overflow-hidden">
+                                                <div className="flex items-center justify-between p-3 bg-muted/50">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${p.status === 'completed' ? 'bg-green-500 text-white' : p.status === 'in_progress' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                            {p.status === 'completed' ? <Check size={10} weight="bold" /> : step?.order || '?'}
+                                                        </div>
+                                                        <span className="text-sm font-medium">{step?.title || 'Unknown Step'}</span>
+                                                    </div>
+                                                    <Select value={p.status} onValueChange={(val) => handleUpdateUserProgress(selectedUser.id, p.step_id, val)}>
+                                                        <SelectTrigger className={`w-36 h-8 text-xs border-0 ${p.status === 'completed' ? 'bg-green-100 text-green-700' : p.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`} data-testid={`user-progress-${p.step_id}`}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="pending">Pending</SelectItem>
+                                                            <SelectItem value="in_progress">In Progress</SelectItem>
+                                                            <SelectItem value="completed">Completed</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                {hasData && (
+                                                    <div className="px-3 py-2 border-t border-border bg-background/50">
+                                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                                            {Object.entries(stepData).map(([key, value]) => {
+                                                                if (key === 'skipped') return null;
+                                                                const fieldDef = step?.fields?.find(f => f.name === key);
+                                                                const label = fieldDef?.label || key.replace(/_/g, ' ');
+                                                                const fieldType = fieldDef?.field_type;
+                                                                if (fieldType === 'multiupload' && Array.isArray(value)) {
+                                                                    return (
+                                                                        <div key={key} className="col-span-2">
+                                                                            <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                            <div className="mt-1 space-y-1">
+                                                                                {value.map((entry, i) => (
+                                                                                    <div key={i} className="flex items-center gap-2 text-sm">
+                                                                                        {entry.document_type && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>}
+                                                                                        {entry.file_id ? <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline text-xs">{entry.filename || 'Download'}</a> : <span className="text-muted-foreground text-xs">-</span>}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                if (fieldType === 'file' && value) {
+                                                                    return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[#114f55] hover:underline">Download</a></div></div>);
+                                                                }
+                                                                const display = Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value || '-');
+                                                                return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><p className="text-sm font-medium">{display}</p></div>);
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1373,7 +1407,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                 {/* Section tabs */}
                 <div className="flex flex-wrap gap-2 mb-4">
                     <button type="button" onClick={() => setActiveSection('basic')} className={sectionBtnClass('basic')}>Grunddaten</button>
-                    <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>Typ-Einstellungen</button>
+                    {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection' || formData.step_type === 'milestone' || formData.step_type === 'display') && <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>Typ-Einstellungen</button>}
                     {formData.step_type === 'form' && <button type="button" onClick={() => setActiveSection('fields')} className={sectionBtnClass('fields')}>Felder ({formData.fields.length})</button>}
                     <button type="button" onClick={() => setActiveSection('requirements')} className={sectionBtnClass('requirements')}>Anforderungen</button>
                     <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>Mappings ({formData.field_mappings.length})</button>
@@ -1389,7 +1423,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                             <div><Label>Beschreibung</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><Label>Reihenfolge</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
-                                <div><Label>Typ</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">Formular</SelectItem><SelectItem value="partner_selection">Partner-Auswahl</SelectItem><SelectItem value="milestone">Meilenstein</SelectItem><SelectItem value="display">Anzeige</SelectItem><SelectItem value="info">Information</SelectItem></SelectContent></Select></div>
+                                <div><Label>Typ</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">Formular</SelectItem><SelectItem value="partner_selection">Partner-Auswahl</SelectItem><SelectItem value="partner_multiselection">Partner-Mehrfachauswahl</SelectItem><SelectItem value="milestone">Meilenstein</SelectItem><SelectItem value="display">Anzeige</SelectItem></SelectContent></Select></div>
                             </div>
                             <div className="flex items-center justify-between"><Label>Aktiv</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
                             <div className="flex items-center justify-between"><Label>Überspringbar</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
@@ -1408,7 +1442,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                     {/* TYPE SETTINGS */}
                     {activeSection === 'type' && (
                         <div className="space-y-4">
-                            {(formData.step_type === 'partner_selection') && <div><Label>Filter-Tag</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" /></div>}
+                            {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && <div><Label>Filter-Tag</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="step-filter-tag" /></div>}
                             {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
                                 <>
                                     <div><Label>Ausstehend-Nachricht</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" placeholder="Warten auf Abschluss..." /></div>

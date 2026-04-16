@@ -1196,6 +1196,40 @@ async def admin_update_user_role(user_id: str, role: str, request: Request):
     await create_audit_log(admin_user["_id"], admin_user["email"], "role_change", "user", user_id, {"new_role": role})
     return {"message": "User role updated"}
 
+@admin_router.delete("/users/{user_id}")
+async def admin_delete_user(user_id: str, request: Request):
+    """Delete a user (admin only). Cannot delete the primary admin account."""
+    admin_user = await require_role("admin")(request)
+    
+    # Protect the admin seed account from deletion
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if target["email"] == os.environ.get("ADMIN_EMAIL", "admin@example.com"):
+        raise HTTPException(status_code=400, detail="Cannot delete the primary admin account")
+    
+    # Delete user's progress, submissions, and files
+    await db.user_progress.delete_many({"user_id": user_id})
+    await db.partner_submissions.delete_many({"user_id": user_id})
+    await db.progress_history.delete_many({"user_id": user_id})
+    await db.files.delete_many({"user_id": user_id})
+    
+    # Unlink from any partner
+    if target.get("partner_id"):
+        await db.partners.update_one(
+            {"_id": ObjectId(target["partner_id"])},
+            {"$pull": {"user_ids": user_id}}
+        )
+    
+    # Delete the user
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    
+    await create_audit_log(admin_user["_id"], admin_user["email"], "user_delete", "user", user_id, {"email": target["email"]})
+    return {"message": "User deleted"}
+
+
+
 # Admin Step Management
 @admin_router.get("/steps")
 async def admin_get_steps(request: Request):
@@ -1843,7 +1877,7 @@ async def startup():
                     {"name": "first_name", "field_type": "text", "label": "Vorname", "placeholder": "Ihr Vorname", "required": True},
                     {"name": "phone", "field_type": "phone", "label": "Telefon", "placeholder": "+49 (0) 123 456 789", "required": True},
                     {"name": "address", "field_type": "text", "label": "Adresse", "placeholder": "Straße und Hausnummer", "required": True},
-                    {"name": "field_of_study", "field_type": "selectbox", "label": "Fachgebiet", "options": ["Allgemeinmedizin", "Zahnmedizin", "HNO"], "required": True},
+                    {"name": "field_of_study", "field_type": "selectbox", "label": "Fachgebiet", "options": ["Allgemeinmedizin", "Innere Medizin", "Chirurgie", "Pädiatrie", "Zahnmedizin", "HNO", "Dermatologie", "Neurologie", "Orthopädie", "Gynäkologie", "Augenheilkunde", "Anästhesiologie", "Radiologie", "Psychiatrie", "Urologie"], "required": True},
                     {"name": "documents", "field_type": "multiupload", "label": "Dokumente", "options": doc_types, "required": False}
                 ],
                 "required_fields": ["name", "first_name", "phone", "address", "field_of_study"],
@@ -1941,6 +1975,46 @@ async def startup():
         for step in steps:
             await db.user_progress.insert_one({"user_id": demo_id, "step_id": str(step["_id"]), "status": "pending", "data": {}, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
         logger.info("Demo user created")
+    
+    # Seed additional demo doctors with Fachgebiete
+    demo_doctors = [
+        {"email": "dr.schmidt@example.com", "name": "Dr. Anna Schmidt", "field_of_study": "Allgemeinmedizin",
+         "form_data": {"name": "Schmidt", "first_name": "Anna", "phone": "+49 170 9876543", "address": "Hauptstr. 12, 80331 München", "field_of_study": "Allgemeinmedizin"}},
+        {"email": "dr.yilmaz@example.com", "name": "Dr. Emre Yilmaz", "field_of_study": "Innere Medizin",
+         "form_data": {"name": "Yilmaz", "first_name": "Emre", "phone": "+49 151 2345678", "address": "Berliner Allee 5, 40212 Düsseldorf", "field_of_study": "Innere Medizin"}},
+        {"email": "dr.chen@example.com", "name": "Dr. Wei Chen", "field_of_study": "Chirurgie",
+         "form_data": {"name": "Chen", "first_name": "Wei", "phone": "+49 176 3456789", "address": "Königstr. 28, 70173 Stuttgart", "field_of_study": "Chirurgie"}},
+        {"email": "dr.kumar@example.com", "name": "Dr. Priya Kumar", "field_of_study": "Pädiatrie",
+         "form_data": {"name": "Kumar", "first_name": "Priya", "phone": "+49 163 4567890", "address": "Zeil 42, 60313 Frankfurt", "field_of_study": "Pädiatrie"}},
+    ]
+    step1 = await db.steps.find_one({"order": 1, "is_active": True})
+    all_steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    for doc in demo_doctors:
+        if not await db.users.find_one({"email": doc["email"]}):
+            result = await db.users.insert_one({
+                "email": doc["email"], "password_hash": hash_password("Demo123!"),
+                "name": doc["name"], "role": "user", "profile": {},
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            uid = str(result.inserted_id)
+            # Create step 1 as completed with form data
+            if step1:
+                await db.user_progress.insert_one({
+                    "user_id": uid, "step_id": str(step1["_id"]),
+                    "status": "completed", "data": doc["form_data"],
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                })
+            # Create remaining steps as pending
+            for s in all_steps:
+                if s["order"] != 1:
+                    await db.user_progress.insert_one({
+                        "user_id": uid, "step_id": str(s["_id"]),
+                        "status": "pending", "data": {},
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    })
+            logger.info(f"Demo doctor {doc['name']} created")
     
     # Seed partner user
     partner_email = "partner@example.com"
