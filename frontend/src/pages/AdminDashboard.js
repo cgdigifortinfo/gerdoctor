@@ -1422,15 +1422,15 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                     {/* BASIC */}
                     {activeSection === 'basic' && (
                         <div className="space-y-4">
-                            <div><Label>Titel</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
-                            <div><Label>Beschreibung</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
+                            <div><Label>{t('step_title')}</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
+                            <div><Label>{t('step_description')}</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><Label>Reihenfolge</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
+                                <div><Label>{t('step_order')}</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
                                 <div><Label>{t('step_type')}</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
                             </div>
-                            <div className="flex items-center justify-between"><Label>Aktiv</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
-                            <div className="flex items-center justify-between"><Label>Überspringbar</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
-                            {formData.skippable && <div><Label>Überspringen-Text</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
+                            <div className="flex items-center justify-between"><Label>{t('step_active')}</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
+                            <div className="flex items-center justify-between"><Label>{t('step_skippable')}</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
+                            {formData.skippable && <div><Label>{t('step_skip_label')}</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
                             <div className="border-t border-border pt-4 mt-2">
                                 <Label className="text-sm font-semibold">{t('step_duration')}</Label>
                                 <p className="text-xs text-muted-foreground mb-2">{t('step_duration_desc')}</p>
@@ -1445,14 +1445,14 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                     {/* TYPE SETTINGS */}
                     {activeSection === 'type' && (
                         <div className="space-y-4">
-                            {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && <div><Label>Filter-Tag</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="step-filter-tag" /></div>}
+                            {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && <div><Label>{t('step_filter_tag')}</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="step-filter-tag" /></div>}
                             {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
                                 <>
-                                    <div><Label>Ausstehend-Nachricht</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" placeholder="Warten auf Abschluss..." /></div>
-                                    <div><Label>Abgeschlossen-Nachricht</Label><Textarea value={formData.complete_message} onChange={(e) => setFormData({ ...formData, complete_message: e.target.value })} className="mt-1" placeholder="Alles erledigt!" /></div>
+                                    <div><Label>{t('step_pending_msg')}</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" /></div>
+                                    <div><Label>{t('step_complete_msg')}</Label><Textarea value={formData.complete_message} onChange={(e) => setFormData({ ...formData, complete_message: e.target.value })} className="mt-1" /></div>
                                 </>
                             )}
-                            {formData.step_type === 'display' && <div><Label>Button-Text</Label><Input value={formData.action_label} onChange={(e) => setFormData({ ...formData, action_label: e.target.value })} className="mt-1" placeholder="z.B. zur FaMed" /></div>}
+                            {formData.step_type === 'display' && <div><Label>{t('step_action_label')}</Label><Input value={formData.action_label} onChange={(e) => setFormData({ ...formData, action_label: e.target.value })} className="mt-1" /></div>}
                         </div>
                     )}
 
@@ -1634,8 +1634,8 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                     )}
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">{step ? 'Aktualisieren' : 'Erstellen'}</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
                     </div>
                 </form>
 
