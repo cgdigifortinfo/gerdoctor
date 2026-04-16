@@ -1683,6 +1683,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
         contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: []
     });
     const [tagsText, setTagsText] = useState('');
+    const [userSearch, setUserSearch] = useState('');
 
     useEffect(() => {
         if (partner) {
@@ -1698,6 +1699,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
             setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [] });
             setTagsText('');
         }
+        setUserSearch('');
     }, [partner]);
 
     const handleSubmit = (e) => {
@@ -1759,16 +1761,28 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
                     <div>
                         <Label>Partner-Nutzer (Rolle "Partner")</Label>
                         <p className="text-xs text-muted-foreground mb-2">Wählen Sie Nutzer aus, die als Partner-Admins Zugriff auf das Partner-Dashboard erhalten.</p>
-                        <div className="max-h-32 overflow-y-auto border border-border rounded-sm">
+                        <Input placeholder="Nutzer suchen..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="mb-2 h-8 text-sm" data-testid="partner-user-search" />
+                        <div className="max-h-40 overflow-y-auto border border-border rounded-sm">
                             {availableUsers.length === 0 ? (
                                 <p className="p-3 text-xs text-muted-foreground">Keine Nutzer verfügbar</p>
-                            ) : availableUsers.map(u => (
-                                <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0" data-testid={`partner-link-user-${u.id}`}>
-                                    <input type="checkbox" checked={formData.linked_user_ids.includes(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-border" />
-                                    <span className="text-sm">{u.name}</span>
-                                    <span className="text-xs text-muted-foreground">{u.email}</span>
-                                </label>
-                            ))}
+                            ) : (() => {
+                                const q = userSearch.toLowerCase();
+                                const filtered = availableUsers.filter(u => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+                                const sorted = [...filtered].sort((a, b) => {
+                                    const aChecked = formData.linked_user_ids.includes(a.id) ? 0 : 1;
+                                    const bChecked = formData.linked_user_ids.includes(b.id) ? 0 : 1;
+                                    return aChecked - bChecked;
+                                });
+                                return sorted.length === 0 ? (
+                                    <p className="p-3 text-xs text-muted-foreground">Keine Treffer</p>
+                                ) : sorted.map(u => (
+                                    <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0" data-testid={`partner-link-user-${u.id}`}>
+                                        <input type="checkbox" checked={formData.linked_user_ids.includes(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-border" />
+                                        <span className="text-sm font-medium">{u.name}</span>
+                                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                                    </label>
+                                ));
+                            })()}
                         </div>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1788,16 +1802,16 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
 }
 
 function CreateUserDialog({ open, onClose, onSave, partners }) {
-    const [formData, setFormData] = useState({ email: '', password: '', name: '', role: 'user', partner_id: '' });
+    const [formData, setFormData] = useState({ email: '', password: '', name: '', role: 'user', partner_id: 'none' });
 
     useEffect(() => {
-        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: '' });
+        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: 'none' });
     }, [open]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const data = { ...formData };
-        if (!data.partner_id) delete data.partner_id;
+        if (data.partner_id === 'none') delete data.partner_id;
         onSave(data);
     };
 
@@ -1813,7 +1827,7 @@ function CreateUserDialog({ open, onClose, onSave, partners }) {
                     <div><Label>Passwort</Label><Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="mt-1" required minLength={6} data-testid="create-user-password" /></div>
                     <div>
                         <Label>Rolle</Label>
-                        <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? '' : formData.partner_id })}>
+                        <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? 'none' : formData.partner_id })}>
                             <SelectTrigger className="mt-1" data-testid="create-user-role"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="user">User</SelectItem>
@@ -1827,7 +1841,7 @@ function CreateUserDialog({ open, onClose, onSave, partners }) {
                             <Select value={formData.partner_id} onValueChange={val => setFormData({ ...formData, partner_id: val })}>
                                 <SelectTrigger className="mt-1" data-testid="create-user-partner"><SelectValue placeholder="Kein Partner" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Kein Partner</SelectItem>
+                                    <SelectItem value="none">Kein Partner</SelectItem>
                                     {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>

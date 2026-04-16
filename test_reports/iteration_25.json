@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 25 bug fix and enhancements fully tested. All features working: 1) Create User dialog Partner role selection NO LONGER CRASHES (value='none' sentinel fix verified). 2) Partner dialog has 'Nutzer suchen...' search field that filters users by name/email. 3) Checked/linked users appear at TOP of the user list. 4) ILS partner has partner@example.com (ILS Admin) linked with checked checkbox. 5) User creation with role=user and role=partner both work correctly.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "CREATE USER BUG FIX: Open User anlegen dialog, select role 'Partner' - NO crash, Partner dropdown appears with 'Kein Partner'",
+    "CREATE USER BUG FIX: Select role 'User' again after 'Partner' - Partner dropdown hides, no crash",
+    "CREATE USER: Fill all fields, select User role, submit - user created with 'User erstellt' toast",
+    "CREATE USER: POST /api/admin/users with role=user creates user correctly",
+    "CREATE USER: POST /api/admin/users with role=partner and partner_id creates user correctly",
+    "CREATE USER: POST /api/admin/users with role=partner (no partner_id) creates user correctly",
+    "PARTNER DIALOG SEARCH: Edit ILS partner, see 'Nutzer suchen...' input at top of user list",
+    "PARTNER DIALOG SEARCH: Type 'partner' in search field - filters users by name or email",
+    "PARTNER DIALOG SEARCH: Clear search - all users shown again",
+    "PARTNER DIALOG LINKED: When editing ILS, ILS Admin (partner@example.com) has checked checkbox",
+    "PARTNER DIALOG LINKED: Checked users appear at top of list (ILS Admin, TEST Partner Role User at top, Demo User, Test User below)",
+    "BACKEND: GET /api/admin/partners returns linked_users array with id, name, email",
+    "BACKEND: PUT /api/admin/partners/{id} with linked_user_ids updates user roles correctly",
+    "CODE REVIEW: CreateUserDialog uses value='none' as sentinel (not empty string)",
+    "CODE REVIEW: PartnerDialog has partner-user-search data-testid",
+    "CODE REVIEW: PartnerDialog sorts checked users first (aChecked/bChecked sorting logic)"
+  ],
+
+  "test_report_links": [
+    "/app/test_reports/pytest/pytest_results_iter25.xml",
+    "/app/backend/tests/test_iteration25_features.py"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_iteration25_features.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (9/9 passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+
+  "test_credentials": "Admin: admin@example.com / Admin123!, Partner: partner@example.com / Partner123!",
+
+  "seed_data_creation": "Backend tests created TEST_ prefixed users for testing (TEST_user_*, TEST_partner_*, TEST_unlink_*)",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Iteration 25 bug fix and enhancements complete: 1) CreateUserDialog in AdminDashboard.js uses value='none' as sentinel for partner_id instead of empty string - this fixes the Radix Select crash when selecting Partner role. On submit, 'none' is converted to undefined. 2) PartnerDialog has userSearch state and 'Nutzer suchen...' input (data-testid='partner-user-search') that filters availableUsers by name or email. 3) User list in PartnerDialog is sorted: checked users first (linked_user_ids), then alphabetically. ILS partner is linked to partner@example.com (ILS Admin). All features verified via backend pytest and Playwright UI tests."
+}
