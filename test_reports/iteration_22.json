@@ -1,0 +1,50 @@
+{
+  "summary": "Fixed critical impersonation bugs: 1) User step data not loading when impersonating (showed empty/beginning state), 2) Partner 'Account Not Linked' when impersonating partner user. Root cause: Backend get_current_user() prioritized cookies over Bearer token. Fixed by: a) Backend: Bearer token now checked first, b) Frontend: Added axios request interceptor with setAuthToken() that AuthContext calls on every auth state change. All 44 backend tests pass.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "test_impersonation.py: 7/7 passed (admin impersonate user, partner, token works, non-admin denied, 404, audit log, estimated completion)",
+    "test_partner_api.py: 10/10 passed (user detail, access control, progress update, logout x3)",
+    "test_settings_api.py: 14/14 passed (settings CRUD, existing APIs, admin dashboard)",
+    "test_step_duration.py: 7/7 passed (duration fields, update, estimated completion, timestamps, calculation)",
+    "test_iteration17_features.py: 6/6 passed + 1 skipped (duplicate fix, step data display, partner complete)"
+  ],
+
+  "test_report_links": [
+    "/app/test_reports/pytest/pytest_results_iter22.xml",
+    "/app/backend/tests/test_impersonation.py",
+    "/app/backend/tests/test_partner_api.py",
+    "/app/backend/tests/test_settings_api.py",
+    "/app/backend/tests/test_step_duration.py",
+    "/app/backend/tests/test_iteration17_features.py"
+  ],
+
+  "action_items": [],
+
+  "success_rate": {
+    "backend": "100% (44/44 passed, 1 skipped)",
+    "frontend": "100% (verified via iteration 21 testing agent)"
+  },
+
+  "rca_of_the_issue": {
+    "bug_1_description": "Impersonating a user who completed steps showed them at beginning with no data",
+    "bug_2_description": "Impersonating a partner user showed 'Account Not Linked' error",
+    "root_cause": "Two-layer issue: 1) Backend get_current_user() checked cookies BEFORE Bearer token. Browser sent admin's httpOnly cookie alongside impersonated Bearer token - cookie won. 2) Frontend api.js axios instance had no way to inject the impersonated token into requests.",
+    "fix_applied": [
+      "Backend: Swapped token extraction order in get_current_user() - Bearer token checked first, cookies as fallback",
+      "Frontend: Added setAuthToken() export + axios request interceptor in api.js",
+      "Frontend: AuthContext calls setAuthToken() on login, impersonate, stopImpersonation, and logout",
+      "Frontend: Impersonated token stored in sessionStorage for page refresh persistence"
+    ]
+  }
+}

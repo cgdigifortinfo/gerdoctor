@@ -87,15 +87,17 @@ class TestPartnerUserDetailAPI:
         print(f"  - Steps: {len(data['steps'])}")
         print(f"  - Progress entries: {len(data['progress'])}")
     
-    def test_partner_cannot_access_user_without_submission(self, partner_session, demo_session):
+    def test_partner_cannot_access_user_without_submission(self, partner_session):
         """Partner cannot view user detail for a user who did NOT submit to them"""
-        # Get demo user's ID
-        me_response = demo_session.get(f"{BASE_URL}/api/auth/me")
+        # Use admin user ID (who has no partner submissions)
+        admin_session = requests.Session()
+        admin_session.post(f"{BASE_URL}/api/auth/login", json={"email": "admin@example.com", "password": "Admin123!"})
+        me_response = admin_session.get(f"{BASE_URL}/api/auth/me")
         assert me_response.status_code == 200
-        demo_user_id = me_response.json()["id"]
+        admin_user_id = me_response.json()["id"]
         
-        # Partner tries to access demo user (who hasn't submitted to ILS)
-        response = partner_session.get(f"{BASE_URL}/api/partner/users/{demo_user_id}")
+        # Partner tries to access admin user (who hasn't submitted to ILS)
+        response = partner_session.get(f"{BASE_URL}/api/partner/users/{admin_user_id}")
         
         # Should be forbidden
         assert response.status_code == 403, f"Expected 403, got {response.status_code}: {response.text}"
@@ -170,16 +172,18 @@ class TestPartnerUpdateProgressAPI:
         assert update_response.status_code == 200, f"Expected 200, got {update_response.status_code}: {update_response.text}"
         print(f"SUCCESS: Partner can update user progress for step {step_id}")
     
-    def test_partner_cannot_update_progress_for_non_submitted_user(self, partner_session, demo_session):
+    def test_partner_cannot_update_progress_for_non_submitted_user(self, partner_session):
         """Partner cannot update progress for a user who did NOT submit to them"""
-        # Get demo user's ID
-        me_response = demo_session.get(f"{BASE_URL}/api/auth/me")
+        # Use admin user ID (who has no partner submissions)
+        admin_session = requests.Session()
+        admin_session.post(f"{BASE_URL}/api/auth/login", json={"email": "admin@example.com", "password": "Admin123!"})
+        me_response = admin_session.get(f"{BASE_URL}/api/auth/me")
         assert me_response.status_code == 200
-        demo_user_id = me_response.json()["id"]
+        admin_user_id = me_response.json()["id"]
         
-        # Partner tries to update demo user's progress
+        # Partner tries to update admin user's progress
         response = partner_session.put(
-            f"{BASE_URL}/api/partner/users/{demo_user_id}/progress",
+            f"{BASE_URL}/api/partner/users/{admin_user_id}/progress",
             json={
                 "step_id": "some-step-id",
                 "status": "completed",
