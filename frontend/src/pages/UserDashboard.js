@@ -92,22 +92,25 @@ export default function UserDashboard() {
     const [notifPrefs, setNotifPrefs] = useState({ email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
     const [animateProgress, setAnimateProgress] = useState(false);
     const [expandedStep, setExpandedStep] = useState(null);
+    const [estimatedCompletion, setEstimatedCompletion] = useState(null);
     const stepRefs = useRef({});
     const containerRef = useRef(null);
     const desktopStepRefs = useRef({});
 
     const loadData = useCallback(async () => {
         try {
-            const [stepsRes, progressRes, allDataRes, notifRes, historyRes] = await Promise.all([
+            const [stepsRes, progressRes, allDataRes, notifRes, historyRes, estRes] = await Promise.all([
                 stepsAPI.getAll(), stepsAPI.getProgress(), stepsAPI.getAllData(),
                 notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } })),
-                stepsAPI.getHistory().catch(() => ({ data: [] }))
+                stepsAPI.getHistory().catch(() => ({ data: [] })),
+                stepsAPI.getEstimatedCompletion().catch(() => ({ data: { estimated_completion: null } }))
             ]);
             setSteps(stepsRes.data);
             setProgress(progressRes.data);
             setAllStepData(allDataRes.data);
             setNotifPrefs(notifRes.data);
             setHistory(historyRes.data);
+            setEstimatedCompletion(estRes.data?.estimated_completion || null);
 
             const progressMap = {};
             progressRes.data.forEach(p => { progressMap[p.step_id] = p; });
@@ -505,6 +508,20 @@ export default function UserDashboard() {
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
+                {/* Estimated completion */}
+                {estimatedCompletion && (
+                    <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg" data-testid="estimated-completion-banner">
+                        <div className="w-8 h-8 rounded-full bg-[#114f55]/10 flex items-center justify-center flex-shrink-0">
+                            <ClockCounterClockwise size={16} className="text-[#114f55]" />
+                        </div>
+                        <div>
+                            <span className="text-xs text-muted-foreground">Voraussichtlicher Abschluss</span>
+                            <p className="text-sm font-semibold text-foreground" data-testid="estimated-completion-date">
+                                {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </p>
+                        </div>
+                    </div>
+                )}
                 {/* ====== DESKTOP: Horizontal Step Cards in single row ====== */}
                 <div className="hidden md:block mb-8">
                     <div className="rounded-lg overflow-hidden overflow-x-auto shadow-sm border border-border">

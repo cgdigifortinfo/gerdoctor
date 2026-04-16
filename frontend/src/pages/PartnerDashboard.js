@@ -177,6 +177,7 @@ export default function PartnerDashboard() {
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Forecast</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                                 </tr>
                                             </thead>
@@ -196,6 +197,9 @@ export default function PartnerDashboard() {
                                                             }`}>
                                                                 {sub.status}
                                                             </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                            {sub.estimated_completion ? new Date(sub.estimated_completion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <Button

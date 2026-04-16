@@ -542,6 +542,7 @@ export default function AdminDashboard() {
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Progress</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Forecast</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                         </tr>
@@ -579,6 +580,9 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                    {u.estimated_completion ? new Date(u.estimated_completion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">
                                                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -590,7 +594,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
+                                                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -649,6 +653,7 @@ export default function AdminDashboard() {
                                                 <div className="flex gap-4 mt-2 ml-10 text-xs text-muted-foreground flex-wrap">
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
+                                                    <span>Dauer: <strong>{step.duration_value === 0 ? 'Sofort' : `${step.duration_value} ${({days:'Tage',weeks:'Wochen',months:'Monate',years:'Jahre'})[step.duration_unit] || step.duration_unit}`}</strong></span>
                                                     {step.email_on_enter && <span className="text-[#114f55]">Email on enter</span>}
                                                     {step.email_on_edit && <span className="text-[#114f55]">Email on edit</span>}
                                                     {step.email_on_leave && <span className="text-[#114f55]">Email on leave</span>}
@@ -1251,6 +1256,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
         action_label: '', pending_message: '', complete_message: '',
         required_fields: [], required_uploads: [],
         field_mappings: [], conditions: [],
+        duration_value: 0, duration_unit: 'days',
         email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
     });
     const [showFieldForm, setShowFieldForm] = useState(false);
@@ -1268,6 +1274,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                 pending_message: step.pending_message || '', complete_message: step.complete_message || '',
                 required_fields: step.required_fields || [], required_uploads: step.required_uploads || [],
                 field_mappings: step.field_mappings || [], conditions: step.conditions || [],
+                duration_value: step.duration_value ?? 0, duration_unit: step.duration_unit || 'days',
                 email_on_enter: step.email_on_enter || false, email_on_edit: step.email_on_edit || false,
                 email_on_leave: step.email_on_leave || false, is_active: step.is_active !== false
             });
@@ -1278,6 +1285,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                 action_label: '', pending_message: '', complete_message: '',
                 required_fields: [], required_uploads: [],
                 field_mappings: [], conditions: [],
+                duration_value: 0, duration_unit: 'days',
                 email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
             });
         }
@@ -1341,6 +1349,14 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                             <div className="flex items-center justify-between"><Label>Aktiv</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
                             <div className="flex items-center justify-between"><Label>Überspringbar</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
                             {formData.skippable && <div><Label>Überspringen-Text</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
+                            <div className="border-t border-border pt-4 mt-2">
+                                <Label className="text-sm font-semibold">Dauer dieses Schritts</Label>
+                                <p className="text-xs text-muted-foreground mb-2">Wie lange dauert dieser Schritt? 0 = sofort abschließbar.</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><Label>Wert</Label><Input type="number" min="0" value={formData.duration_value} onChange={(e) => setFormData({ ...formData, duration_value: parseInt(e.target.value) || 0 })} className="mt-1" data-testid="step-duration-value" /></div>
+                                    <div><Label>Einheit</Label><Select value={formData.duration_unit} onValueChange={(val) => setFormData({ ...formData, duration_unit: val })}><SelectTrigger className="mt-1" data-testid="step-duration-unit"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="days">Tage</SelectItem><SelectItem value="weeks">Wochen</SelectItem><SelectItem value="months">Monate</SelectItem><SelectItem value="years">Jahre</SelectItem></SelectContent></Select></div>
+                                </div>
+                            </div>
                         </div>
                     )}
 

@@ -41,6 +41,7 @@ export const stepsAPI = {
     getProgress: () => api.get('/steps/progress'),
     getAllData: () => api.get('/steps/all-data'),
     getHistory: () => api.get('/steps/history'),
+    getEstimatedCompletion: () => api.get('/steps/estimated-completion'),
     updateProgress: (step_id, status, data) => api.put('/steps/progress', { step_id, status, data }),
 };
 

@@ -256,16 +256,18 @@ class StepCreate(BaseModel):
     order: int
     step_type: str  # form, partner_selection, milestone, display
     fields: Optional[List[StepFieldCreate]] = None
-    filter_tag: Optional[str] = None  # for partner_selection: filter by this tag
+    filter_tag: Optional[str] = None
     skippable: bool = False
     skip_label: Optional[str] = None
-    action_label: Optional[str] = None  # for display type: button text
-    pending_message: Optional[str] = None  # for milestone type
-    complete_message: Optional[str] = None  # for milestone type
-    required_fields: Optional[List[str]] = None  # field names required to proceed
-    required_uploads: Optional[List[str]] = None  # document types required to proceed
-    field_mappings: Optional[List[dict]] = None  # [{source_step_order, source_field, target_field}]
-    conditions: Optional[List[dict]] = None  # [{source_step_order, field, operator, value, action, target_step_order, message}]
+    action_label: Optional[str] = None
+    pending_message: Optional[str] = None
+    complete_message: Optional[str] = None
+    required_fields: Optional[List[str]] = None
+    required_uploads: Optional[List[str]] = None
+    field_mappings: Optional[List[dict]] = None
+    conditions: Optional[List[dict]] = None
+    duration_value: int = 0
+    duration_unit: str = "days"  # days, weeks, months, years
     email_on_enter: bool = False
     email_on_edit: bool = False
     email_on_leave: bool = False
@@ -292,6 +294,8 @@ class StepUpdate(BaseModel):
     required_uploads: Optional[List[str]] = None
     field_mappings: Optional[List[dict]] = None
     conditions: Optional[List[dict]] = None
+    duration_value: Optional[int] = None
+    duration_unit: Optional[str] = None
     email_on_enter: Optional[bool] = None
     email_on_edit: Optional[bool] = None
     email_on_leave: Optional[bool] = None
@@ -347,6 +351,69 @@ async def create_audit_log(actor_id: str, actor_email: str, action: str, target_
         "details": details or {},
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
+
+from dateutil.relativedelta import relativedelta
+
+def add_duration(start_date, value, unit):
+    """Add a duration to a date based on unit (days/weeks/months/years)."""
+    if value == 0:
+        return start_date
+    if unit == "days":
+        return start_date + timedelta(days=value)
+    elif unit == "weeks":
+        return start_date + timedelta(weeks=value)
+    elif unit == "months":
+        return start_date + relativedelta(months=value)
+    elif unit == "years":
+        return start_date + relativedelta(years=value)
+    return start_date
+
+async def calculate_estimated_completion(user_id: str) -> Optional[str]:
+    """Calculate the estimated completion date for a user's journey."""
+    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    progress_map = {p["step_id"]: p for p in progress}
+    
+    if not steps:
+        return None
+    
+    # Find the start date: completed_at of last completed step, or user created_at
+    last_completed_at = None
+    for s in steps:
+        sid = str(s["_id"])
+        p = progress_map.get(sid, {})
+        if p.get("status") == "completed" and p.get("completed_at"):
+            ts = p["completed_at"]
+            if not last_completed_at or ts > last_completed_at:
+                last_completed_at = ts
+    
+    if last_completed_at:
+        try:
+            start_date = datetime.fromisoformat(last_completed_at.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            start_date = datetime.now(timezone.utc)
+    else:
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if user and user.get("created_at"):
+            try:
+                start_date = datetime.fromisoformat(user["created_at"].replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                start_date = datetime.now(timezone.utc)
+        else:
+            start_date = datetime.now(timezone.utc)
+    
+    # Sum durations of remaining (non-completed) steps
+    current = start_date
+    for s in steps:
+        sid = str(s["_id"])
+        p = progress_map.get(sid, {})
+        if p.get("status") == "completed":
+            continue
+        dv = s.get("duration_value", 0)
+        du = s.get("duration_unit", "days")
+        current = add_duration(current, dv, du)
+    
+    return current.isoformat()
 
 # Create the main app
 app = FastAPI()
@@ -694,15 +761,24 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         body = render_template(step.get("email_body_leave") or "<p>Hallo {{user_name}},</p><p>Herzlichen Glückwunsch! Sie haben den Schritt <strong>{{step_title}}</strong> abgeschlossen.</p>", email_vars)
         await send_email_notification(user["email"], subj, body)
     
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_fields = {
+        "status": data.status,
+        "data": data.data or {},
+        "updated_at": now_iso
+    }
+    # Set started_at when first entering a step (not pending anymore)
+    if not existing and data.status in ("in_progress", "completed"):
+        update_fields["started_at"] = now_iso
+    elif existing and not existing.get("started_at") and data.status in ("in_progress", "completed"):
+        update_fields["started_at"] = now_iso
+    # Set completed_at when completing
+    if data.status == "completed":
+        update_fields["completed_at"] = now_iso
+    
     await db.user_progress.update_one(
         {"user_id": user["_id"], "step_id": data.step_id},
-        {
-            "$set": {
-                "status": data.status,
-                "data": data.data or {},
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }
-        },
+        {"$set": update_fields},
         upsert=True
     )
     
@@ -726,6 +802,13 @@ async def get_user_history(request: Request):
         {"user_id": user["_id"]}, {"_id": 0}
     ).sort("timestamp", -1).to_list(200)
     return history
+
+@steps_router.get("/estimated-completion")
+async def get_estimated_completion(request: Request):
+    """Get the user's estimated journey completion date."""
+    user = await get_current_user(request)
+    est = await calculate_estimated_completion(user["_id"])
+    return {"estimated_completion": est}
 
 # ========================
 # PARTNERS ROUTES
@@ -861,13 +944,15 @@ async def admin_get_users(request: Request):
         uid = str(u["_id"])
         completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
         pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
+        est = await calculate_estimated_completion(uid)
         result.append({
             "id": uid,
             "email": u["email"],
             "name": u["name"],
             "role": u["role"],
             "created_at": u.get("created_at"),
-            "completion_pct": pct
+            "completion_pct": pct,
+            "estimated_completion": est
         })
     return result
 
@@ -1054,7 +1139,9 @@ async def admin_get_steps(request: Request):
             "email_body_edit": s.get("email_body_edit", ""),
             "email_subject_leave": s.get("email_subject_leave", ""),
             "email_body_leave": s.get("email_body_leave", ""),
-            "is_active": s.get("is_active", True)
+            "is_active": s.get("is_active", True),
+            "duration_value": s.get("duration_value", 0),
+            "duration_unit": s.get("duration_unit", "days")
         })
     return result
 
@@ -1087,6 +1174,8 @@ async def admin_create_step(data: StepCreate, request: Request):
         "email_body_edit": data.email_body_edit or "",
         "email_subject_leave": data.email_subject_leave or "",
         "email_body_leave": data.email_body_leave or "",
+        "duration_value": data.duration_value,
+        "duration_unit": data.duration_unit,
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -1327,6 +1416,11 @@ async def get_partner_submissions(request: Request):
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
+    # Enrich with estimated completion
+    for sub in submissions:
+        uid = sub.get("user_id")
+        if uid:
+            sub["estimated_completion"] = await calculate_estimated_completion(uid)
     return submissions
 
 @api_router.get("/partner/profile")
@@ -1589,40 +1683,48 @@ async def startup():
                     {"name": "documents", "field_type": "multiupload", "label": "Dokumente", "options": doc_types, "required": False}
                 ],
                 "required_fields": ["name", "first_name", "phone", "address", "field_of_study"],
+                "duration_value": 0, "duration_unit": "days",
                 "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Service Antragstellung", "description": "Wählen Sie einen Partner für die Antragstellung", "order": 2, "step_type": "partner_selection",
-                "fields": [], "filter_tag": "Antragstellung", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+                "fields": [], "filter_tag": "Antragstellung", "duration_value": 0, "duration_unit": "days",
+                "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Meilenstein Antragstellung", "description": "Status Ihrer Antragstellung", "order": 3, "step_type": "milestone",
                 "fields": [], "pending_message": "Warten auf Abschluss der Antragstellung. Ihr Partner bearbeitet Ihren Antrag.",
                 "complete_message": "Alles erledigt! Sie können zum nächsten Schritt weitergehen.",
+                "duration_value": 4, "duration_unit": "weeks",
                 "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "FaMed", "description": "Weiter zur FaMed-Prüfung", "order": 4, "step_type": "display",
-                "fields": [], "action_label": "zur FaMed", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+                "fields": [], "action_label": "zur FaMed", "duration_value": 0, "duration_unit": "days",
+                "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Service Kenntnisprüfung", "description": "Wählen Sie einen Partner für die Kenntnisprüfung", "order": 5, "step_type": "partner_selection",
-                "fields": [], "filter_tag": "Kenntnisprüfung", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+                "fields": [], "filter_tag": "Kenntnisprüfung", "duration_value": 0, "duration_unit": "days",
+                "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Meilenstein Kenntnisprüfung", "description": "Status Ihrer Kenntnisprüfung", "order": 6, "step_type": "milestone",
                 "fields": [], "pending_message": "Warten auf Abschluss der Kenntnisprüfung. Ihr Partner bearbeitet Ihre Prüfung.",
                 "complete_message": "Alles erledigt! Sie können zum nächsten Schritt weitergehen.",
+                "duration_value": 3, "duration_unit": "months",
                 "email_on_leave": True, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Service Weiterbildung", "description": "Wählen Sie einen Partner für die Weiterbildung", "order": 7, "step_type": "partner_selection",
                 "fields": [], "filter_tag": "Weiterbildung", "skippable": True, "skip_label": "Vorerst überspringen",
+                "duration_value": 0, "duration_unit": "days",
                 "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             },
             {
                 "title": "Meilenstein Job finden", "description": "Hier können wir Ihnen helfen!", "order": 8, "step_type": "display",
-                "fields": [], "pending_message": "Hier können wir Ihnen helfen!", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
+                "fields": [], "pending_message": "Hier können wir Ihnen helfen!", "duration_value": 2, "duration_unit": "weeks",
+                "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()
             }
         ]
         await db.steps.insert_many(default_steps)
