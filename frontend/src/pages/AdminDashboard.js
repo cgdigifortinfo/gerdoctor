@@ -57,6 +57,7 @@ export default function AdminDashboard() {
     const [showUserDialog, setShowUserDialog] = useState(false);
     const [userSearch, setUserSearch] = useState('');
     const [userRoleFilter, setUserRoleFilter] = useState('all');
+    const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
 
     // Step management state
     const [editingStep, setEditingStep] = useState(null);
@@ -359,6 +360,18 @@ export default function AdminDashboard() {
         }
     };
 
+    // Create user
+    const handleCreateUser = async (userData) => {
+        try {
+            await adminAPI.createUser(userData);
+            toast.success('User erstellt');
+            setShowCreateUserDialog(false);
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -511,6 +524,9 @@ export default function AdminDashboard() {
                                         </Select>
                                         <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
+                                        </Button>
+                                        <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="create-user-btn">
+                                            <UserPlus size={16} className="mr-1" /> User anlegen
                                         </Button>
                                     </div>
                                 </div>
@@ -1148,6 +1164,7 @@ export default function AdminDashboard() {
                 onClose={() => { setShowPartnerDialog(false); setEditingPartner(null); }}
                 partner={editingPartner}
                 onSave={handleSavePartner}
+                allUsers={users}
             />
 
             {/* Link User to Partner Dialog */}
@@ -1157,6 +1174,14 @@ export default function AdminDashboard() {
                 partner={showLinkDialog}
                 users={users.filter(u => u.role === 'user')}
                 onLink={handleLinkUser}
+            />
+
+            {/* Create User Dialog */}
+            <CreateUserDialog
+                open={showCreateUserDialog}
+                onClose={() => setShowCreateUserDialog(false)}
+                onSave={handleCreateUser}
+                partners={partners}
             />
         </div>
     );
@@ -1224,7 +1249,7 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-md max-h-[70vh]">
+            <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Link User to {partner?.name}</DialogTitle>
                 </DialogHeader>
@@ -1652,10 +1677,10 @@ function FieldForm({ field, onSave, onCancel }) {
     );
 }
 
-function PartnerDialog({ open, onClose, partner, onSave }) {
+function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
-        contact_email: '', category: '', tags: [], is_active: true
+        contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: []
     });
     const [tagsText, setTagsText] = useState('');
 
@@ -1665,11 +1690,12 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                 name: partner.name || '', description: partner.description || '',
                 logo_url: partner.logo_url || '', website: partner.website || '',
                 contact_email: partner.contact_email || '', category: partner.category || '',
-                tags: partner.tags || [], is_active: partner.is_active !== false
+                tags: partner.tags || [], is_active: partner.is_active !== false,
+                linked_user_ids: (partner.linked_users || []).map(u => u.id)
             });
             setTagsText((partner.tags || []).join(', '));
         } else {
-            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true });
+            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [] });
             setTagsText('');
         }
     }, [partner]);
@@ -1680,11 +1706,22 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
         onSave({ ...formData, tags });
     };
 
+    const toggleUser = (uid) => {
+        setFormData(fd => ({
+            ...fd,
+            linked_user_ids: fd.linked_user_ids.includes(uid)
+                ? fd.linked_user_ids.filter(id => id !== uid)
+                : [...fd.linked_user_ids, uid]
+        }));
+    };
+
+    const availableUsers = allUsers.filter(u => u.role !== 'admin');
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{partner ? 'Edit Partner' : 'Add Partner'}</DialogTitle>
+                    <DialogTitle>{partner ? 'Partner bearbeiten' : 'Partner hinzufügen'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -1692,38 +1729,113 @@ function PartnerDialog({ open, onClose, partner, onSave }) {
                         <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="mt-1" required data-testid="partner-name-input" />
                     </div>
                     <div>
-                        <Label>Description</Label>
+                        <Label>Beschreibung</Label>
                         <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="partner-description-input" />
                     </div>
                     <div>
                         <Label>Logo URL</Label>
                         <Input value={formData.logo_url} onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })} className="mt-1" placeholder="https://..." data-testid="partner-logo-input" />
                     </div>
-                    <div>
-                        <Label>Website</Label>
-                        <Input value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="mt-1" placeholder="https://..." data-testid="partner-website-input" />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Website</Label>
+                            <Input value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="mt-1" placeholder="https://..." data-testid="partner-website-input" />
+                        </div>
+                        <div>
+                            <Label>Kontakt-Email</Label>
+                            <Input type="email" value={formData.contact_email} onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })} className="mt-1" data-testid="partner-email-input" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label>Kategorie</Label>
+                            <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="partner-category-input" />
+                        </div>
+                        <div>
+                            <Label>Tags (kommagetrennt)</Label>
+                            <Input value={tagsText} onChange={(e) => setTagsText(e.target.value)} className="mt-1" placeholder="z.B. Antragstellung" data-testid="partner-tags-input" />
+                        </div>
                     </div>
                     <div>
-                        <Label>Contact Email</Label>
-                        <Input type="email" value={formData.contact_email} onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })} className="mt-1" data-testid="partner-email-input" />
-                    </div>
-                    <div>
-                        <Label>Category</Label>
-                        <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="mt-1" placeholder="e.g., Investment, Consulting" data-testid="partner-category-input" />
-                    </div>
-                    <div>
-                        <Label>Tags (kommagetrennt)</Label>
-                        <Input value={tagsText} onChange={(e) => setTagsText(e.target.value)} className="mt-1" placeholder="z.B. Antragstellung, Kenntnisprüfung" data-testid="partner-tags-input" />
+                        <Label>Partner-Nutzer (Rolle "Partner")</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Wählen Sie Nutzer aus, die als Partner-Admins Zugriff auf das Partner-Dashboard erhalten.</p>
+                        <div className="max-h-32 overflow-y-auto border border-border rounded-sm">
+                            {availableUsers.length === 0 ? (
+                                <p className="p-3 text-xs text-muted-foreground">Keine Nutzer verfügbar</p>
+                            ) : availableUsers.map(u => (
+                                <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0" data-testid={`partner-link-user-${u.id}`}>
+                                    <input type="checkbox" checked={formData.linked_user_ids.includes(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-border" />
+                                    <span className="text-sm">{u.name}</span>
+                                    <span className="text-xs text-muted-foreground">{u.email}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
                     <div className="flex items-center justify-between">
-                        <Label>Active</Label>
+                        <Label>Aktiv</Label>
                         <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
                     </div>
                     <div className="flex justify-end gap-3">
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
                         <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-partner-btn">
-                            {partner ? 'Update Partner' : 'Add Partner'}
+                            {partner ? 'Speichern' : 'Hinzufügen'}
                         </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function CreateUserDialog({ open, onClose, onSave, partners }) {
+    const [formData, setFormData] = useState({ email: '', password: '', name: '', role: 'user', partner_id: '' });
+
+    useEffect(() => {
+        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: '' });
+    }, [open]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const data = { ...formData };
+        if (!data.partner_id) delete data.partner_id;
+        onSave(data);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>User anlegen</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div><Label>Name</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1" required data-testid="create-user-name" /></div>
+                    <div><Label>Email</Label><Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="mt-1" required data-testid="create-user-email" /></div>
+                    <div><Label>Passwort</Label><Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="mt-1" required minLength={6} data-testid="create-user-password" /></div>
+                    <div>
+                        <Label>Rolle</Label>
+                        <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? '' : formData.partner_id })}>
+                            <SelectTrigger className="mt-1" data-testid="create-user-role"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="partner">Partner</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {formData.role === 'partner' && (
+                        <div>
+                            <Label>Partner zuweisen (optional)</Label>
+                            <Select value={formData.partner_id} onValueChange={val => setFormData({ ...formData, partner_id: val })}>
+                                <SelectTrigger className="mt-1" data-testid="create-user-partner"><SelectValue placeholder="Kein Partner" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Kein Partner</SelectItem>
+                                    {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="submit-create-user">Erstellen</Button>
                     </div>
                 </form>
             </DialogContent>

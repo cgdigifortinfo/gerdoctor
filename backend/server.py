@@ -233,6 +233,7 @@ class PartnerCreate(BaseModel):
     contact_email: Optional[EmailStr] = None
     category: Optional[str] = None
     tags: Optional[List[str]] = None
+    linked_user_ids: Optional[List[str]] = None
 
 class PartnerUpdate(BaseModel):
     name: Optional[str] = None
@@ -243,6 +244,7 @@ class PartnerUpdate(BaseModel):
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     is_active: Optional[bool] = None
+    linked_user_ids: Optional[List[str]] = None
 
 class StepFieldCreate(BaseModel):
     name: str
@@ -256,7 +258,7 @@ class StepCreate(BaseModel):
     title: str
     description: str
     order: int
-    step_type: str  # form, partner_selection, milestone, display
+    step_type: str  # form, partner_selection, partner_multiselection, milestone, display
     fields: Optional[List[StepFieldCreate]] = None
     filter_tag: Optional[str] = None
     skippable: bool = False
@@ -330,6 +332,13 @@ class NotificationPreferences(BaseModel):
 class BulkRoleUpdate(BaseModel):
     user_ids: List[str]
     role: str
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    role: str = "user"
+    partner_id: Optional[str] = None
 
 class SiteSettingsUpdate(BaseModel):
     site_title: Optional[str] = None
@@ -897,6 +906,41 @@ async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
     
     return {"message": "Submission successful", "submission_id": submission["id"]}
 
+class MultiPartnerSubmission(BaseModel):
+    partner_ids: List[str]
+    data: Optional[dict] = None
+
+@api_router.post("/partners/submit-multi")
+async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Request):
+    """Submit to multiple partners at once (for partner_multiselection steps)."""
+    user = await get_current_user(request)
+    results = []
+    for pid in data.partner_ids:
+        partner = await db.partners.find_one({"_id": ObjectId(pid)})
+        if not partner:
+            continue
+        existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": pid})
+        if existing:
+            await db.partner_submissions.update_one(
+                {"user_id": user["_id"], "partner_id": pid},
+                {"$set": {"data": data.data or {}, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            results.append(existing["id"])
+        else:
+            sub = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["_id"],
+                "user_email": user["email"],
+                "user_name": user["name"],
+                "partner_id": pid,
+                "data": data.data or {},
+                "status": "submitted",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.partner_submissions.insert_one(sub)
+            results.append(sub["id"])
+    return {"message": f"Submitted to {len(results)} partners", "submission_ids": results}
+
 # ========================
 # FILES ROUTES
 # ========================
@@ -999,6 +1043,35 @@ async def admin_search_users(request: Request, q: str = "", role: str = ""):
             "partner_id": u.get("partner_id")
         })
     return result
+
+@admin_router.post("/users")
+async def admin_create_user(data: AdminUserCreate, request: Request):
+    admin_user = await require_role("admin")(request)
+    existing = await db.users.find_one({"email": data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    password_hash = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
+    user_doc = {
+        "email": data.email,
+        "password_hash": password_hash,
+        "name": data.name,
+        "role": data.role,
+        "profile": {},
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    if data.partner_id:
+        user_doc["partner_id"] = data.partner_id
+    
+    result = await db.users.insert_one(user_doc)
+    uid = str(result.inserted_id)
+    
+    # If role is partner and partner_id given, link the partner
+    if data.role == "partner" and data.partner_id:
+        await db.partners.update_one({"_id": ObjectId(data.partner_id)}, {"$addToSet": {"user_ids": uid}})
+    
+    await create_audit_log(admin_user["_id"], admin_user["email"], "user_create", "user", uid, {"email": data.email, "role": data.role})
+    return {"id": uid, "message": "User created"}
 
 @admin_router.get("/users/{user_id}")
 async def admin_get_user(user_id: str, request: Request):
@@ -1250,8 +1323,12 @@ async def admin_get_partners(request: Request):
     partners = await db.partners.find().to_list(100)
     result = []
     for p in partners:
+        pid = str(p["_id"])
+        # Find all users linked to this partner
+        linked_users = await db.users.find({"partner_id": pid}, {"_id": 1, "name": 1, "email": 1}).to_list(100)
+        linked = [{"id": str(u["_id"]), "name": u["name"], "email": u["email"]} for u in linked_users]
         result.append({
-            "id": str(p["_id"]),
+            "id": pid,
             "name": p["name"],
             "description": p["description"],
             "logo_url": p.get("logo_url"),
@@ -1260,13 +1337,14 @@ async def admin_get_partners(request: Request):
             "category": p.get("category"),
             "tags": p.get("tags", []),
             "is_active": p.get("is_active", True),
-            "user_id": p.get("user_id")
+            "user_id": p.get("user_id"),
+            "linked_users": linked
         })
     return result
 
 @admin_router.post("/partners")
 async def admin_create_partner(data: PartnerCreate, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
     
     partner_doc = {
         "name": data.name,
@@ -1275,21 +1353,41 @@ async def admin_create_partner(data: PartnerCreate, request: Request):
         "website": data.website,
         "contact_email": data.contact_email,
         "category": data.category,
+        "tags": data.tags or [],
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     result = await db.partners.insert_one(partner_doc)
-    return {"id": str(result.inserted_id), "message": "Partner created"}
+    pid = str(result.inserted_id)
+    
+    # Link users if provided
+    if data.linked_user_ids:
+        for uid in data.linked_user_ids:
+            await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": "partner", "partner_id": pid}})
+    
+    await create_audit_log(admin_user["_id"], admin_user["email"], "partner_create", "partner", pid, {"name": data.name})
+    return {"id": pid, "message": "Partner created"}
 
 @admin_router.put("/partners/{partner_id}")
 async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
     
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None and k != 'linked_user_ids'}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
-    admin_user = await get_current_user(request)
+    
+    # Handle linked users update
+    if data.linked_user_ids is not None:
+        # Unlink all current partner users
+        await db.users.update_many(
+            {"partner_id": partner_id},
+            {"$set": {"role": "user"}, "$unset": {"partner_id": ""}}
+        )
+        # Link new users
+        for uid in data.linked_user_ids:
+            await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": "partner", "partner_id": partner_id}})
+    
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_update", "partner", partner_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Partner updated"}
 

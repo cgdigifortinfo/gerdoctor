@@ -64,6 +64,7 @@ export const partnersAPI = {
     getAll: (tag) => api.get(`/partners${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`),
     getOne: (id) => api.get(`/partners/${id}`),
     submit: (partner_id, data) => api.post('/partners/submit', { partner_id, data }),
+    submitMulti: (partner_ids, data) => api.post('/partners/submit-multi', { partner_ids, data }),
 };
 
 // Files APIs
@@ -88,6 +89,7 @@ export const cmsAPI = {
 export const adminAPI = {
     // Users
     getUsers: () => api.get('/admin/users'),
+    createUser: (data) => api.post('/admin/users', data),
     getUser: (id) => api.get(`/admin/users/${id}`),
     searchUsers: (q, role) => api.get(`/admin/users/search?q=${encodeURIComponent(q || '')}&role=${encodeURIComponent(role || '')}`),
     updateUserProgress: (userId, step_id, status, data) => 
