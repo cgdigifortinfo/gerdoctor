@@ -3,35 +3,30 @@
 ## Architecture
 Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (cookies + header fallback) | Email: Mailgun SMTP | Storage: Emergent Object Storage | i18n: EN/DE | Theme: Light/Dark
 
-## Seeded Data
-- 8 Steps: Persönliche Daten (form), Service Antragstellung (partner_selection:Antragstellung), Meilenstein Antragstellung (milestone), FaMed (display), Service Kenntnisprüfung (partner_selection:Kenntnisprüfung), Meilenstein Kenntnisprüfung (milestone), Service Weiterbildung (partner_selection:Weiterbildung, skippable), Meilenstein Job finden (display)
-- 3 Partners: ILS (Antragstellung), ILS2 (Kenntnisprüfung), ILS3 (Weiterbildung)
-- Site Settings: logo_bold_part=GER, logo_light_part=doctor, primary_color=#114f55
-- Users: admin@example.com/Admin123!, demo@example.com/Demo123!, partner@example.com/Partner123!
-
 ## Features
-- JWT auth (3 roles), token in cookie + body response fallback
-- Partner tags + tag-filtered partner_selection steps
-- Skippable steps, milestone status display, multiupload with document type classification
-- Admin: CMS, analytics, user mgmt, step CRUD with reorder, partner CRUD with tags, audit log, settings
-- Partner Dashboard: submission list, user detail with full step data view, ability to complete steps for users
+- JWT auth (3 roles), Partner tags, Skippable steps, Multiupload with doc types
+- Admin: CMS, analytics, user mgmt, step CRUD with reorder, partner CRUD, audit log, settings
+- Partner Dashboard: submission list with forecast, user detail with step data + step completion
+- Step Duration & Estimated Completion: each step has duration_value + duration_unit, system predicts journey completion date
 - i18n (EN/DE), dark mode, notification preferences, CSV export, bulk user actions
 - GERdoctor wordmark logo (GER bold, doctor light)
 
-## User Dashboard UI
-- Desktop: Single horizontal row of step cards, unified progress bar inside each tile with sequential animation, horizontal scroll with auto-scroll to active step
-- Mobile: Vertical accordion with left progress line, auto-scroll to active step
+## Step Duration
+- Each step: `duration_value` (int, 0=instant) + `duration_unit` (days/weeks/months/years)
+- Seeded: Step 1=0d, Step 2=0d, Step 3=4w, Step 4=0d, Step 5=0d, Step 6=3m, Step 7=0d, Step 8=2w
+- Calculation: start from completed_at of last completed step → add remaining step durations
+- Progress records: started_at (on enter), completed_at (on complete)
+- Displayed: User (header banner), Admin (user list Forecast column), Partner (submissions Forecast column)
+- Admin editable via step editor (Grunddaten → Dauer)
 
-## Completed (Feb 2026)
-- [x] Base setup: FastAPI + React + MongoDB + JWT auth
-- [x] Mailgun SMTP, Admin Dashboard (CMS, users, partners, steps, audit log, settings)
-- [x] i18n (EN/DE), Dark Mode, Complex Step Engine
-- [x] User Dashboard redesign: desktop single-row + mobile accordion
-- [x] GERdoctor wordmark logo across all pages
-- [x] Admin Settings page (site title, logo, color, contact, footer)
-- [x] Desktop auto-scroll to active step
-- [x] Partner submission detail: full user step data + step completion ability
-- [x] Logout single-click fix (tokenRef instead of state)
+## Completed
+- [x] Base setup, Auth, Mailgun SMTP, Admin Dashboard
+- [x] i18n, Dark Mode, Complex Step Engine, Email Templates
+- [x] User Dashboard: desktop single-row cards + mobile accordion
+- [x] GERdoctor wordmark logo, Admin Settings page
+- [x] Desktop auto-scroll, Partner detail with step data + completion
+- [x] Logout single-click fix, Duplicate submission fix
+- [x] Step Duration & Estimated Completion (all roles)
 
 ## Backlog
 - [ ] P1: Step template library (save/reuse step configurations)
