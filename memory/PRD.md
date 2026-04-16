@@ -13,12 +13,18 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Be
 - Step Duration & Estimated Completion, Fachgebiet filter (15 specialties), Forecast date filter
 
 ## Seeded Data (Updated 2026-04-16)
-- 5 preserved accounts: admin, partner@example.com, cg@digifort.info, doc1@chrizz1001.de, praxis_am_hang@chrizz1001.de
-- 8 new demo doctors with varying step progress (0-8/8 steps)
-- 9 partners total (4 updated originals + 5 new) with logos from digifort-experts.de
-- Partner categories: Antragstellung (3), Kenntnisprüfung (2), Weiterbildung (3), HNO (1)
+- **28 Users**: 1 Admin, 17 Partner-Users, 10 Regular Users
+- **5 beibehaltene Accounts**: admin, partner@example.com, cg@digifort.info, doc1@chrizz1001.de, praxis_am_hang@chrizz1001.de (alle Daten intakt)
+- **8 Demo-Aerzte** mit Fortschritt 0-8/8 Steps (dr.schmidt, dr.yilmaz, dr.chen, dr.kumar, dr.silva, dr.ahmed, dr.petrov, dr.tanaka @gerdoctor.de)
+- **17 Partner** mit Logos von digifort-experts.de:
+  - 3x Antragstellung (ILS, digiFORT Experts, HABS e.V.)
+  - 2x Kenntnispruefung (ILS2, HC&S)
+  - 3x Weiterbildung (ILS3, Lingoda, InterPers)
+  - 9x Praxis (Hausarztpraxis am Marienplatz, Internistische Praxis Rheinblick, Chirurgische Gemeinschaftspraxis Koenigstrasse, Kinderarztpraxis Zeilnest, Hautarztpraxis am Englischen Garten, Neurologisches Zentrum Friedrichstrasse, Orthopaedische Praxis Elbblick, Frauenarztpraxis an der Frauenkirche, Praxis am Hang)
+- Jeder Dr.-User hat eine zugeordnete Praxis (via partner_submission)
+- Jeder Partner hat einen einloggbaren Partner-User
 - 15 medical specialties in Fachgebiet selectbox
-- 8 steps, German CMS
+- 8 Steps, German CMS
 
 ## Test Coverage (80+ tests, with cleanup)
 All test files delete TEST_ prefixed data after execution.
@@ -31,9 +37,9 @@ All test files delete TEST_ prefixed data after execution.
 - [x] partner_multiselection step type (multi-partner selection)
 - [x] Admin user detail with step data inline
 - [x] Step editor: partner_multiselection in dropdown, conditional field visibility
-- [x] Seeded demo doctors with Fachgebiete
-- [x] Test cleanup (TEST_ prefixed data deleted)
-- [x] Seed migration: realistic partners with logos, demo users with varying progress (2026-04-16)
+- [x] Seed migration v1: realistic service partners with logos, demo users with varying progress (2026-04-16)
+- [x] Seed migration v2: Praxis partners for each Dr., partner users for all tags (2026-04-16)
+- [x] Old demo seeder removed from server.py startup
 
 ## Backlog
 - [ ] P1: Step template library
