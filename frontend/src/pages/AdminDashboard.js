@@ -432,7 +432,7 @@ export default function AdminDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="settings" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="admin-settings-tab">
                             <GearSix size={18} className="mr-2" />
-                            Settings
+                            {t('admin_settings')}
                         </TabsTrigger>
                     </TabsList>
 
@@ -526,7 +526,7 @@ export default function AdminDashboard() {
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
                                         </Button>
                                         <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="create-user-btn">
-                                            <UserPlus size={16} className="mr-1" /> User anlegen
+                                            <UserPlus size={16} className="mr-1" /> {t('admin_create_user')}
                                         </Button>
                                     </div>
                                 </div>
@@ -571,7 +571,7 @@ export default function AdminDashboard() {
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Progress</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Forecast</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin_forecast')}</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                         </tr>
@@ -689,7 +689,7 @@ export default function AdminDashboard() {
                                                 <div className="flex gap-4 mt-2 ml-10 text-xs text-muted-foreground flex-wrap">
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
-                                                    <span>Dauer: <strong>{step.duration_value === 0 ? 'Sofort' : `${step.duration_value} ${({days:'Tage',weeks:'Wochen',months:'Monate',years:'Jahre'})[step.duration_unit] || step.duration_unit}`}</strong></span>
+                                                    <span>Dauer: <strong>{step.duration_value === 0 ? t('step_instant') : `${step.duration_value} ${t('step_' + step.duration_unit)}`}</strong></span>
                                                     {step.email_on_enter && <span className="text-[#114f55]">Email on enter</span>}
                                                     {step.email_on_edit && <span className="text-[#114f55]">Email on edit</span>}
                                                     {step.email_on_leave && <span className="text-[#114f55]">Email on leave</span>}
@@ -912,7 +912,7 @@ export default function AdminDashboard() {
                     <TabsContent value="settings">
                         <div className="space-y-6">
                             <div className="bg-card border border-border rounded-sm p-6">
-                                <h2 className="text-lg font-semibold text-foreground mb-6">Site Settings</h2>
+                                <h2 className="text-lg font-semibold text-foreground mb-6">{t('admin_site_settings')}</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <Label>Site Title</Label>
@@ -926,7 +926,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="bg-card border border-border rounded-sm p-6">
-                                <h2 className="text-lg font-semibold text-foreground mb-2">Logo Configuration</h2>
+                                <h2 className="text-lg font-semibold text-foreground mb-2">{t('admin_logo_config')}</h2>
                                 <p className="text-sm text-muted-foreground mb-6">The logo is displayed as a wordmark: the bold part followed by the light part.</p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -948,7 +948,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="bg-card border border-border rounded-sm p-6">
-                                <h2 className="text-lg font-semibold text-foreground mb-6">General</h2>
+                                <h2 className="text-lg font-semibold text-foreground mb-6">{t('admin_general')}</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <Label>Contact Email</Label>
@@ -970,7 +970,7 @@ export default function AdminDashboard() {
 
                             <div className="flex justify-end">
                                 <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-settings-btn">
-                                    {settingsSaving ? 'Saving...' : 'Save Settings'}
+                                    {settingsSaving ? t('admin_saving') : t('admin_save_settings')}
                                 </Button>
                             </div>
                         </div>
@@ -1190,6 +1190,7 @@ export default function AdminDashboard() {
                 step={editingStep}
                 onSave={handleSaveStep}
                 existingSteps={steps}
+                t={t}
             />
 
             {/* Partner Edit Dialog */}
@@ -1199,6 +1200,7 @@ export default function AdminDashboard() {
                 partner={editingPartner}
                 onSave={handleSavePartner}
                 allUsers={users}
+                t={t}
             />
 
             {/* Link User to Partner Dialog */}
@@ -1216,6 +1218,7 @@ export default function AdminDashboard() {
                 onClose={() => setShowCreateUserDialog(false)}
                 onSave={handleCreateUser}
                 partners={partners}
+                t={t}
             />
         </div>
     );
@@ -1328,7 +1331,7 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
 }
 
 // Step Dialog Component
-function StepDialog({ open, onClose, step, onSave, existingSteps }) {
+function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
     const [formData, setFormData] = useState({
         title: '', description: '', order: existingSteps.length + 1,
         step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
@@ -1402,17 +1405,17 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>{step ? 'Schritt bearbeiten' : 'Schritt erstellen'}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{step ? t('step_edit') : t('step_create')}</DialogTitle></DialogHeader>
                 
                 {/* Section tabs */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                    <button type="button" onClick={() => setActiveSection('basic')} className={sectionBtnClass('basic')}>Grunddaten</button>
-                    {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection' || formData.step_type === 'milestone' || formData.step_type === 'display') && <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>Typ-Einstellungen</button>}
-                    {formData.step_type === 'form' && <button type="button" onClick={() => setActiveSection('fields')} className={sectionBtnClass('fields')}>Felder ({formData.fields.length})</button>}
-                    <button type="button" onClick={() => setActiveSection('requirements')} className={sectionBtnClass('requirements')}>Anforderungen</button>
-                    <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>Mappings ({formData.field_mappings.length})</button>
-                    <button type="button" onClick={() => setActiveSection('conditions')} className={sectionBtnClass('conditions')}>Bedingungen ({formData.conditions.length})</button>
-                    <button type="button" onClick={() => setActiveSection('notifications')} className={sectionBtnClass('notifications')}>Benachrichtigungen</button>
+                    <button type="button" onClick={() => setActiveSection('basic')} className={sectionBtnClass('basic')}>{t('step_basic')}</button>
+                    {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection' || formData.step_type === 'milestone' || formData.step_type === 'display') && <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>{t('step_type_settings')}</button>}
+                    {formData.step_type === 'form' && <button type="button" onClick={() => setActiveSection('fields')} className={sectionBtnClass('fields')}>{t('step_fields')} ({formData.fields.length})</button>}
+                    <button type="button" onClick={() => setActiveSection('requirements')} className={sectionBtnClass('requirements')}>{t('step_requirements')}</button>
+                    <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>{t('step_mappings')} ({formData.field_mappings.length})</button>
+                    <button type="button" onClick={() => setActiveSection('conditions')} className={sectionBtnClass('conditions')}>{t('step_conditions')} ({formData.conditions.length})</button>
+                    <button type="button" onClick={() => setActiveSection('notifications')} className={sectionBtnClass('notifications')}>{t('step_notifications')}</button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -1423,17 +1426,17 @@ function StepDialog({ open, onClose, step, onSave, existingSteps }) {
                             <div><Label>Beschreibung</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><Label>Reihenfolge</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
-                                <div><Label>Typ</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">Formular</SelectItem><SelectItem value="partner_selection">Partner-Auswahl</SelectItem><SelectItem value="partner_multiselection">Partner-Mehrfachauswahl</SelectItem><SelectItem value="milestone">Meilenstein</SelectItem><SelectItem value="display">Anzeige</SelectItem></SelectContent></Select></div>
+                                <div><Label>{t('step_type')}</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
                             </div>
                             <div className="flex items-center justify-between"><Label>Aktiv</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
                             <div className="flex items-center justify-between"><Label>Überspringbar</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
                             {formData.skippable && <div><Label>Überspringen-Text</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
                             <div className="border-t border-border pt-4 mt-2">
-                                <Label className="text-sm font-semibold">Dauer dieses Schritts</Label>
-                                <p className="text-xs text-muted-foreground mb-2">Wie lange dauert dieser Schritt? 0 = sofort abschließbar.</p>
+                                <Label className="text-sm font-semibold">{t('step_duration')}</Label>
+                                <p className="text-xs text-muted-foreground mb-2">{t('step_duration_desc')}</p>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><Label>Wert</Label><Input type="number" min="0" value={formData.duration_value} onChange={(e) => setFormData({ ...formData, duration_value: parseInt(e.target.value) || 0 })} className="mt-1" data-testid="step-duration-value" /></div>
-                                    <div><Label>Einheit</Label><Select value={formData.duration_unit} onValueChange={(val) => setFormData({ ...formData, duration_unit: val })}><SelectTrigger className="mt-1" data-testid="step-duration-unit"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="days">Tage</SelectItem><SelectItem value="weeks">Wochen</SelectItem><SelectItem value="months">Monate</SelectItem><SelectItem value="years">Jahre</SelectItem></SelectContent></Select></div>
+                                    <div><Label>{t('step_duration_value')}</Label><Input type="number" min="0" value={formData.duration_value} onChange={(e) => setFormData({ ...formData, duration_value: parseInt(e.target.value) || 0 })} className="mt-1" data-testid="step-duration-value" /></div>
+                                    <div><Label>{t('step_duration_unit')}</Label><Select value={formData.duration_unit} onValueChange={(val) => setFormData({ ...formData, duration_unit: val })}><SelectTrigger className="mt-1" data-testid="step-duration-unit"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="days">{t('step_days')}</SelectItem><SelectItem value="weeks">{t('step_weeks')}</SelectItem><SelectItem value="months">{t('step_months')}</SelectItem><SelectItem value="years">{t('step_years')}</SelectItem></SelectContent></Select></div>
                                 </div>
                             </div>
                         </div>
@@ -1711,7 +1714,7 @@ function FieldForm({ field, onSave, onCancel }) {
     );
 }
 
-function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
+function PartnerDialog({ open, onClose, partner, onSave, allUsers, t }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
         contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: []
@@ -1757,7 +1760,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{partner ? 'Partner bearbeiten' : 'Partner hinzufügen'}</DialogTitle>
+                    <DialogTitle>{partner ? t('partner_edit') : t('partner_create')}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -1793,12 +1796,12 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
                         </div>
                     </div>
                     <div>
-                        <Label>Partner-Nutzer (Rolle "Partner")</Label>
-                        <p className="text-xs text-muted-foreground mb-2">Wählen Sie Nutzer aus, die als Partner-Admins Zugriff auf das Partner-Dashboard erhalten.</p>
-                        <Input placeholder="Nutzer suchen..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="mb-2 h-8 text-sm" data-testid="partner-user-search" />
+                        <Label>{t('partner_linked_users')}</Label>
+                        <p className="text-xs text-muted-foreground mb-2">{t('partner_linked_users_desc')}</p>
+                        <Input placeholder={t('partner_search_users')} value={userSearch} onChange={e => setUserSearch(e.target.value)} className="mb-2 h-8 text-sm" data-testid="partner-user-search" />
                         <div className="max-h-40 overflow-y-auto border border-border rounded-sm">
                             {availableUsers.length === 0 ? (
-                                <p className="p-3 text-xs text-muted-foreground">Keine Nutzer verfügbar</p>
+                                <p className="p-3 text-xs text-muted-foreground">{t('partner_no_users')}</p>
                             ) : (() => {
                                 const q = userSearch.toLowerCase();
                                 const filtered = availableUsers.filter(u => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
@@ -1808,7 +1811,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
                                     return aChecked - bChecked;
                                 });
                                 return sorted.length === 0 ? (
-                                    <p className="p-3 text-xs text-muted-foreground">Keine Treffer</p>
+                                    <p className="p-3 text-xs text-muted-foreground">{t('partner_no_results')}</p>
                                 ) : sorted.map(u => (
                                     <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-0" data-testid={`partner-link-user-${u.id}`}>
                                         <input type="checkbox" checked={formData.linked_user_ids.includes(u.id)} onChange={() => toggleUser(u.id)} className="rounded border-border" />
@@ -1824,9 +1827,9 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
                         <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
                     </div>
                     <div className="flex justify-end gap-3">
-                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
                         <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-partner-btn">
-                            {partner ? 'Speichern' : 'Hinzufügen'}
+                            {partner ? t('save') : t('partner_create')}
                         </Button>
                     </div>
                 </form>
@@ -1835,7 +1838,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers }) {
     );
 }
 
-function CreateUserDialog({ open, onClose, onSave, partners }) {
+function CreateUserDialog({ open, onClose, onSave, partners, t }) {
     const [formData, setFormData] = useState({ email: '', password: '', name: '', role: 'user', partner_id: 'none' });
 
     useEffect(() => {
@@ -1853,37 +1856,37 @@ function CreateUserDialog({ open, onClose, onSave, partners }) {
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>User anlegen</DialogTitle>
+                    <DialogTitle>{t('create_user_title')}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><Label>Name</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1" required data-testid="create-user-name" /></div>
-                    <div><Label>Email</Label><Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="mt-1" required data-testid="create-user-email" /></div>
-                    <div><Label>Passwort</Label><Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="mt-1" required minLength={6} data-testid="create-user-password" /></div>
+                    <div><Label>{t('create_user_name')}</Label><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1" required data-testid="create-user-name" /></div>
+                    <div><Label>{t('create_user_email')}</Label><Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="mt-1" required data-testid="create-user-email" /></div>
+                    <div><Label>{t('create_user_password')}</Label><Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="mt-1" required minLength={6} data-testid="create-user-password" /></div>
                     <div>
-                        <Label>Rolle</Label>
+                        <Label>{t('create_user_role')}</Label>
                         <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? 'none' : formData.partner_id })}>
                             <SelectTrigger className="mt-1" data-testid="create-user-role"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="partner">Partner</SelectItem>
+                                <SelectItem value="user">{t('user')}</SelectItem>
+                                <SelectItem value="partner">{t('partner')}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     {formData.role === 'partner' && (
                         <div>
-                            <Label>Partner zuweisen (optional)</Label>
+                            <Label>{t('create_user_partner')}</Label>
                             <Select value={formData.partner_id} onValueChange={val => setFormData({ ...formData, partner_id: val })}>
-                                <SelectTrigger className="mt-1" data-testid="create-user-partner"><SelectValue placeholder="Kein Partner" /></SelectTrigger>
+                                <SelectTrigger className="mt-1" data-testid="create-user-partner"><SelectValue placeholder={t('create_user_no_partner')} /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">Kein Partner</SelectItem>
+                                    <SelectItem value="none">{t('create_user_no_partner')}</SelectItem>
                                     {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
                     )}
                     <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="outline" onClick={onClose}>Abbrechen</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="submit-create-user">Erstellen</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
+                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
                     </div>
                 </form>
             </DialogContent>

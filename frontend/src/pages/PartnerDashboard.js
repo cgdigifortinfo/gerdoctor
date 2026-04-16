@@ -20,7 +20,7 @@ import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 
 // ===== Shared sortable/filterable user table =====
-function UserTable({ data, onViewUser, showStatus = false, tableId = 'table' }) {
+function UserTable({ data, onViewUser, showStatus = false, tableId = 'table', t }) {
     const [sortKey, setSortKey] = useState(null);
     const [sortDir, setSortDir] = useState('asc');
     const [forecastFrom, setForecastFrom] = useState('');
@@ -92,33 +92,33 @@ function UserTable({ data, onViewUser, showStatus = false, tableId = 'table' }) 
         <div>
             {/* Filters */}
             <div className="flex flex-wrap items-end gap-4 p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Funnel size={14} /> Filter:</div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Funnel size={14} /> {t('partner_filter')}:</div>
                 <div className="w-48">
-                    <Label className="text-xs text-muted-foreground">Fachgebiet</Label>
+                    <Label className="text-xs text-muted-foreground">{t('partner_filter_fachgebiet')}</Label>
                     <Select value={fieldFilter} onValueChange={setFieldFilter}>
                         <SelectTrigger className="h-8 text-xs mt-0.5" data-testid={`filter-${tableId}-fachgebiet`}>
-                            <SelectValue placeholder="Alle" />
+                            <SelectValue placeholder={t('partner_filter_all')} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Alle</SelectItem>
+                            <SelectItem value="all">{t('partner_filter_all')}</SelectItem>
                             {fachgebiete.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
                 <div>
-                    <Label className="text-xs text-muted-foreground">Forecast von</Label>
+                    <Label className="text-xs text-muted-foreground">{t('partner_filter_forecast_from')}</Label>
                     <Input type="date" value={forecastFrom} onChange={e => setForecastFrom(e.target.value)} className="h-8 text-xs mt-0.5 w-36" data-testid={`filter-${tableId}-forecast-from`} />
                 </div>
                 <div>
-                    <Label className="text-xs text-muted-foreground">Forecast bis</Label>
+                    <Label className="text-xs text-muted-foreground">{t('partner_filter_forecast_to')}</Label>
                     <Input type="date" value={forecastTo} onChange={e => setForecastTo(e.target.value)} className="h-8 text-xs mt-0.5 w-36" data-testid={`filter-${tableId}-forecast-to`} />
                 </div>
                 {(fieldFilter !== 'all' || forecastFrom || forecastTo) && (
                     <Button variant="ghost" size="sm" onClick={() => { setFieldFilter('all'); setForecastFrom(''); setForecastTo(''); }} className="text-xs h-8 text-muted-foreground" data-testid={`filter-${tableId}-reset`}>
-                        Zurücksetzen
+                        {t('partner_filter_reset')}
                     </Button>
                 )}
-                <span className="text-xs text-muted-foreground ml-auto">{filtered.length} Einträge</span>
+                <span className="text-xs text-muted-foreground ml-auto">{filtered.length} {t('partner_entries')}</span>
             </div>
 
             {/* Table */}
@@ -126,13 +126,13 @@ function UserTable({ data, onViewUser, showStatus = false, tableId = 'table' }) 
                 <table className="w-full" data-testid={`${tableId}-table`}>
                     <thead className="bg-background">
                         <tr>
-                            <SortHeader label="User" sortField="user_name" />
-                            <SortHeader label="Email" sortField="user_email" />
-                            <SortHeader label="Fachgebiet" sortField="field_of_study" />
-                            <SortHeader label="Progress" sortField="completion_pct" />
-                            {showStatus && <SortHeader label="Status" sortField="status" />}
-                            <SortHeader label="Forecast" sortField="estimated_completion" />
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                            <SortHeader label={t('name')} sortField="user_name" />
+                            <SortHeader label={t('email')} sortField="user_email" />
+                            <SortHeader label={t('partner_filter_fachgebiet')} sortField="field_of_study" />
+                            <SortHeader label={t('admin_progress')} sortField="completion_pct" />
+                            {showStatus && <SortHeader label={t('status')} sortField="status" />}
+                            <SortHeader label={t('admin_forecast')} sortField="estimated_completion" />
+                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -171,7 +171,7 @@ function UserTable({ data, onViewUser, showStatus = false, tableId = 'table' }) 
                             </tr>
                         ))}
                         {filtered.length === 0 && (
-                            <tr><td colSpan={showStatus ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">Keine Einträge gefunden</td></tr>
+                            <tr><td colSpan={showStatus ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">{t('partner_no_entries')}</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -293,15 +293,15 @@ export default function PartnerDashboard() {
                         <TabsList className="mb-6 bg-card border border-border">
                             <TabsTrigger value="my-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
-                                Meine Nutzer ({submissions.length})
+                                {t('partner_my_users')} ({submissions.length})
                             </TabsTrigger>
                             <TabsTrigger value="other-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
-                                Andere Nutzer ({otherUsers.length})
+                                {t('partner_other_users')} ({otherUsers.length})
                             </TabsTrigger>
                             <TabsTrigger value="profile" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
-                                Profil
+                                {t('partner_profile')}
                             </TabsTrigger>
                         </TabsList>
 
@@ -309,10 +309,10 @@ export default function PartnerDashboard() {
                         <TabsContent value="my-users">
                             <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
-                                    <h2 className="text-lg font-semibold text-foreground">Meine Nutzer</h2>
-                                    <p className="text-sm text-muted-foreground">Nutzer, die Ihre Organisation gewählt haben</p>
+                                    <h2 className="text-lg font-semibold text-foreground">{t('partner_my_users')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('partner_my_users_desc')}</p>
                                 </div>
-                                <UserTable data={submissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" />
+                                <UserTable data={submissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} />
                             </div>
                         </TabsContent>
 
@@ -320,10 +320,10 @@ export default function PartnerDashboard() {
                         <TabsContent value="other-users">
                             <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
-                                    <h2 className="text-lg font-semibold text-foreground">Andere Nutzer</h2>
-                                    <p className="text-sm text-muted-foreground">Nutzer, die Ihre Organisation nicht gewählt haben</p>
+                                    <h2 className="text-lg font-semibold text-foreground">{t('partner_other_users')}</h2>
+                                    <p className="text-sm text-muted-foreground">{t('partner_other_users_desc')}</p>
                                 </div>
-                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" />
+                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" t={t} />
                             </div>
                         </TabsContent>
 
@@ -331,8 +331,8 @@ export default function PartnerDashboard() {
                         <TabsContent value="profile">
                             <div className="bg-card border border-border rounded-sm">
                                 <div className="p-4 border-b border-border flex justify-between items-center">
-                                    <h2 className="text-lg font-semibold text-foreground">Partner Profil</h2>
-                                    {!editingProfile && <Button variant="outline" onClick={() => setEditingProfile(true)} data-testid="edit-profile-btn">Bearbeiten</Button>}
+                                    <h2 className="text-lg font-semibold text-foreground">{t('partner_profile')}</h2>
+                                    {!editingProfile && <Button variant="outline" onClick={() => setEditingProfile(true)} data-testid="edit-profile-btn">{t('admin_edit')}</Button>}
                                 </div>
                                 <div className="p-6">
                                     {editingProfile ? (
@@ -344,8 +344,8 @@ export default function PartnerDashboard() {
                                             <div><Label>Kontakt-Email</Label><Input type="email" value={profileForm.contact_email || ''} onChange={e => setProfileForm({ ...profileForm, contact_email: e.target.value })} className="mt-1" data-testid="profile-email-input" /></div>
                                             <div><Label>Kategorie</Label><Input value={profileForm.category || ''} onChange={e => setProfileForm({ ...profileForm, category: e.target.value })} className="mt-1" data-testid="profile-category-input" /></div>
                                             <div className="flex gap-3 pt-4">
-                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>Abbrechen</Button>
-                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">Speichern</Button>
+                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>{t('cancel')}</Button>
+                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">{t('save')}</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -375,7 +375,7 @@ export default function PartnerDashboard() {
             <Dialog open={!!selectedSubmission} onOpenChange={() => { setSelectedSubmission(null); setUserDetail(null); }}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>User Details</DialogTitle>
+                        <DialogTitle>{t('admin_user_detail')}</DialogTitle>
                     </DialogHeader>
                     {selectedSubmission && (
                         <div className="space-y-6">
@@ -385,7 +385,7 @@ export default function PartnerDashboard() {
                             </div>
 
                             {userDetailLoading ? (
-                                <div className="text-center py-4 text-muted-foreground">Lade Schrittdaten...</div>
+                                <div className="text-center py-4 text-muted-foreground">{t('loading')}</div>
                             ) : userDetail?.noAccess ? (
                                 <div className="p-6 bg-muted rounded-sm text-center">
                                     <p className="text-muted-foreground">Dieser Nutzer hat noch keinen Antrag bei Ihnen eingereicht. Detaillierte Schrittdaten sind daher nicht verfügbar.</p>
@@ -416,11 +416,11 @@ export default function PartnerDashboard() {
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className={`px-2 py-0.5 text-xs font-medium rounded-sm ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>
-                                                                {status === 'completed' ? 'Abgeschlossen' : status === 'in_progress' ? 'In Bearbeitung' : 'Ausstehend'}
+                                                                {status === 'completed' ? t('completed') : status === 'in_progress' ? t('in_progress') : t('pending')}
                                                             </span>
                                                             {status !== 'completed' && (
                                                                 <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2" data-testid={`complete-step-${step.order}`}>
-                                                                    <CheckCircle size={14} className="mr-1" /> Abschließen
+                                                                    <CheckCircle size={14} className="mr-1" /> {t('partner_complete_step')}
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -476,7 +476,7 @@ export default function PartnerDashboard() {
                                                     )}
                                                     {(!stepData || Object.keys(stepData).length === 0) && status !== 'pending' && (
                                                         <div className="px-4 py-2 border-t border-border bg-background/50">
-                                                            <p className="text-xs text-muted-foreground italic">Keine Daten eingegeben</p>
+                                                            <p className="text-xs text-muted-foreground italic">{t('dash_no_data')}</p>
                                                         </div>
                                                     )}
                                                 </div>

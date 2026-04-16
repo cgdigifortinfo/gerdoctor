@@ -1,0 +1,74 @@
+{
+  "summary": "Iteration 27: Tested i18n toggle and Add Step modal. All major i18n features working correctly. Add Step modal opens with content visible (bug fix verified). Language toggle switches between DE/EN on all pages. Found minor issue: StepDialog has some hardcoded German labels that don't translate to English.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StepDialog (AdminDashboard.js)",
+        "issue": "Hardcoded German labels in Basic section don't translate to English: 'Titel', 'Beschreibung', 'Reihenfolge', 'Aktiv', 'Überspringbar', 'Überspringen-Text', 'Abbrechen', 'Aktualisieren', 'Erstellen'",
+        "selector": "Lines 1425-1433, 1637-1638",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "ADD STEP MODAL: Admin clicks 'Add Step', modal opens with Grunddaten form visible (Title, Description, Order, Type fields) - BUG FIX VERIFIED",
+    "ADD STEP MODAL: Type dropdown shows 5 options (Form, Partner Selection, Partner Multi-Selection, Milestone, Display)",
+    "ADD STEP MODAL: Section tabs visible (Grunddaten/Basic, Felder/Fields, Anforderungen/Requirements, Mappings, Bedingungen/Conditions, Benachrichtigungen/Notifications)",
+    "I18N TOGGLE: Admin dashboard shows language toggle in header (DE/EN button with globe icon)",
+    "I18N GERMAN: With DE selected, tabs show: Dashboard, Benutzer, Schritte, Partner, CMS, Audit-Protokoll, Einstellungen",
+    "I18N ENGLISH: Toggle to EN, tabs show: Dashboard, Users, Steps, Partners, CMS, Audit Log, Settings",
+    "I18N STEP EDITOR: Open step editor in DE mode, section tabs show: Grunddaten, Felder, Anforderungen, Mappings, Bedingungen, Benachrichtigungen",
+    "I18N STEP EDITOR: Toggle to EN, section tabs show: Basic, Fields, Requirements, Mappings, Conditions, Notifications",
+    "I18N USER DASHBOARD: Login as demo user, language toggle works, 'Willkommen' (DE) / 'Welcome' (EN)",
+    "I18N USER DASHBOARD: 'Voraussichtlicher Abschluss' badge visible in German mode",
+    "I18N USER DASHBOARD: 'Fortschritt speichern' / 'Save Progress' button translates correctly",
+    "I18N USER DASHBOARD: 'Abschließen & Weiter' / 'Complete & Continue' button translates correctly",
+    "I18N USER DASHBOARD: Notification preferences panel shows 'Benachrichtigungseinstellungen' in German",
+    "I18N PARTNER DASHBOARD: Login as partner, tabs show 'Meine Nutzer', 'Andere Nutzer', 'Profil' in German",
+    "I18N PARTNER DASHBOARD: Toggle to EN, tabs show 'My Users', 'Other Users', 'Profile'",
+    "I18N PARTNER FILTERS: In DE: 'Fachgebiet', 'Prognose von', 'Prognose bis' visible",
+    "I18N PARTNER FILTERS: In EN: 'Specialty', 'Forecast from', 'Forecast to' visible",
+    "I18N CREATE USER: Open dialog in DE: 'Benutzer anlegen', 'Passwort', 'Rolle', 'Erstellen' visible",
+    "I18N CREATE USER: In EN: 'Create User', 'Password', 'Role', 'Create' visible",
+    "I18N SETTINGS TAB: In DE: 'Einstellungen', 'Seiteneinstellungen', 'Logo-Konfiguration', 'Einstellungen speichern' visible",
+    "I18N SETTINGS TAB: In EN: 'Settings', 'Site Settings', 'Logo Configuration', 'Save Settings' visible"
+  ],
+
+  "test_report_links": [
+    "/app/test_reports/iteration_27.json"
+  ],
+
+  "action_items": [
+    "FIX: StepDialog hardcoded German labels - Replace 'Titel' with {t('step_title')}, 'Beschreibung' with {t('step_description')}, 'Reihenfolge' with {t('step_order')}, 'Aktiv' with {t('step_active')}, 'Überspringbar' with {t('step_skippable')}, 'Überspringen-Text' with {t('step_skip_label')}, 'Abbrechen' with {t('cancel')}, 'Aktualisieren'/'Erstellen' with {t('save')}/{t('step_create')} in AdminDashboard.js lines 1425-1433, 1637-1638"
+  ],
+
+  "critical_code_review_comments": [
+    "StepDialog component in AdminDashboard.js has hardcoded German labels in the Basic section that should use t() translation function for consistency with the rest of the app"
+  ],
+
+  "updated_files": [],
+
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "95% (21/22 tests passed, 1 minor i18n issue in StepDialog)"
+  },
+
+  "test_credentials": "Admin: admin@example.com / Admin123!, Demo User: demo@example.com / Demo123!, Partner: partner@example.com / Partner123!",
+
+  "seed_data_creation": "",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "Iteration 27 complete. i18n toggle working on all pages (Admin, User, Partner dashboards). Add Step modal bug fixed - content now visible. Minor issue: StepDialog has hardcoded German labels in Basic section (Titel, Beschreibung, Reihenfolge, Aktiv, Überspringbar) that don't translate to English. All other i18n translations working correctly with 150+ translation keys in LanguageContext.js."
+}
