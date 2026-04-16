@@ -1,0 +1,7 @@
+Step Order;Field Name;Type;Label;Placeholder;Required;Options
+1;name;text;Name;Ihr Nachname;True;
+1;first_name;text;Vorname;Ihr Vorname;True;
+1;phone;phone;Telefon;+49 (0) 123 456 789;True;
+1;address;text;Adresse;Straße und Hausnummer;True;
+1;field_of_study;selectbox;Fachgebiet;;True;Allgemeinmedizin|Zahnmedizin|HNO
+1;documents;multiupload;Dokumente;;False;Visum|Antrag auf Approbation|Approbation|Eingangsbescheinigung bei zuständiger Behörde|Kenntnissprüfung

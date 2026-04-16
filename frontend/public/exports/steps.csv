@@ -1,0 +1,9 @@
+Order;Title;Type;Duration Value;Duration Unit;Filter Tag;Skippable;Skip Label;Action Label;Pending Message;Complete Message;Required Fields;Required Uploads;Email on Leave;Active
+1;Persönliche Daten;form;0;days;;False;;;;;name|first_name|phone|address|field_of_study;;True;True
+2;Service Antragstellung;partner_selection;0;days;Antragstellung;False;;;;;;;False;True
+3;Meilenstein Antragstellung;milestone;4;weeks;;False;;;Warten auf Abschluss der Antragstellung. Ihr Partner bearbeitet Ihren Antrag.;Alles erledigt! Sie können zum nächsten Schritt weitergehen.;;;True;True
+4;FaMed;display;0;days;;False;;zur FaMed;;;;;False;True
+5;Service Kenntnisprüfung;partner_selection;0;days;Kenntnisprüfung;False;;;;;;;False;True
+6;Meilenstein Kenntnisprüfung;milestone;3;months;;False;;;Warten auf Abschluss der Kenntnisprüfung. Ihr Partner bearbeitet Ihre Prüfung.;Alles erledigt! Sie können zum nächsten Schritt weitergehen.;;;True;True
+7;Service Weiterbildung;partner_selection;0;days;Weiterbildung;True;Vorerst überspringen;;;;;;False;True
+8;Meilenstein Job finden;display;2;weeks;;False;;;Hier können wir Ihnen helfen!;;;;False;True

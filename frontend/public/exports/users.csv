@@ -1,0 +1,8 @@
+Email;Name;Role;Partner ID;Created At
+admin@example.com;Admin;admin;;2026-04-14
+demo@example.com;Demo User;user;;2026-04-14
+partner@example.com;ILS Admin;partner;69de3c12faf9cbab373b72b9;2026-04-14
+test_131307@example.com;Test User;user;;2026-04-14
+test_131333@example.com;Test User;user;;2026-04-14
+cg@digifort.info;Chris;user;;2026-04-15
+doc1@chrizz1001.de;doc1;user;;2026-04-16
