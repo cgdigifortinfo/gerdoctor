@@ -12,10 +12,13 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Be
 - Admin user detail: shows completed step data inline (like partner view)
 - Step Duration & Estimated Completion, Fachgebiet filter (15 specialties), Forecast date filter
 
-## Seeded Data
-- 4 demo doctors with Fachgebiete and Step 1 completed
+## Seeded Data (Updated 2026-04-16)
+- 5 preserved accounts: admin, partner@example.com, cg@digifort.info, doc1@chrizz1001.de, praxis_am_hang@chrizz1001.de
+- 8 new demo doctors with varying step progress (0-8/8 steps)
+- 9 partners total (4 updated originals + 5 new) with logos from digifort-experts.de
+- Partner categories: Antragstellung (3), Kenntnisprüfung (2), Weiterbildung (3), HNO (1)
 - 15 medical specialties in Fachgebiet selectbox
-- 8 steps, 3 partners, German CMS
+- 8 steps, German CMS
 
 ## Test Coverage (80+ tests, with cleanup)
 All test files delete TEST_ prefixed data after execution.
@@ -30,6 +33,7 @@ All test files delete TEST_ prefixed data after execution.
 - [x] Step editor: partner_multiselection in dropdown, conditional field visibility
 - [x] Seeded demo doctors with Fachgebiete
 - [x] Test cleanup (TEST_ prefixed data deleted)
+- [x] Seed migration: realistic partners with logos, demo users with varying progress (2026-04-16)
 
 ## Backlog
 - [ ] P1: Step template library
