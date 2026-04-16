@@ -12,34 +12,33 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Be
 - Admin user detail: shows completed step data inline (like partner view)
 - Step Duration & Estimated Completion, Fachgebiet filter (15 specialties), Forecast date filter
 
+## Data Model: Partner-User Relationship
+- **1:1 Dashboard Access**: `partner.user_id` + `user.partner_id` + `user.role='partner'` (for login/dashboard)
+- **M:N Linking** (no role change): `partner.linked_user_ids[]` array on partner doc. Users keep their role.
+- **Step Submissions**: `partner_submissions` collection (when user selects partner in step)
+- Partner Dashboard "Meine Nutzer" = UNION of submissions + linked_user_ids
+
 ## Seeded Data (Updated 2026-04-16)
 - **28 Users**: 1 Admin, 17 Partner-Users, 10 Regular Users
-- **5 beibehaltene Accounts**: admin, partner@example.com, cg@digifort.info, doc1@chrizz1001.de, praxis_am_hang@chrizz1001.de (alle Daten intakt)
-- **8 Demo-Aerzte** mit Fortschritt 0-8/8 Steps (dr.schmidt, dr.yilmaz, dr.chen, dr.kumar, dr.silva, dr.ahmed, dr.petrov, dr.tanaka @gerdoctor.de)
-- **17 Partner** mit Logos von digifort-experts.de:
-  - 3x Antragstellung (ILS, digiFORT Experts, HABS e.V.)
-  - 2x Kenntnispruefung (ILS2, HC&S)
-  - 3x Weiterbildung (ILS3, Lingoda, InterPers)
-  - 9x Praxis (Hausarztpraxis am Marienplatz, Internistische Praxis Rheinblick, Chirurgische Gemeinschaftspraxis Koenigstrasse, Kinderarztpraxis Zeilnest, Hautarztpraxis am Englischen Garten, Neurologisches Zentrum Friedrichstrasse, Orthopaedische Praxis Elbblick, Frauenarztpraxis an der Frauenkirche, Praxis am Hang)
-- Jeder Dr.-User hat eine zugeordnete Praxis (via partner_submission)
-- Jeder Partner hat einen einloggbaren Partner-User
-- 15 medical specialties in Fachgebiet selectbox
-- 8 Steps, German CMS
+- **5 beibehaltene Accounts**: admin, partner@example.com, cg@digifort.info, doc1@chrizz1001.de, praxis_am_hang@chrizz1001.de
+- **8 Demo-Aerzte** mit Fortschritt 0-8/8 Steps
+- **17 Partner** mit Logos von digifort-experts.de (3 Antragstellung, 2 Kenntnispruefung, 3 Weiterbildung, 9 Praxis)
+- 15 medical specialties, 8 Steps, German CMS
 
-## Test Coverage (80+ tests, with cleanup)
-All test files delete TEST_ prefixed data after execution.
+## Test Coverage
+- 80+ existing tests + 13 new partner linking tests (test_partner_linking.py)
+- All test files delete TEST_ prefixed data after execution
 
 ## Completed
 - [x] All core features (auth, steps, partners, CMS, audit, settings)
 - [x] User Dashboard: desktop single-row cards + mobile accordion
 - [x] Partner Dashboard: 2 tabs, sorting, filtering, step data + completion
 - [x] Admin Impersonate, User Create/Delete, Partner multi-user linking
-- [x] partner_multiselection step type (multi-partner selection)
+- [x] partner_multiselection step type
 - [x] Admin user detail with step data inline
-- [x] Step editor: partner_multiselection in dropdown, conditional field visibility
-- [x] Seed migration v1: realistic service partners with logos, demo users with varying progress (2026-04-16)
-- [x] Seed migration v2: Praxis partners for each Dr., partner users for all tags (2026-04-16)
-- [x] Old demo seeder removed from server.py startup
+- [x] Seed migration: realistic partners + demo users (2026-04-16)
+- [x] Seed migration v2: Praxis partners + service partner users (2026-04-16)
+- [x] Partner-User m:n Beziehung (no role change), empty email fix, Tests (2026-04-16)
 
 ## Backlog
 - [ ] P1: Step template library

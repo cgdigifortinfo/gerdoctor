@@ -20,7 +20,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from pathlib import Path
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Any
 from datetime import datetime, timezone, timedelta
 
@@ -230,21 +230,35 @@ class PartnerCreate(BaseModel):
     description: str
     logo_url: Optional[str] = None
     website: Optional[str] = None
-    contact_email: Optional[EmailStr] = None
+    contact_email: Optional[str] = None
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     linked_user_ids: Optional[List[str]] = None
+
+    @field_validator('contact_email', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 class PartnerUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     logo_url: Optional[str] = None
     website: Optional[str] = None
-    contact_email: Optional[EmailStr] = None
+    contact_email: Optional[str] = None
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     is_active: Optional[bool] = None
     linked_user_ids: Optional[List[str]] = None
+
+    @field_validator('contact_email', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 class StepFieldCreate(BaseModel):
     name: str
@@ -1068,7 +1082,7 @@ async def admin_create_user(data: AdminUserCreate, request: Request):
     
     # If role is partner and partner_id given, link the partner
     if data.role == "partner" and data.partner_id:
-        await db.partners.update_one({"_id": ObjectId(data.partner_id)}, {"$addToSet": {"user_ids": uid}})
+        await db.partners.update_one({"_id": ObjectId(data.partner_id)}, {"$set": {"user_id": uid}})
     
     await create_audit_log(admin_user["_id"], admin_user["email"], "user_create", "user", uid, {"email": data.email, "role": data.role})
     return {"id": uid, "message": "User created"}
@@ -1358,13 +1372,28 @@ async def admin_get_partners(request: Request):
     result = []
     for p in partners:
         pid = str(p["_id"])
-        # Find all users linked to this partner
-        linked_users = await db.users.find({"partner_id": pid}, {"_id": 1, "name": 1, "email": 1}).to_list(100)
-        linked = [{"id": str(u["_id"]), "name": u["name"], "email": u["email"]} for u in linked_users]
+        # Dashboard user: user with partner_id pointing to this partner (1:1 for login)
+        dashboard_user = await db.users.find_one({"partner_id": pid}, {"_id": 1, "name": 1, "email": 1})
+        # Linked users: m:n from partner doc's linked_user_ids array
+        linked_ids = p.get("linked_user_ids", [])
+        linked_users = []
+        if linked_ids:
+            for uid in linked_ids:
+                try:
+                    u = await db.users.find_one({"_id": ObjectId(uid)}, {"_id": 1, "name": 1, "email": 1})
+                    if u:
+                        linked_users.append({"id": str(u["_id"]), "name": u["name"], "email": u["email"]})
+                except Exception:
+                    pass
+        # Also include dashboard user in linked_users if not already present
+        if dashboard_user:
+            du_id = str(dashboard_user["_id"])
+            if du_id not in linked_ids:
+                linked_users.insert(0, {"id": du_id, "name": dashboard_user["name"], "email": dashboard_user["email"]})
         result.append({
             "id": pid,
             "name": p["name"],
-            "description": p["description"],
+            "description": p.get("description", ""),
             "logo_url": p.get("logo_url"),
             "website": p.get("website"),
             "contact_email": p.get("contact_email"),
@@ -1372,7 +1401,8 @@ async def admin_get_partners(request: Request):
             "tags": p.get("tags", []),
             "is_active": p.get("is_active", True),
             "user_id": p.get("user_id"),
-            "linked_users": linked
+            "linked_users": linked_users,
+            "linked_user_ids": linked_ids
         })
     return result
 
@@ -1388,16 +1418,12 @@ async def admin_create_partner(data: PartnerCreate, request: Request):
         "contact_email": data.contact_email,
         "category": data.category,
         "tags": data.tags or [],
+        "linked_user_ids": data.linked_user_ids or [],
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     result = await db.partners.insert_one(partner_doc)
     pid = str(result.inserted_id)
-    
-    # Link users if provided
-    if data.linked_user_ids:
-        for uid in data.linked_user_ids:
-            await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": "partner", "partner_id": pid}})
     
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_create", "partner", pid, {"name": data.name})
     return {"id": pid, "message": "Partner created"}
@@ -1409,18 +1435,11 @@ async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Re
     update_data = {k: v for k, v in data.model_dump().items() if v is not None and k != 'linked_user_ids'}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
-    await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
-    
-    # Handle linked users update
+    # Handle linked_user_ids: store directly on partner doc (m:n, no role change)
     if data.linked_user_ids is not None:
-        # Unlink all current partner users
-        await db.users.update_many(
-            {"partner_id": partner_id},
-            {"$set": {"role": "user"}, "$unset": {"partner_id": ""}}
-        )
-        # Link new users
-        for uid in data.linked_user_ids:
-            await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": "partner", "partner_id": partner_id}})
+        update_data["linked_user_ids"] = data.linked_user_ids
+    
+    await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
     
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_update", "partner", partner_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Partner updated"}
@@ -1564,35 +1583,72 @@ async def get_partner_submissions(request: Request):
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
+    # Get partner doc for linked_user_ids (m:n)
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
+    
+    # Get submissions
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
     total_steps = await db.steps.count_documents({"is_active": True})
+    step1 = await db.steps.find_one({"order": 1, "is_active": True})
     
+    seen_user_ids = set()
     for sub in submissions:
         uid = sub.get("user_id")
         if uid:
+            seen_user_ids.add(uid)
             sub["estimated_completion"] = await calculate_estimated_completion(uid)
             completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
             sub["completion_pct"] = round((completed / total_steps * 100) if total_steps > 0 else 0)
-            # Get field_of_study from step 1 progress
-            step1 = await db.steps.find_one({"order": 1, "is_active": True})
             if step1:
                 prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
                 sub["field_of_study"] = prog.get("data", {}).get("field_of_study", "") if prog else ""
             else:
                 sub["field_of_study"] = ""
+    
+    # Add linked users that don't have submissions yet
+    for uid in linked_user_ids:
+        if uid in seen_user_ids:
+            continue
+        u = await db.users.find_one({"_id": ObjectId(uid)}, {"password_hash": 0})
+        if not u or u.get("role") == "admin":
+            continue
+        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
+        est = await calculate_estimated_completion(uid)
+        field_of_study = ""
+        if step1:
+            prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
+            field_of_study = prog.get("data", {}).get("field_of_study", "") if prog else ""
+        submissions.append({
+            "user_id": uid,
+            "user_name": u["name"],
+            "user_email": u["email"],
+            "partner_id": partner_id,
+            "data": {"source": "linked"},
+            "status": "linked",
+            "completion_pct": round((completed / total_steps * 100) if total_steps > 0 else 0),
+            "estimated_completion": est,
+            "field_of_study": field_of_study,
+        })
+        seen_user_ids.add(uid)
+    
     return submissions
 
 @api_router.get("/partner/other-users")
 async def get_partner_other_users(request: Request):
-    """Get all users who did NOT submit to this partner, with their progress."""
+    """Get all users who are NOT linked to this partner (neither via submissions nor linked_user_ids)."""
     user = await require_role("partner")(request)
     partner_id = user.get("partner_id")
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
+    # Get partner doc for linked_user_ids
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
+    
     # Get IDs of users who submitted to this partner
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"user_id": 1}).to_list(1000)
-    submitted_user_ids = {sub["user_id"] for sub in submissions}
+    my_user_ids = {sub["user_id"] for sub in submissions} | linked_user_ids
     
     # Get all non-admin users
     all_users = await db.users.find({"role": "user"}, {"password_hash": 0}).to_list(1000)
@@ -1602,7 +1658,7 @@ async def get_partner_other_users(request: Request):
     result = []
     for u in all_users:
         uid = str(u["_id"])
-        if uid in submitted_user_ids:
+        if uid in my_user_ids:
             continue
         completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
         est = await calculate_estimated_completion(uid)

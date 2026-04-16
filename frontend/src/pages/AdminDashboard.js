@@ -1729,7 +1729,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, t }) {
                 logo_url: partner.logo_url || '', website: partner.website || '',
                 contact_email: partner.contact_email || '', category: partner.category || '',
                 tags: partner.tags || [], is_active: partner.is_active !== false,
-                linked_user_ids: (partner.linked_users || []).map(u => u.id)
+                linked_user_ids: partner.linked_user_ids || []
             });
             setTagsText((partner.tags || []).join(', '));
         } else {
