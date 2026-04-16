@@ -146,6 +146,7 @@ export const settingsAPI = {
 // Partner Dashboard APIs
 export const partnerDashboardAPI = {
     getSubmissions: () => api.get('/partner/submissions'),
+    getOtherUsers: () => api.get('/partner/other-users'),
     getProfile: () => api.get('/partner/profile'),
     updateProfile: (data) => api.put('/partner/profile', data),
     getUserDetail: (userId) => api.get(`/partner/users/${userId}`),

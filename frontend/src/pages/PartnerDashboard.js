@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { partnerDashboardAPI, formatApiError, filesAPI } from '../lib/api';
@@ -7,22 +7,189 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Progress } from '../components/ui/progress';
-import { SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle, DownloadSimple, UserSwitch } from '@phosphor-icons/react';
+import {
+    SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle,
+    DownloadSimple, UserSwitch, CaretUp, CaretDown, UsersThree, UserList, Funnel
+} from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 
+// ===== Shared sortable/filterable user table =====
+function UserTable({ data, onViewUser, showStatus = false, tableId = 'table' }) {
+    const [sortKey, setSortKey] = useState(null);
+    const [sortDir, setSortDir] = useState('asc');
+    const [forecastFrom, setForecastFrom] = useState('');
+    const [forecastTo, setForecastTo] = useState('');
+    const [fieldFilter, setFieldFilter] = useState('all');
+
+    // Collect unique Fachgebiet values
+    const fachgebiete = useMemo(() => {
+        const set = new Set();
+        data.forEach(u => { if (u.field_of_study) set.add(u.field_of_study); });
+        return Array.from(set).sort();
+    }, [data]);
+
+    const handleSort = (key) => {
+        if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortKey(key); setSortDir('asc'); }
+    };
+
+    const SortHeader = ({ label, sortField, className = '' }) => (
+        <th
+            className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${className}`}
+            onClick={() => handleSort(sortField)}
+            data-testid={`sort-${tableId}-${sortField}`}
+        >
+            <div className="flex items-center gap-1">
+                {label}
+                <span className="inline-flex flex-col leading-none">
+                    <CaretUp size={10} weight={sortKey === sortField && sortDir === 'asc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'asc' ? 'text-[#114f55]' : 'text-muted-foreground/40'} />
+                    <CaretDown size={10} weight={sortKey === sortField && sortDir === 'desc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'desc' ? 'text-[#114f55]' : 'text-muted-foreground/40'} />
+                </span>
+            </div>
+        </th>
+    );
+
+    const filtered = useMemo(() => {
+        let result = [...data];
+        // Fachgebiet filter
+        if (fieldFilter && fieldFilter !== 'all') {
+            result = result.filter(u => u.field_of_study === fieldFilter);
+        }
+        // Forecast date filter
+        if (forecastFrom) {
+            const from = new Date(forecastFrom);
+            result = result.filter(u => u.estimated_completion && new Date(u.estimated_completion) >= from);
+        }
+        if (forecastTo) {
+            const to = new Date(forecastTo); to.setHours(23, 59, 59);
+            result = result.filter(u => u.estimated_completion && new Date(u.estimated_completion) <= to);
+        }
+        // Sort
+        if (sortKey) {
+            result.sort((a, b) => {
+                let va = a[sortKey] ?? '';
+                let vb = b[sortKey] ?? '';
+                if (sortKey === 'completion_pct') { va = Number(va); vb = Number(vb); }
+                else if (sortKey === 'estimated_completion' || sortKey === 'created_at') {
+                    va = va ? new Date(va).getTime() : 0;
+                    vb = vb ? new Date(vb).getTime() : 0;
+                } else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return result;
+    }, [data, fieldFilter, forecastFrom, forecastTo, sortKey, sortDir]);
+
+    return (
+        <div>
+            {/* Filters */}
+            <div className="flex flex-wrap items-end gap-4 p-4 border-b border-border bg-muted/30">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Funnel size={14} /> Filter:</div>
+                <div className="w-48">
+                    <Label className="text-xs text-muted-foreground">Fachgebiet</Label>
+                    <Select value={fieldFilter} onValueChange={setFieldFilter}>
+                        <SelectTrigger className="h-8 text-xs mt-0.5" data-testid={`filter-${tableId}-fachgebiet`}>
+                            <SelectValue placeholder="Alle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Alle</SelectItem>
+                            {fachgebiete.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <Label className="text-xs text-muted-foreground">Forecast von</Label>
+                    <Input type="date" value={forecastFrom} onChange={e => setForecastFrom(e.target.value)} className="h-8 text-xs mt-0.5 w-36" data-testid={`filter-${tableId}-forecast-from`} />
+                </div>
+                <div>
+                    <Label className="text-xs text-muted-foreground">Forecast bis</Label>
+                    <Input type="date" value={forecastTo} onChange={e => setForecastTo(e.target.value)} className="h-8 text-xs mt-0.5 w-36" data-testid={`filter-${tableId}-forecast-to`} />
+                </div>
+                {(fieldFilter !== 'all' || forecastFrom || forecastTo) && (
+                    <Button variant="ghost" size="sm" onClick={() => { setFieldFilter('all'); setForecastFrom(''); setForecastTo(''); }} className="text-xs h-8 text-muted-foreground" data-testid={`filter-${tableId}-reset`}>
+                        Zurücksetzen
+                    </Button>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">{filtered.length} Einträge</span>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+                <table className="w-full" data-testid={`${tableId}-table`}>
+                    <thead className="bg-background">
+                        <tr>
+                            <SortHeader label="User" sortField="user_name" />
+                            <SortHeader label="Email" sortField="user_email" />
+                            <SortHeader label="Fachgebiet" sortField="field_of_study" />
+                            <SortHeader label="Progress" sortField="completion_pct" />
+                            {showStatus && <SortHeader label="Status" sortField="status" />}
+                            <SortHeader label="Forecast" sortField="estimated_completion" />
+                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filtered.map((item) => (
+                            <tr key={item.user_id || item.id} className="border-t border-border table-row-hover">
+                                <td className="px-4 py-3 text-sm text-foreground font-medium">{item.user_name}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{item.user_email}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{item.field_of_study || '-'}</td>
+                                <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2 min-w-[100px]">
+                                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${item.completion_pct || 0}%` }} />
+                                        </div>
+                                        <span className="text-xs font-medium text-muted-foreground w-8 text-right">{item.completion_pct || 0}%</span>
+                                    </div>
+                                </td>
+                                {showStatus && (
+                                    <td className="px-4 py-3">
+                                        <span className={`px-2 py-1 text-xs rounded-sm ${
+                                            item.status === 'submitted' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                            item.status === 'reviewed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                        }`}>
+                                            {item.status || '-'}
+                                        </span>
+                                    </td>
+                                )}
+                                <td className="px-4 py-3 text-sm text-muted-foreground">
+                                    {item.estimated_completion ? new Date(item.estimated_completion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Button variant="ghost" size="sm" onClick={() => onViewUser(item)} data-testid={`view-user-${item.user_id || item.id}`}>
+                                        <Eye size={18} className="mr-1" /> Details
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                        {filtered.length === 0 && (
+                            <tr><td colSpan={showStatus ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">Keine Einträge gefunden</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+// ===== Main Partner Dashboard =====
 export default function PartnerDashboard() {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [submissions, setSubmissions] = useState([]);
+    const [otherUsers, setOtherUsers] = useState([]);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('submissions');
+    const [activeTab, setActiveTab] = useState('my-users');
     const [selectedSubmission, setSelectedSubmission] = useState(null);
     const [userDetail, setUserDetail] = useState(null);
     const [userDetailLoading, setUserDetailLoading] = useState(false);
@@ -31,31 +198,26 @@ export default function PartnerDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [subsRes, profileRes] = await Promise.all([
+            const [subsRes, otherRes, profileRes] = await Promise.all([
                 partnerDashboardAPI.getSubmissions(),
+                partnerDashboardAPI.getOtherUsers(),
                 partnerDashboardAPI.getProfile()
             ]);
             setSubmissions(subsRes.data);
+            setOtherUsers(otherRes.data);
             setProfile(profileRes.data);
             setProfileForm(profileRes.data);
         } catch (error) {
             console.error('Failed to load data:', error);
-            if (error.response?.status === 400) {
-                toast.error('Your account is not linked to a partner');
-            }
+            if (error.response?.status === 400) toast.error('Your account is not linked to a partner');
         } finally {
             setLoading(false);
         }
     }, []);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    useEffect(() => { loadData(); }, [loadData]);
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
+    const handleLogout = async () => { await logout(); navigate('/'); };
 
     const handleSaveProfile = async () => {
         try {
@@ -63,61 +225,49 @@ export default function PartnerDashboard() {
             toast.success('Profile updated');
             setEditingProfile(false);
             loadData();
-        } catch (error) {
-            toast.error(formatApiError(error));
-        }
+        } catch (error) { toast.error(formatApiError(error)); }
     };
 
-    const handleViewSubmission = async (sub) => {
-        setSelectedSubmission(sub);
+    const handleViewUser = async (item) => {
+        setSelectedSubmission(item);
         setUserDetail(null);
         setUserDetailLoading(true);
         try {
-            const res = await partnerDashboardAPI.getUserDetail(sub.user_id);
+            const res = await partnerDashboardAPI.getUserDetail(item.user_id);
             setUserDetail(res.data);
         } catch (error) {
-            console.error('Failed to load user detail:', error);
-        } finally {
-            setUserDetailLoading(false);
-        }
+            // For "other users" the partner may not have access - show basic info
+            if (error.response?.status === 403) {
+                setUserDetail({ noAccess: true, name: item.user_name, email: item.user_email });
+            } else {
+                console.error('Failed to load user detail:', error);
+            }
+        } finally { setUserDetailLoading(false); }
     };
 
     const handleUpdateStepStatus = async (userId, stepId, newStatus) => {
         try {
             await partnerDashboardAPI.updateUserProgress(userId, stepId, newStatus, {});
             toast.success('Step status updated');
-            // Reload user detail
             const res = await partnerDashboardAPI.getUserDetail(userId);
             setUserDetail(res.data);
-        } catch (error) {
-            toast.error(formatApiError(error));
-        }
+            loadData();
+        } catch (error) { toast.error(formatApiError(error)); }
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-muted-foreground">Loading...</div>
-            </div>
-        );
-    }
+    if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
             <header className="sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
                             <Logo />
-                            <span className="text-xs font-bold tracking-wider uppercase text-green-700 px-2 py-1 bg-green-50 rounded">
-                                Partner
-                            </span>
+                            <span className="text-xs font-bold tracking-wider uppercase text-green-700 px-2 py-1 bg-green-50 rounded">Partner</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <span className="text-sm text-muted-foreground hidden sm:block">
-                                {profile?.name || user?.name}
-                            </span>
+                            <span className="text-sm text-muted-foreground hidden sm:block">{profile?.name || user?.name}</span>
                             <ThemeLangToggle />
                             {impersonating && (
                                 <Button size="sm" onClick={() => { stopImpersonation(); navigate('/admin'); }} className="bg-red-600 hover:bg-red-700 text-white" data-testid="stop-impersonation-btn">
@@ -125,15 +275,7 @@ export default function PartnerDashboard() {
                                 </Button>
                             )}
                             {!impersonating && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleLogout}
-                                    className="text-muted-foreground"
-                                    data-testid="partner-logout-btn"
-                                >
-                                    <SignOut size={20} />
-                                </Button>
+                                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="partner-logout-btn"><SignOut size={20} /></Button>
                             )}
                         </div>
                     </div>
@@ -144,86 +286,44 @@ export default function PartnerDashboard() {
                 {!profile ? (
                     <div className="bg-card border border-border rounded-sm p-8 text-center">
                         <h2 className="text-xl font-semibold text-foreground mb-4">Account Not Linked</h2>
-                        <p className="text-muted-foreground">
-                            Your account is not yet linked to a partner organization. Please contact an administrator.
-                        </p>
+                        <p className="text-muted-foreground">Your account is not yet linked to a partner organization. Please contact an administrator.</p>
                     </div>
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="mb-6 bg-card border border-border">
-                            <TabsTrigger value="submissions" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
-                                <FileText size={18} className="mr-2" />
-                                Submissions
+                            <TabsTrigger value="my-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-my-users">
+                                <UserList size={18} className="mr-2" />
+                                Meine Nutzer ({submissions.length})
                             </TabsTrigger>
-                            <TabsTrigger value="profile" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                            <TabsTrigger value="other-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-other-users">
+                                <UsersThree size={18} className="mr-2" />
+                                Andere Nutzer ({otherUsers.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="profile" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
-                                Profile
+                                Profil
                             </TabsTrigger>
                         </TabsList>
 
-                        {/* Submissions Tab */}
-                        <TabsContent value="submissions">
-                            <div className="bg-card border border-border rounded-sm">
+                        {/* Tab 1: My Users (submitted to this partner) */}
+                        <TabsContent value="my-users">
+                            <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
-                                    <h2 className="text-lg font-semibold text-foreground">User Submissions</h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        View all submissions from users who selected your organization
-                                    </p>
+                                    <h2 className="text-lg font-semibold text-foreground">Meine Nutzer</h2>
+                                    <p className="text-sm text-muted-foreground">Nutzer, die Ihre Organisation gewählt haben</p>
                                 </div>
-                                
-                                {submissions.length === 0 ? (
-                                    <div className="p-8 text-center text-muted-foreground">
-                                        No submissions yet
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead className="bg-background">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">User</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Forecast</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {submissions.map((sub) => (
-                                                    <tr key={sub.id} className="border-t border-border table-row-hover">
-                                                        <td className="px-4 py-3 text-sm text-foreground">{sub.user_name}</td>
-                                                        <td className="px-4 py-3 text-sm text-muted-foreground">{sub.user_email}</td>
-                                                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                                                            {new Date(sub.created_at).toLocaleDateString()}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <span className={`px-2 py-1 text-xs rounded-sm ${
-                                                                sub.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
-                                                                sub.status === 'reviewed' ? 'bg-green-100 text-green-700' :
-                                                                'bg-gray-100 text-gray-700'
-                                                            }`}>
-                                                                {sub.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                                                            {sub.estimated_completion ? new Date(sub.estimated_completion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => handleViewSubmission(sub)}
-                                                                data-testid={`view-submission-${sub.id}`}
-                                                            >
-                                                                <Eye size={18} className="mr-1" /> Details
-                                                            </Button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
+                                <UserTable data={submissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" />
+                            </div>
+                        </TabsContent>
+
+                        {/* Tab 2: Other Users (not submitted to this partner) */}
+                        <TabsContent value="other-users">
+                            <div className="bg-card border border-border rounded-sm overflow-hidden">
+                                <div className="p-4 border-b border-border">
+                                    <h2 className="text-lg font-semibold text-foreground">Andere Nutzer</h2>
+                                    <p className="text-sm text-muted-foreground">Nutzer, die Ihre Organisation nicht gewählt haben</p>
+                                </div>
+                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" />
                             </div>
                         </TabsContent>
 
@@ -231,48 +331,21 @@ export default function PartnerDashboard() {
                         <TabsContent value="profile">
                             <div className="bg-card border border-border rounded-sm">
                                 <div className="p-4 border-b border-border flex justify-between items-center">
-                                    <h2 className="text-lg font-semibold text-foreground">Partner Profile</h2>
-                                    {!editingProfile && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setEditingProfile(true)}
-                                            data-testid="edit-profile-btn"
-                                        >
-                                            Edit Profile
-                                        </Button>
-                                    )}
+                                    <h2 className="text-lg font-semibold text-foreground">Partner Profil</h2>
+                                    {!editingProfile && <Button variant="outline" onClick={() => setEditingProfile(true)} data-testid="edit-profile-btn">Bearbeiten</Button>}
                                 </div>
-                                
                                 <div className="p-6">
                                     {editingProfile ? (
                                         <div className="space-y-4 max-w-lg">
-                                            <div>
-                                                <Label>Organization Name</Label>
-                                                <Input value={profileForm.name || ''} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="mt-1" data-testid="profile-name-input" />
-                                            </div>
-                                            <div>
-                                                <Label>Description</Label>
-                                                <Textarea value={profileForm.description || ''} onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })} className="mt-1" data-testid="profile-description-input" />
-                                            </div>
-                                            <div>
-                                                <Label>Logo URL</Label>
-                                                <Input value={profileForm.logo_url || ''} onChange={(e) => setProfileForm({ ...profileForm, logo_url: e.target.value })} className="mt-1" data-testid="profile-logo-input" />
-                                            </div>
-                                            <div>
-                                                <Label>Website</Label>
-                                                <Input value={profileForm.website || ''} onChange={(e) => setProfileForm({ ...profileForm, website: e.target.value })} className="mt-1" data-testid="profile-website-input" />
-                                            </div>
-                                            <div>
-                                                <Label>Contact Email</Label>
-                                                <Input type="email" value={profileForm.contact_email || ''} onChange={(e) => setProfileForm({ ...profileForm, contact_email: e.target.value })} className="mt-1" data-testid="profile-email-input" />
-                                            </div>
-                                            <div>
-                                                <Label>Category</Label>
-                                                <Input value={profileForm.category || ''} onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })} className="mt-1" data-testid="profile-category-input" />
-                                            </div>
+                                            <div><Label>Name</Label><Input value={profileForm.name || ''} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} className="mt-1" data-testid="profile-name-input" /></div>
+                                            <div><Label>Beschreibung</Label><Textarea value={profileForm.description || ''} onChange={e => setProfileForm({ ...profileForm, description: e.target.value })} className="mt-1" data-testid="profile-description-input" /></div>
+                                            <div><Label>Logo URL</Label><Input value={profileForm.logo_url || ''} onChange={e => setProfileForm({ ...profileForm, logo_url: e.target.value })} className="mt-1" data-testid="profile-logo-input" /></div>
+                                            <div><Label>Website</Label><Input value={profileForm.website || ''} onChange={e => setProfileForm({ ...profileForm, website: e.target.value })} className="mt-1" data-testid="profile-website-input" /></div>
+                                            <div><Label>Kontakt-Email</Label><Input type="email" value={profileForm.contact_email || ''} onChange={e => setProfileForm({ ...profileForm, contact_email: e.target.value })} className="mt-1" data-testid="profile-email-input" /></div>
+                                            <div><Label>Kategorie</Label><Input value={profileForm.category || ''} onChange={e => setProfileForm({ ...profileForm, category: e.target.value })} className="mt-1" data-testid="profile-category-input" /></div>
                                             <div className="flex gap-3 pt-4">
-                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>Cancel</Button>
-                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">Save Changes</Button>
+                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>Abbrechen</Button>
+                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">Speichern</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -284,19 +357,10 @@ export default function PartnerDashboard() {
                                                     {profile.category && <span className="inline-block mt-1 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">{profile.category}</span>}
                                                 </div>
                                             </div>
-                                            <div>
-                                                <Label className="text-muted-foreground">Description</Label>
-                                                <p className="mt-1">{profile.description}</p>
-                                            </div>
+                                            <div><Label className="text-muted-foreground">Beschreibung</Label><p className="mt-1">{profile.description}</p></div>
                                             <div className="grid md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <Label className="text-muted-foreground">Website</Label>
-                                                    <p className="mt-1">{profile.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline">{profile.website}</a> : '-'}</p>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-muted-foreground">Contact Email</Label>
-                                                    <p className="mt-1">{profile.contact_email || '-'}</p>
-                                                </div>
+                                                <div><Label className="text-muted-foreground">Website</Label><p className="mt-1">{profile.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline">{profile.website}</a> : '-'}</p></div>
+                                                <div><Label className="text-muted-foreground">Kontakt-Email</Label><p className="mt-1">{profile.contact_email || '-'}</p></div>
                                             </div>
                                         </div>
                                     )}
@@ -307,7 +371,7 @@ export default function PartnerDashboard() {
                 )}
             </div>
 
-            {/* Submission Detail Dialog */}
+            {/* User Detail Dialog */}
             <Dialog open={!!selectedSubmission} onOpenChange={() => { setSelectedSubmission(null); setUserDetail(null); }}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
@@ -315,66 +379,34 @@ export default function PartnerDashboard() {
                     </DialogHeader>
                     {selectedSubmission && (
                         <div className="space-y-6">
-                            {/* User info */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-muted-foreground">User Name</Label>
-                                    <p className="font-medium" data-testid="detail-user-name">{selectedSubmission.user_name}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Email</Label>
-                                    <p className="font-medium" data-testid="detail-user-email">{selectedSubmission.user_email}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Submitted</Label>
-                                    <p className="font-medium">{new Date(selectedSubmission.created_at).toLocaleString()}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-muted-foreground">Status</Label>
-                                    <p className="font-medium capitalize">{selectedSubmission.status}</p>
-                                </div>
+                                <div><Label className="text-muted-foreground">Name</Label><p className="font-medium" data-testid="detail-user-name">{selectedSubmission.user_name}</p></div>
+                                <div><Label className="text-muted-foreground">Email</Label><p className="font-medium" data-testid="detail-user-email">{selectedSubmission.user_email}</p></div>
                             </div>
 
-                            {/* Submission data */}
-                            {selectedSubmission.data && Object.keys(selectedSubmission.data).length > 0 && (
-                                <div>
-                                    <Label className="text-muted-foreground">Submission Data</Label>
-                                    <div className="mt-2 p-4 bg-background rounded-sm">
-                                        {Object.entries(selectedSubmission.data).map(([key, value]) => (
-                                            <div key={key} className="py-2 border-b border-border last:border-0">
-                                                <span className="text-xs text-muted-foreground uppercase">{key.replace(/_/g, ' ')}</span>
-                                                <p className="font-medium">{String(value)}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Step progress */}
                             {userDetailLoading ? (
-                                <div className="text-center py-4 text-muted-foreground">Loading step data...</div>
+                                <div className="text-center py-4 text-muted-foreground">Lade Schrittdaten...</div>
+                            ) : userDetail?.noAccess ? (
+                                <div className="p-6 bg-muted rounded-sm text-center">
+                                    <p className="text-muted-foreground">Dieser Nutzer hat noch keinen Antrag bei Ihnen eingereicht. Detaillierte Schrittdaten sind daher nicht verfügbar.</p>
+                                </div>
                             ) : userDetail ? (
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
-                                        <Label className="text-muted-foreground">Step Progress</Label>
-                                        <span className="text-sm font-medium text-[#114f55]" data-testid="detail-completion-pct">{userDetail.completion_pct}% Complete</span>
+                                        <Label className="text-muted-foreground">Fortschritt</Label>
+                                        <span className="text-sm font-medium text-[#114f55]" data-testid="detail-completion-pct">{userDetail.completion_pct}%</span>
                                     </div>
                                     <Progress value={userDetail.completion_pct} className="h-2 mb-4" />
-
                                     <div className="space-y-3">
                                         {userDetail.steps?.map((step) => {
                                             const prog = userDetail.progress?.find(p => p.step_id === step.id);
                                             const status = prog?.status || 'pending';
                                             const stepData = prog?.data || {};
-
                                             return (
                                                 <div key={step.id} className="border border-border rounded-sm overflow-hidden" data-testid={`detail-step-${step.order}`}>
                                                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                                                                ${status === 'completed' ? 'bg-green-500 text-white' :
-                                                                status === 'in_progress' ? 'bg-[#114f55] text-white' :
-                                                                'bg-muted text-muted-foreground'}`}>
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? <Check size={12} weight="bold" /> : step.order}
                                                             </div>
                                                             <div>
@@ -383,26 +415,16 @@ export default function PartnerDashboard() {
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-sm
-                                                                ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                                                                status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                                                                'bg-muted text-muted-foreground'}`}>
-                                                                {status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Pending'}
+                                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-sm ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>
+                                                                {status === 'completed' ? 'Abgeschlossen' : status === 'in_progress' ? 'In Bearbeitung' : 'Ausstehend'}
                                                             </span>
                                                             {status !== 'completed' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')}
-                                                                    className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2"
-                                                                    data-testid={`complete-step-${step.order}`}
-                                                                >
-                                                                    <CheckCircle size={14} className="mr-1" /> Complete
+                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className="bg-green-600 hover:bg-green-700 text-white text-xs h-7 px-2" data-testid={`complete-step-${step.order}`}>
+                                                                    <CheckCircle size={14} className="mr-1" /> Abschließen
                                                                 </Button>
                                                             )}
                                                         </div>
                                                     </div>
-
-                                                    {/* Show step data below each step */}
                                                     {stepData && Object.keys(stepData).length > 0 && (
                                                         <div className="px-4 py-3 border-t border-border bg-background/50">
                                                             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -411,8 +433,6 @@ export default function PartnerDashboard() {
                                                                     const fieldDef = step.fields?.find(f => f.name === key);
                                                                     const label = fieldDef?.label || key.replace(/_/g, ' ');
                                                                     const fieldType = fieldDef?.field_type;
-
-                                                                    // Multiupload: show each document with type + download link
                                                                     if (fieldType === 'multiupload' && Array.isArray(value)) {
                                                                         return (
                                                                             <div key={key} className="col-span-2" data-testid={`step-data-${step.order}-${key}`}>
@@ -420,53 +440,30 @@ export default function PartnerDashboard() {
                                                                                 <div className="mt-1 space-y-1.5">
                                                                                     {value.map((entry, i) => (
                                                                                         <div key={i} className="flex items-center gap-2 text-sm">
-                                                                                            {entry.document_type && (
-                                                                                                <span className="px-2 py-0.5 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>
-                                                                                            )}
+                                                                                            {entry.document_type && <span className="px-2 py-0.5 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>}
                                                                                             {entry.file_id ? (
-                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer"
-                                                                                                    className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium"
-                                                                                                    data-testid={`download-${step.order}-${key}-${i}`}>
-                                                                                                    <DownloadSimple size={14} />
-                                                                                                    {entry.filename || 'Download'}
+                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium" data-testid={`download-${step.order}-${key}-${i}`}>
+                                                                                                    <DownloadSimple size={14} />{entry.filename || 'Download'}
                                                                                                 </a>
-                                                                                            ) : (
-                                                                                                <span className="text-muted-foreground">{entry.filename || '-'}</span>
-                                                                                            )}
+                                                                                            ) : <span className="text-muted-foreground">{entry.filename || '-'}</span>}
                                                                                         </div>
                                                                                     ))}
-                                                                                    {value.length === 0 && <p className="text-sm text-muted-foreground">-</p>}
                                                                                 </div>
                                                                             </div>
                                                                         );
                                                                     }
-
-                                                                    // Single file field: show download link
                                                                     if (fieldType === 'file' && value) {
                                                                         return (
                                                                             <div key={key} data-testid={`step-data-${step.order}-${key}`}>
                                                                                 <span className="text-xs text-muted-foreground capitalize">{label}</span>
-                                                                                <div className="mt-0.5">
-                                                                                    <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer"
-                                                                                        className="inline-flex items-center gap-1 text-sm text-[#114f55] hover:underline font-medium"
-                                                                                        data-testid={`download-${step.order}-${key}`}>
-                                                                                        <DownloadSimple size={14} />
-                                                                                        Download
-                                                                                    </a>
-                                                                                </div>
+                                                                                <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[#114f55] hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
                                                                             </div>
                                                                         );
                                                                     }
-
-                                                                    // Regular fields: text display
                                                                     let displayValue;
-                                                                    if (Array.isArray(value)) {
-                                                                        displayValue = value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ') || '-';
-                                                                    } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = JSON.stringify(value);
-                                                                    } else {
-                                                                        displayValue = String(value || '-');
-                                                                    }
+                                                                    if (Array.isArray(value)) displayValue = value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ') || '-';
+                                                                    else if (typeof value === 'object' && value !== null) displayValue = JSON.stringify(value);
+                                                                    else displayValue = String(value || '-');
                                                                     return (
                                                                         <div key={key} data-testid={`step-data-${step.order}-${key}`}>
                                                                             <span className="text-xs text-muted-foreground capitalize">{label}</span>
@@ -477,7 +474,6 @@ export default function PartnerDashboard() {
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {/* Show empty state for steps with no data */}
                                                     {(!stepData || Object.keys(stepData).length === 0) && status !== 'pending' && (
                                                         <div className="px-4 py-2 border-t border-border bg-background/50">
                                                             <p className="text-xs text-muted-foreground italic">Keine Daten eingegeben</p>

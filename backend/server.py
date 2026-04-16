@@ -1433,12 +1433,61 @@ async def get_partner_submissions(request: Request):
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
-    # Enrich with estimated completion
+    total_steps = await db.steps.count_documents({"is_active": True})
+    
     for sub in submissions:
         uid = sub.get("user_id")
         if uid:
             sub["estimated_completion"] = await calculate_estimated_completion(uid)
+            completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
+            sub["completion_pct"] = round((completed / total_steps * 100) if total_steps > 0 else 0)
+            # Get field_of_study from step 1 progress
+            step1 = await db.steps.find_one({"order": 1, "is_active": True})
+            if step1:
+                prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
+                sub["field_of_study"] = prog.get("data", {}).get("field_of_study", "") if prog else ""
+            else:
+                sub["field_of_study"] = ""
     return submissions
+
+@api_router.get("/partner/other-users")
+async def get_partner_other_users(request: Request):
+    """Get all users who did NOT submit to this partner, with their progress."""
+    user = await require_role("partner")(request)
+    partner_id = user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    
+    # Get IDs of users who submitted to this partner
+    submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"user_id": 1}).to_list(1000)
+    submitted_user_ids = {sub["user_id"] for sub in submissions}
+    
+    # Get all non-admin users
+    all_users = await db.users.find({"role": "user"}, {"password_hash": 0}).to_list(1000)
+    total_steps = await db.steps.count_documents({"is_active": True})
+    step1 = await db.steps.find_one({"order": 1, "is_active": True})
+    
+    result = []
+    for u in all_users:
+        uid = str(u["_id"])
+        if uid in submitted_user_ids:
+            continue
+        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
+        est = await calculate_estimated_completion(uid)
+        field_of_study = ""
+        if step1:
+            prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
+            field_of_study = prog.get("data", {}).get("field_of_study", "") if prog else ""
+        result.append({
+            "user_id": uid,
+            "user_name": u["name"],
+            "user_email": u["email"],
+            "completion_pct": round((completed / total_steps * 100) if total_steps > 0 else 0),
+            "estimated_completion": est,
+            "field_of_study": field_of_study,
+            "created_at": u.get("created_at", "")
+        })
+    return result
 
 @api_router.get("/partner/profile")
 async def get_partner_profile(request: Request):
