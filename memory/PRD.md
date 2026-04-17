@@ -11,31 +11,43 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Be
 - Step types: form, partner_selection, partner_multiselection, milestone, display
 - Partner tag/category filter dropdown on selection views
 - Step Duration & Estimated Completion (excludes duration=0 steps)
-- User step-back navigation restores form data, partner selections, and multi-partner selections
-- Generated partner logos (Emergent static images)
+- User step-back navigation restores form data, partner selections, multi-partner selections
+- Landing page: medical hero image, "by digiFORT" branding, German headlines
+- FaMed step with external link to famed-test.de
+- Tooltip "Voraussichtliche Approbation" on user header date
 
-## Data Model
-- 1:1 Dashboard Access: partner.user_id + user.partner_id + user.role='partner'
-- M:N Linking (no role change): partner.linked_user_ids[]
-- Step Submissions: partner_submissions collection
-- Completion %: Only steps with duration_value > 0 count
-- partner_step_id: partner_selection step matching partner's tag
+## Steps (12 total)
+1. Persoenliche Daten (form)
+2. Antragstellung Approbation (partner_selection, tag=Antragstellung)
+3. Uebersicht Antragstellung Approbation (milestone, 4 weeks)
+4. FaMed (display, link to famed-test.de)
+5. Gleichwertigkeitspruefung (partner_selection, tag=Gleichwertigkeitspruefung)
+6. Uebersicht Gleichwertigkeitspruefung (milestone, 3 months)
+7. Service Kenntnisprüfung (partner_selection, tag=Kenntnisprüfung)
+8. Meilenstein Kenntnisprüfung (milestone, 3 months)
+9. Service Weiterbildung (partner_selection, tag=Weiterbildung)
+10. Meilenstein Job finden (milestone)
+11. Jobangebote (partner_multiselection, tag=Praxis)
+12. Du hast dich nun beworben! (milestone)
+
+## Partners (19 total)
+- Antragstellung (3): ILS, digiFORT Experts, HABS e.V.
+- Gleichwertigkeitspruefung (2): IQB Pruefungszentrum, MedAkademie Berlin
+- Kenntnisprüfung (2): ILS2, HC&S
+- Weiterbildung (3): ILS3, Lingoda, InterPers
+- Praxis (9): Hausarztpraxis, Internistische, Chirurgische, Kinderarzt, Hautarzt, Neurologisches, Orthopaedische, Frauenarzt, Praxis am Hang
 
 ## Seeded Data
-- 28 Users (1 Admin, 17 Partner, 10 User), 17 Partners, 10 Steps
-- Steps with duration: Step 3 (4 weeks), Step 6 (3 months)
-- All partner logos: Emergent static images
+- 28 Users, 19 Partners, 12 Steps
+- All logos: Emergent static images
 
 ## Completed
 - [x] All core features, dashboards, i18n, dark mode
-- [x] Seed migration with realistic partners + demo users
 - [x] Partner-User m:n relationship, Partner Step Completion
-- [x] Partner views ALL user data (selections hidden)
-- [x] Progress % excludes duration=0 steps
-- [x] User step-back restores all form data + selections
-- [x] Multi-partner selection pre-fill fix (2026-04-17)
-- [x] Partner logos replaced with working Emergent static images (2026-04-17)
-- [x] Partner tag/category filter dropdown (2026-04-17)
+- [x] Landing page: hero doctors image, headlines, badge, partner filter (2026-04-17)
+- [x] "by digiFORT" branding in logo (2026-04-17)
+- [x] Step restructuring: Gleichwertigkeitspruefung steps + partners (2026-04-17)
+- [x] FaMed link, step renames, tooltip fix (2026-04-17)
 
 ## Backlog
 - [ ] P1: Step template library
