@@ -173,7 +173,13 @@ export default function UserDashboard() {
     }, [currentStepIndex, steps, allStepData, progress]);
 
     const handleLogout = async () => { await logout(); navigate('/'); };
-    const getProgressPercentage = () => steps.length === 0 ? 0 : Math.round((progress.filter(p => p.status === 'completed').length / steps.length) * 100);
+    const getProgressPercentage = () => {
+        if (steps.length === 0) return 0;
+        const countable = steps.filter(s => s.duration_value > 0);
+        if (countable.length === 0) return 0;
+        const completedCountable = countable.filter(s => getStepStatus(s.id) === 'completed').length;
+        return Math.round((completedCountable / countable.length) * 100);
+    };
     const getStepStatus = (stepId) => progress.find(p => p.step_id === stepId)?.status || 'pending';
     const handleInputChange = (fieldName, value) => { setFormData(prev => ({ ...prev, [fieldName]: value })); setValidationErrors([]); };
 
@@ -332,12 +338,32 @@ export default function UserDashboard() {
         if (!canNavigateToStep(idx)) return;
         setCurrentStepIndex(idx);
         setExpandedStep(expandedStep === idx ? null : idx);
-        const stepProgress = progress.find(p => p.step_id === steps[idx]?.id);
+        const step = steps[idx];
+        const stepProgress = progress.find(p => p.step_id === step?.id);
         if (stepProgress?.data && Object.keys(stepProgress.data).length > 0) {
             setFormData(stepProgress.data);
+            // Restore partner selection state from saved data
+            if (step?.step_type === 'partner_selection' && stepProgress.data.selected_partner_id) {
+                partnersAPI.getAll(step.filter_tag || '').then(res => {
+                    setPartners(res.data);
+                    const found = res.data.find(p => p.id === stepProgress.data.selected_partner_id);
+                    setSelectedPartner(found || null);
+                }).catch(() => {});
+            } else if (step?.step_type === 'partner_multiselection' && stepProgress.data.selected_partner_ids) {
+                partnersAPI.getAll(step.filter_tag || '').then(res => {
+                    setPartners(res.data);
+                    const ids = stepProgress.data.selected_partner_ids;
+                    setSelectedPartners(res.data.filter(p => ids.includes(p.id)));
+                }).catch(() => {});
+            } else {
+                setSelectedPartner(null);
+                setSelectedPartners([]);
+            }
         } else {
-            const prefilled = applyFieldMappings(steps[idx] || {}, allStepData);
+            const prefilled = applyFieldMappings(step || {}, allStepData);
             setFormData(prefilled);
+            setSelectedPartner(null);
+            setSelectedPartners([]);
         }
     };
 

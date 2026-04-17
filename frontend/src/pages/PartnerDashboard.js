@@ -236,12 +236,8 @@ export default function PartnerDashboard() {
             const res = await partnerDashboardAPI.getUserDetail(item.user_id);
             setUserDetail(res.data);
         } catch (error) {
-            // For "other users" the partner may not have access - show basic info
-            if (error.response?.status === 403) {
-                setUserDetail({ noAccess: true, name: item.user_name, email: item.user_email });
-            } else {
-                console.error('Failed to load user detail:', error);
-            }
+            console.error('Failed to load user detail:', error);
+            toast.error(formatApiError(error));
         } finally { setUserDetailLoading(false); }
     };
 
@@ -386,10 +382,6 @@ export default function PartnerDashboard() {
 
                             {userDetailLoading ? (
                                 <div className="text-center py-4 text-muted-foreground">{t('loading')}</div>
-                            ) : userDetail?.noAccess ? (
-                                <div className="p-6 bg-muted rounded-sm text-center">
-                                    <p className="text-muted-foreground">Dieser Nutzer hat noch keinen Antrag bei Ihnen eingereicht. Detaillierte Schrittdaten sind daher nicht verfügbar.</p>
-                                </div>
                             ) : userDetail ? (
                                 <div>
                                     <div className="flex items-center justify-between mb-3">

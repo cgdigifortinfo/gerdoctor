@@ -393,6 +393,22 @@ def add_duration(start_date, value, unit):
         return start_date + relativedelta(years=value)
     return start_date
 
+
+async def calculate_completion_pct(user_id: str) -> int:
+    """Calculate completion percentage, excluding steps with duration_value=0."""
+    steps = await db.steps.find({"is_active": True}).to_list(100)
+    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0]
+    if not countable_steps:
+        return 0
+    countable_ids = {str(s["_id"]) for s in countable_steps}
+    completed = await db.user_progress.count_documents({
+        "user_id": user_id,
+        "status": "completed",
+        "step_id": {"$in": list(countable_ids)}
+    })
+    return round((completed / len(countable_steps) * 100))
+
+
 async def calculate_estimated_completion(user_id: str) -> Optional[str]:
     """Calculate the estimated completion date for a user's journey."""
     steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
@@ -1012,13 +1028,11 @@ async def get_file(file_id: str, request: Request, auth: str = Query(None)):
 async def admin_get_users(request: Request):
     user = await require_role("admin")(request)
     users = await db.users.find({}, {"password_hash": 0}).to_list(1000)
-    total_steps = await db.steps.count_documents({"is_active": True})
     
     result = []
     for u in users:
         uid = str(u["_id"])
-        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
-        pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
+        pct = await calculate_completion_pct(uid)
         est = await calculate_estimated_completion(uid)
         result.append({
             "id": uid,
@@ -1099,8 +1113,7 @@ async def admin_get_user(user_id: str, request: Request):
     history = await db.progress_history.find({"user_id": user_id}, {"_id": 0}).sort("timestamp", -1).to_list(200)
     
     total_steps = await db.steps.count_documents({"is_active": True})
-    completed = len([p for p in progress if p.get("status") == "completed"])
-    completion_pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
+    completion_pct = await calculate_completion_pct(user_id)
     
     return {
         "id": str(user["_id"]),
@@ -1589,7 +1602,6 @@ async def get_partner_submissions(request: Request):
     
     # Get submissions
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
-    total_steps = await db.steps.count_documents({"is_active": True})
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
     
     seen_user_ids = set()
@@ -1598,8 +1610,7 @@ async def get_partner_submissions(request: Request):
         if uid:
             seen_user_ids.add(uid)
             sub["estimated_completion"] = await calculate_estimated_completion(uid)
-            completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
-            sub["completion_pct"] = round((completed / total_steps * 100) if total_steps > 0 else 0)
+            sub["completion_pct"] = await calculate_completion_pct(uid)
             if step1:
                 prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
                 sub["field_of_study"] = prog.get("data", {}).get("field_of_study", "") if prog else ""
@@ -1613,7 +1624,6 @@ async def get_partner_submissions(request: Request):
         u = await db.users.find_one({"_id": ObjectId(uid)}, {"password_hash": 0})
         if not u or u.get("role") == "admin":
             continue
-        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
         est = await calculate_estimated_completion(uid)
         field_of_study = ""
         if step1:
@@ -1626,7 +1636,7 @@ async def get_partner_submissions(request: Request):
             "partner_id": partner_id,
             "data": {"source": "linked"},
             "status": "linked",
-            "completion_pct": round((completed / total_steps * 100) if total_steps > 0 else 0),
+            "completion_pct": await calculate_completion_pct(uid),
             "estimated_completion": est,
             "field_of_study": field_of_study,
         })
@@ -1652,7 +1662,6 @@ async def get_partner_other_users(request: Request):
     
     # Get all non-admin users
     all_users = await db.users.find({"role": "user"}, {"password_hash": 0}).to_list(1000)
-    total_steps = await db.steps.count_documents({"is_active": True})
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
     
     result = []
@@ -1660,7 +1669,6 @@ async def get_partner_other_users(request: Request):
         uid = str(u["_id"])
         if uid in my_user_ids:
             continue
-        completed = await db.user_progress.count_documents({"user_id": uid, "status": "completed"})
         est = await calculate_estimated_completion(uid)
         field_of_study = ""
         if step1:
@@ -1670,7 +1678,7 @@ async def get_partner_other_users(request: Request):
             "user_id": uid,
             "user_name": u["name"],
             "user_email": u["email"],
-            "completion_pct": round((completed / total_steps * 100) if total_steps > 0 else 0),
+            "completion_pct": await calculate_completion_pct(uid),
             "estimated_completion": est,
             "field_of_study": field_of_study,
             "created_at": u.get("created_at", "")
@@ -1713,18 +1721,13 @@ async def update_partner_profile(data: PartnerUpdate, request: Request):
 
 @api_router.get("/partner/users/{user_id}")
 async def get_partner_user_detail(user_id: str, request: Request):
-    """Partner can view full step progress for a user who submitted to them or is linked."""
+    """Partner can view full step progress for any user. Hides partner selection choices of other partners."""
     partner_user = await require_role("partner")(request)
     partner_id = partner_user.get("partner_id")
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
-    # Verify access: submission OR linked_user_ids
-    submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
     partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
-    is_linked = user_id in (partner_doc.get("linked_user_ids", []) if partner_doc else [])
-    if not submission and not is_linked:
-        raise HTTPException(status_code=403, detail="No access to this user")
     
     target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     if not target_user:
@@ -1735,25 +1738,36 @@ async def get_partner_user_detail(user_id: str, request: Request):
     async for s in db.steps.find({"is_active": True}).sort("order", 1):
         all_steps.append({**{k: v for k, v in s.items() if k != "_id"}, "id": str(s["_id"])})
     
-    total_steps = len(all_steps)
-    completed = len([p for p in progress if p.get("status") == "completed"])
-    completion_pct = round((completed / total_steps * 100) if total_steps > 0 else 0)
+    completion_pct = await calculate_completion_pct(user_id)
     
     # Find which step is the "partner step" (partner_selection step matching this partner's tag)
     partner_step_id = None
-    if partner_doc:
-        partner_tags = set(partner_doc.get("tags", []))
-        for s in all_steps:
-            if s.get("step_type") in ("partner_selection", "partner_multiselection"):
-                if s.get("filter_tag") in partner_tags:
-                    partner_step_id = s["id"]
-                    break
+    partner_tags = set(partner_doc.get("tags", [])) if partner_doc else set()
+    for s in all_steps:
+        if s.get("step_type") in ("partner_selection", "partner_multiselection"):
+            if s.get("filter_tag") in partner_tags:
+                partner_step_id = s["id"]
+                break
+    
+    # Hide partner selection data for steps where user chose a DIFFERENT partner
+    sanitized_progress = []
+    for p in progress:
+        step = next((s for s in all_steps if s["id"] == p.get("step_id")), None)
+        if step and step.get("step_type") in ("partner_selection", "partner_multiselection"):
+            data = p.get("data", {})
+            selected_pid = data.get("selected_partner_id", "")
+            # Hide selection data if user chose a different partner
+            if selected_pid and selected_pid != partner_id:
+                sanitized = {**p, "data": {}}
+                sanitized_progress.append(sanitized)
+                continue
+        sanitized_progress.append(p)
     
     return {
         "id": str(target_user["_id"]),
         "email": target_user["email"],
         "name": target_user["name"],
-        "progress": progress,
+        "progress": sanitized_progress,
         "steps": all_steps,
         "completion_pct": completion_pct,
         "partner_step_id": partner_step_id
@@ -1761,18 +1775,13 @@ async def get_partner_user_detail(user_id: str, request: Request):
 
 @api_router.put("/partner/users/{user_id}/progress")
 async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
-    """Partner can complete a step for a user who submitted to them or is linked."""
+    """Partner can complete a step for any user visible to them."""
     partner_user = await require_role("partner")(request)
     partner_id = partner_user.get("partner_id")
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     
-    # Verify access: submission OR linked_user_ids
-    submission = await db.partner_submissions.find_one({"user_id": user_id, "partner_id": partner_id})
     partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
-    is_linked = user_id in (partner_doc.get("linked_user_ids", []) if partner_doc else [])
-    if not submission and not is_linked:
-        raise HTTPException(status_code=403, detail="No access to this user")
     
     # Get step and target user for email sending
     step = await db.steps.find_one({"_id": ObjectId(data.step_id)})
