@@ -83,6 +83,7 @@ export default function UserDashboard() {
     const [partners, setPartners] = useState([]);
     const [selectedPartner, setSelectedPartner] = useState(null);
     const [selectedPartners, setSelectedPartners] = useState([]);
+    const [partnerTagFilter, setPartnerTagFilter] = useState('all');
     const [formData, setFormData] = useState({});
     const [uploadedFiles, setUploadedFiles] = useState({});
     const [submitting, setSubmitting] = useState(false);
@@ -160,7 +161,20 @@ export default function UserDashboard() {
     useEffect(() => {
         const currentStep = steps[currentStepIndex];
         if (currentStep?.step_type === 'partner_selection' || currentStep?.step_type === 'partner_multiselection') {
-            partnersAPI.getAll(currentStep.filter_tag || '').then(res => setPartners(res.data)).catch(() => {});
+            const existingProg = progress.find(p => p.step_id === currentStep.id);
+            partnersAPI.getAll(currentStep.filter_tag || '').then(res => {
+                setPartners(res.data);
+                // Restore partner selection from saved progress
+                if (existingProg?.data) {
+                    if (currentStep.step_type === 'partner_selection' && existingProg.data.selected_partner_id) {
+                        const found = res.data.find(p => p.id === existingProg.data.selected_partner_id);
+                        if (found) setSelectedPartner(found);
+                    } else if (currentStep.step_type === 'partner_multiselection' && existingProg.data.selected_partner_ids) {
+                        const ids = existingProg.data.selected_partner_ids;
+                        setSelectedPartners(res.data.filter(p => ids.includes(p.id)));
+                    }
+                }
+            }).catch(() => {});
         }
         if (currentStep && allStepData.length > 0) {
             const existing = progress.find(p => p.step_id === currentStep.id);
@@ -170,6 +184,7 @@ export default function UserDashboard() {
             }
         }
         setValidationErrors([]);
+        setPartnerTagFilter('all');
     }, [currentStepIndex, steps, allStepData, progress]);
 
     const handleLogout = async () => { await logout(); navigate('/'); };
@@ -460,12 +475,29 @@ export default function UserDashboard() {
                         </div>
                     </div>
                 );
-            case 'partner_selection':
+            case 'partner_selection': {
+                const partnerTags = [...new Set(partners.flatMap(p => p.tags || []))].sort();
+                const filteredPartners = partnerTagFilter && partnerTagFilter !== 'all'
+                    ? partners.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
+                    : partners;
                 return (
                     <div className="space-y-6">
-                        {currentStep.filter_tag && <div className="inline-block px-3 py-1 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">Filter: {currentStep.filter_tag}</div>}
+                        {partnerTags.length > 1 && (
+                            <div className="flex items-center gap-3">
+                                <Label className="text-sm text-muted-foreground whitespace-nowrap">{t('filter')}:</Label>
+                                <Select value={partnerTagFilter} onValueChange={setPartnerTagFilter}>
+                                    <SelectTrigger className="h-9 w-48 text-sm" data-testid="partner-tag-filter">
+                                        <SelectValue placeholder={t('partner_filter_all')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('partner_filter_all')}</SelectItem>
+                                        {partnerTags.map(tag => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {partners.map(partner => (
+                            {filteredPartners.map(partner => (
                                 <div key={partner.id} onClick={() => handlePartnerSelect(partner)} className={`partner-card p-6 rounded-sm cursor-pointer transition-all ${selectedPartner?.id === partner.id ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'}`} data-testid={`partner-select-${partner.id}`}>
                                     <div className="flex items-start gap-4">
                                         {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
@@ -478,21 +510,39 @@ export default function UserDashboard() {
                                     </div>
                                 </div>
                             ))}
-                            {partners.length === 0 && <div className="col-span-2 text-center py-8 text-muted-foreground">Keine Partner verfügbar</div>}
+                            {filteredPartners.length === 0 && <div className="col-span-2 text-center py-8 text-muted-foreground">Keine Partner verfuegbar</div>}
                         </div>
                         <div className="flex flex-wrap gap-3 pt-4">
                             <Button onClick={handlePartnerSubmission} disabled={!selectedPartner || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-partner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
-                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Überspringen'}</Button>}
+                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
                 );
-            case 'partner_multiselection':
+            }
+            case 'partner_multiselection': {
+                const multiTags = [...new Set(partners.flatMap(p => p.tags || []).concat(partners.map(p => p.category).filter(Boolean)))].sort();
+                const filteredMultiPartners = partnerTagFilter && partnerTagFilter !== 'all'
+                    ? partners.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
+                    : partners;
                 return (
                     <div className="space-y-6">
-                        {currentStep.filter_tag && <div className="inline-block px-3 py-1 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">Filter: {currentStep.filter_tag}</div>}
-                        <p className="text-sm text-muted-foreground">Sie können mehrere Partner auswählen.</p>
+                        {multiTags.length > 1 && (
+                            <div className="flex items-center gap-3">
+                                <Label className="text-sm text-muted-foreground whitespace-nowrap">{t('filter')}:</Label>
+                                <Select value={partnerTagFilter} onValueChange={setPartnerTagFilter}>
+                                    <SelectTrigger className="h-9 w-48 text-sm" data-testid="partner-tag-filter">
+                                        <SelectValue placeholder={t('partner_filter_all')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('partner_filter_all')}</SelectItem>
+                                        {multiTags.map(tag => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        <p className="text-sm text-muted-foreground">Sie koennen mehrere Partner auswaehlen.</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {partners.map(partner => {
+                            {filteredMultiPartners.map(partner => {
                                 const isSelected = selectedPartners.some(p => p.id === partner.id);
                                 return (
                                     <div key={partner.id} onClick={() => handleToggleMultiPartner(partner)} className={`partner-card p-6 rounded-sm cursor-pointer transition-all ${isSelected ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'}`} data-testid={`partner-multiselect-${partner.id}`}>
@@ -508,17 +558,18 @@ export default function UserDashboard() {
                                     </div>
                                 );
                             })}
-                            {partners.length === 0 && <div className="col-span-2 text-center py-8 text-muted-foreground">Keine Partner verfügbar</div>}
+                            {filteredMultiPartners.length === 0 && <div className="col-span-2 text-center py-8 text-muted-foreground">Keine Partner verfuegbar</div>}
                         </div>
                         {selectedPartners.length > 0 && (
-                            <div className="text-sm text-muted-foreground">{selectedPartners.length} Partner ausgewählt: {selectedPartners.map(p => p.name).join(', ')}</div>
+                            <div className="text-sm text-muted-foreground">{selectedPartners.length} Partner ausgewaehlt: {selectedPartners.map(p => p.name).join(', ')}</div>
                         )}
                         <div className="flex flex-wrap gap-3 pt-4">
                             <Button onClick={handleMultiPartnerSubmission} disabled={selectedPartners.length === 0 || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-multipartner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
-                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Überspringen'}</Button>}
+                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
                 );
+            }
             case 'milestone':
                 return (
                     <div className="space-y-6">
