@@ -158,13 +158,13 @@ export default function Landing() {
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="animate-fadeIn">
                             <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
-                                Your Partner Network
+                                Praktizieren in Deutschland
                             </p>
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none font-black text-foreground mb-6">
-                                {homeContent.hero_title || 'Transform Your Business Journey'}
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl tracking-tighter leading-none font-black text-foreground mb-6">
+                                {homeContent.hero_title || 'GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland'}
                             </h1>
                             <p className="text-base leading-relaxed text-muted-foreground mb-8 max-w-lg">
-                                {homeContent.hero_subtitle || 'A guided experience to connect you with the right partners and accelerate your growth.'}
+                                {homeContent.hero_subtitle || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich'}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link to="/register">
@@ -172,7 +172,7 @@ export default function Landing() {
                                         className="w-full sm:w-auto bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
                                         data-testid="hero-cta-btn"
                                     >
-                                        {homeContent.hero_cta || 'Get Started'}
+                                        {homeContent.hero_cta || 'Jetzt starten'}
                                         <ArrowRight className="ml-2" size={16} />
                                     </Button>
                                 </Link>
@@ -182,14 +182,14 @@ export default function Landing() {
                                     onClick={() => scrollToSection('about')}
                                     data-testid="hero-learn-more-btn"
                                 >
-                                    Learn More
+                                    Mehr erfahren
                                 </Button>
                             </div>
                         </div>
                         <div className="relative">
                             <img 
-                                src="https://images.pexels.com/photos/3137084/pexels-photo-3137084.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" 
-                                alt="Modern architecture"
+                                src="https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png" 
+                                alt="Fachärzte in Deutschland"
                                 className="rounded-sm shadow-2xl max-h-[60vh] w-full object-cover"
                             />
                             <div className="absolute -bottom-6 -left-6 bg-card p-6 shadow-lg rounded-sm border border-border">
@@ -198,8 +198,8 @@ export default function Landing() {
                                         <CheckCircle size={24} className="text-white" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-black text-foreground">500+</p>
-                                        <p className="text-sm text-muted-foreground">Successful Partnerships</p>
+                                        <p className="text-2xl font-black text-foreground">100%</p>
+                                        <p className="text-sm text-muted-foreground">Der schnellste Weg zur Approbation</p>
                                     </div>
                                 </div>
                             </div>
@@ -282,7 +282,10 @@ export default function Landing() {
                     </div>
                     
                     <div className="grid md:grid-cols-3 gap-6">
-                        {partners.length > 0 ? partners.slice(0, 6).map((partner) => (
+                        {(() => {
+                            const allowedTags = ['Antragstellung', 'Kenntnisprüfung', 'Weiterbildung'];
+                            const filtered = partners.filter(p => (p.tags || []).some(t => allowedTags.includes(t)));
+                            return filtered.length > 0 ? filtered.slice(0, 9).map((partner) => (
                             <div 
                                 key={partner.id} 
                                 className="partner-card p-6 rounded-sm bg-card"
@@ -305,9 +308,10 @@ export default function Landing() {
                             </div>
                         )) : (
                             <div className="col-span-3 text-center py-12 text-muted-foreground">
-                                Partners will be displayed here
+                                Partner werden hier angezeigt
                             </div>
-                        )}
+                        );
+                        })()}
                     </div>
                 </div>
             </section>
@@ -340,6 +344,7 @@ export default function Landing() {
                         <div className="flex items-baseline">
                             <span className="font-black text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>GER</span>
                             <span className="font-light text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>doctor</span>
+                            <span className="text-[10px] font-medium text-muted-foreground ml-1.5">by digiFORT</span>
                         </div>
                         <p className="text-sm text-muted-foreground">&copy; 2026 GERdoctor. All rights reserved.</p>
                     </div>

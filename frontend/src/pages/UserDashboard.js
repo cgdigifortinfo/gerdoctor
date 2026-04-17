@@ -591,7 +591,16 @@ export default function UserDashboard() {
             case 'display':
                 return (
                     <div className="space-y-6">
-                        {currentStep.pending_message && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{currentStep.pending_message}</p></div>}
+                        {currentStep.content && (
+                            <div className="prose prose-sm dark:prose-invert max-w-none p-6 bg-muted rounded-sm border border-border" dangerouslySetInnerHTML={{ __html: currentStep.content }} />
+                        )}
+                        {currentStep.pending_message && !currentStep.content && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{currentStep.pending_message}</p></div>}
+                        {currentStep.link_url && (
+                            <a href={currentStep.link_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-[#114f55]/10 text-[#114f55] rounded-sm hover:bg-[#114f55]/20 transition-colors font-medium text-sm" data-testid="step-external-link">
+                                {currentStep.link_label || currentStep.link_url}
+                                <ArrowRight size={14} />
+                            </a>
+                        )}
                         {currentStep.field_mappings?.length > 0 && (
                             <div className="p-4 bg-muted rounded-sm border border-border space-y-2">
                                 <p className="text-sm font-semibold text-muted-foreground">Ihre Daten:</p>
@@ -630,14 +639,11 @@ export default function UserDashboard() {
                         <div className="flex items-center gap-3">
                             {/* Estimated completion in header */}
                             {estimatedCompletion && (
-                                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full" data-testid="estimated-completion-banner">
+                                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
                                     <CalendarCheck size={16} weight="bold" />
-                                    <div className="flex items-baseline gap-1.5">
-                                        <span className="text-xs opacity-80">Abschluss</span>
-                                        <span className="text-sm font-bold" data-testid="estimated-completion-date">
-                                            {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                        </span>
-                                    </div>
+                                    <span className="text-sm font-bold" data-testid="estimated-completion-date">
+                                        {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </span>
                                 </div>
                             )}
                             <span className="text-sm text-muted-foreground hidden lg:block">{t('dash_welcome')}, {user?.name}</span>
@@ -654,9 +660,8 @@ export default function UserDashboard() {
                     </div>
                     {/* Mobile estimated completion */}
                     {estimatedCompletion && (
-                        <div className="sm:hidden flex items-center gap-2 pb-3 -mt-1" data-testid="estimated-completion-banner-mobile">
+                        <div className="sm:hidden flex items-center gap-2 pb-3 -mt-1" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
                             <CalendarCheck size={14} className="text-[#114f55]" />
-                            <span className="text-xs text-muted-foreground">Abschluss</span>
                             <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
                                 {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                             </span>

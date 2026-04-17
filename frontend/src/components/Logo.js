@@ -9,6 +9,9 @@ export function Logo({ className = '', linkTo = '/' }) {
             <span className="font-light text-xl tracking-tight text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>
                 doctor
             </span>
+            <span className="text-[10px] font-medium text-muted-foreground ml-1.5 self-end" style={{ lineHeight: '1.2' }}>
+                by digiFORT
+            </span>
         </Link>
     );
 }
