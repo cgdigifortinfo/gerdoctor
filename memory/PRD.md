@@ -1,20 +1,18 @@
 # GERdoctor - Praktizieren in Deutschland
 
 ## Architecture
-Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Bearer priority + cookie fallback) | Email: Mailgun SMTP | Storage: Emergent Object Storage | i18n: EN/DE | Theme: Light/Dark
-
-## Features
-- JWT auth (3 roles), Admin Impersonation, Admin User CRUD
-- Admin: CMS, analytics, user mgmt, step CRUD (5 types), partner CRUD (m:n linking), audit log, settings
-- Partner Dashboard: 2 tabs, user detail + step completion, emails, next step activation
-- Partner can view ALL user step data; partner selection choices hidden for other partners
-- Step types: form, partner_selection, partner_multiselection, milestone, display
-- Partner tag/category filter dropdown on selection views
-- Step Duration & Estimated Completion (excludes duration=0 steps)
-- User step-back navigation restores form data, partner selections, multi-partner selections
-- Landing page: medical hero image, "by digiFORT" branding, German headlines
-- FaMed step with external link to famed-test.de
-- Tooltip "Voraussichtliche Approbation" on user header date
+```
+/app/backend/
+  server.py        (952 lines - Routes + App setup)
+  database.py      (7 lines - MongoDB connection)
+  models.py        (183 lines - Pydantic models)
+  auth.py          (71 lines - JWT, password, auth helpers)
+  helpers.py       (181 lines - Email, storage, audit, completion calc)
+  server.py.backup (2151 lines - Pre-refactor backup)
+/app/frontend/
+  React + Tailwind + Shadcn/UI
+```
+Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT | Email: Mailgun SMTP | Storage: Emergent Object Storage | i18n: EN/DE | Theme: Light/Dark
 
 ## Steps (12 total)
 1. Persoenliche Daten (form)
@@ -30,24 +28,13 @@ Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT (Be
 11. Jobangebote (partner_multiselection, tag=Praxis)
 12. Du hast dich nun beworben! (milestone)
 
-## Partners (19 total)
-- Antragstellung (3): ILS, digiFORT Experts, HABS e.V.
-- Gleichwertigkeitspruefung (2): IQB Pruefungszentrum, MedAkademie Berlin
-- Kenntnisprüfung (2): ILS2, HC&S
-- Weiterbildung (3): ILS3, Lingoda, InterPers
-- Praxis (9): Hausarztpraxis, Internistische, Chirurgische, Kinderarzt, Hautarzt, Neurologisches, Orthopaedische, Frauenarzt, Praxis am Hang
-
 ## Seeded Data
-- 28 Users, 19 Partners, 12 Steps
+- 28+ Users, 19 Partners, 12 Steps
 - All logos: Emergent static images
 
 ## Completed
 - [x] All core features, dashboards, i18n, dark mode
-- [x] Partner-User m:n relationship, Partner Step Completion
-- [x] Landing page: hero doctors image, headlines, badge, partner filter (2026-04-17)
-- [x] "by digiFORT" branding in logo (2026-04-17)
-- [x] Step restructuring: Gleichwertigkeitspruefung steps + partners (2026-04-17)
-- [x] FaMed link, step renames, tooltip fix (2026-04-17)
+- [x] Refactoring: server.py split into modules (2151 -> 952+442 lines) (2026-04-18)
 
 ## Backlog
 - [ ] P1: Step template library
