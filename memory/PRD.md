@@ -4,37 +4,35 @@
 ```
 /app/backend/
   server.py        (952 lines - Routes + App setup)
-  database.py      (7 lines - MongoDB connection)
-  models.py        (183 lines - Pydantic models)
-  auth.py          (71 lines - JWT, password, auth helpers)
-  helpers.py       (181 lines - Email, storage, audit, completion calc)
-  server.py.backup (2151 lines - Pre-refactor backup)
-/app/frontend/
-  React + Tailwind + Shadcn/UI
+  database.py      (DB connection)
+  models.py        (Pydantic models)
+  auth.py          (JWT, password, auth helpers)
+  helpers.py       (Email, storage, audit, completion calc)
+  server.py.backup (Pre-refactor backup)
 ```
-Frontend: React + Tailwind + Shadcn | Backend: FastAPI + MongoDB | Auth: JWT | Email: Mailgun SMTP | Storage: Emergent Object Storage | i18n: EN/DE | Theme: Light/Dark
 
-## Steps (12 total)
-1. Persoenliche Daten (form)
-2. Antragstellung Approbation (partner_selection, tag=Antragstellung)
-3. Uebersicht Antragstellung Approbation (milestone, 4 weeks)
-4. FaMed (display, link to famed-test.de)
-5. Gleichwertigkeitspruefung (partner_selection, tag=Gleichwertigkeitspruefung)
-6. Uebersicht Gleichwertigkeitspruefung (milestone, 3 months)
-7. Service Kenntnisprüfung (partner_selection, tag=Kenntnisprüfung)
-8. Meilenstein Kenntnisprüfung (milestone, 3 months)
-9. Service Weiterbildung (partner_selection, tag=Weiterbildung)
-10. Meilenstein Job finden (milestone)
-11. Jobangebote (partner_multiselection, tag=Praxis)
-12. Du hast dich nun beworben! (milestone)
+## Steps (12 total, 3 with duration for % calc)
+1-Persoenliche Daten, 2-Antragstellung Approbation, 3-Uebersicht Antragstellung (4w),
+4-FaMed, 5-Gleichwertigkeitspruefung, 6-Uebersicht Gleichwertigkeit (3m),
+7-Service Kenntnisprüfung, 8-Meilenstein Kenntnisprüfung (3m),
+9-Service Weiterbildung, 10-Meilenstein Job finden,
+11-Jobangebote (multiselection), 12-Du hast dich nun beworben!
 
-## Seeded Data
-- 28+ Users, 19 Partners, 12 Steps
-- All logos: Emergent static images
+## Data Fixes Applied (2026-04-18)
+- Missing progress records for Steps 11+12 created for all users
+- Gap fix: Steps 5+6 auto-completed for users who already passed Step 7
+- Duplicate in_progress states fixed (max 1 per user)
+- MultiPartnerSubmission model: added missing `data` field
+
+## Test Coverage
+- E2E Walkthrough: 15 tests (all 12 steps + admin/partner verification + cleanup)
+- Partner linking: 13 tests
+- Step completion: 16 tests
 
 ## Completed
-- [x] All core features, dashboards, i18n, dark mode
-- [x] Refactoring: server.py split into modules (2151 -> 952+442 lines) (2026-04-18)
+- [x] All core features
+- [x] Refactoring: server.py split into modules (2026-04-18)
+- [x] DB data integrity fix + E2E walkthrough test (2026-04-18)
 
 ## Backlog
 - [ ] P1: Step template library

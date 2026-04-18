@@ -151,6 +151,7 @@ class PartnerSubmissionCreate(BaseModel):
 
 class MultiPartnerSubmission(BaseModel):
     partner_ids: List[str]
+    data: Optional[dict] = None
 
 class CMSContentUpdate(BaseModel):
     section: str
