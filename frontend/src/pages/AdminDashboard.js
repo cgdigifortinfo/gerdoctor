@@ -725,6 +725,7 @@ export default function AdminDashboard() {
                                         <tr>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Partner</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Tags</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Linked User</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
@@ -745,6 +746,14 @@ export default function AdminDashboard() {
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-sm text-muted-foreground">{partner.category || '-'}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {(partner.tags || []).map(tag => (
+                                                                <span key={tag} className="px-2 py-0.5 text-xs bg-[#114f55]/10 text-[#114f55] rounded-sm">{tag}</span>
+                                                            ))}
+                                                            {(!partner.tags || partner.tags.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3">
                                                         {linkedUser ? (
                                                             <div className="flex items-center gap-2">
@@ -1200,6 +1209,7 @@ export default function AdminDashboard() {
                 partner={editingPartner}
                 onSave={handleSavePartner}
                 allUsers={users}
+                allPartners={partners}
                 t={t}
             />
 
@@ -1714,13 +1724,18 @@ function FieldForm({ field, onSave, onCancel }) {
     );
 }
 
-function PartnerDialog({ open, onClose, partner, onSave, allUsers, t }) {
+function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, t }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
         contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: []
     });
-    const [tagsText, setTagsText] = useState('');
+    const [tagInput, setTagInput] = useState('');
+    const [tagSuggestions, setTagSuggestions] = useState([]);
+    const [showTagSuggestions, setShowTagSuggestions] = useState(false);
     const [userSearch, setUserSearch] = useState('');
+
+    // Collect all existing tags from all partners for autocomplete
+    const allTags = [...new Set((allPartners || []).flatMap(p => p.tags || []))].sort();
 
     useEffect(() => {
         if (partner) {
@@ -1731,18 +1746,49 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, t }) {
                 tags: partner.tags || [], is_active: partner.is_active !== false,
                 linked_user_ids: partner.linked_user_ids || []
             });
-            setTagsText((partner.tags || []).join(', '));
         } else {
             setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [] });
-            setTagsText('');
         }
+        setTagInput('');
         setUserSearch('');
     }, [partner]);
 
+    const handleTagInputChange = (val) => {
+        setTagInput(val);
+        if (val.trim()) {
+            const filtered = allTags.filter(t => t.toLowerCase().includes(val.toLowerCase()) && !formData.tags.includes(t));
+            setTagSuggestions(filtered);
+            setShowTagSuggestions(true);
+        } else {
+            setShowTagSuggestions(false);
+        }
+    };
+
+    const addTag = (tag) => {
+        const trimmed = tag.trim();
+        if (trimmed && !formData.tags.includes(trimmed)) {
+            setFormData(fd => ({ ...fd, tags: [...fd.tags, trimmed] }));
+        }
+        setTagInput('');
+        setShowTagSuggestions(false);
+    };
+
+    const removeTag = (tag) => {
+        if (window.confirm(`Tag "${tag}" wirklich entfernen?`)) {
+            setFormData(fd => ({ ...fd, tags: fd.tags.filter(t => t !== tag) }));
+        }
+    };
+
+    const handleTagKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (tagInput.trim()) addTag(tagInput);
+        }
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        const tags = tagsText.split(',').map(t => t.trim()).filter(Boolean);
-        onSave({ ...formData, tags });
+        onSave({ ...formData });
     };
 
     const toggleUser = (uid) => {
@@ -1790,10 +1836,47 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, t }) {
                             <Label>Kategorie</Label>
                             <Input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="partner-category-input" />
                         </div>
-                        <div>
-                            <Label>Tags (kommagetrennt)</Label>
-                            <Input value={tagsText} onChange={(e) => setTagsText(e.target.value)} className="mt-1" placeholder="z.B. Antragstellung" data-testid="partner-tags-input" />
-                        </div>
+                    </div>
+                    <div>
+                        <Label>Tags</Label>
+                            <div className="mt-1 flex flex-wrap gap-1.5 p-2 min-h-[38px] border border-border rounded-sm bg-background">
+                                {formData.tags.map(tag => (
+                                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#114f55]/10 text-[#114f55] text-xs rounded-sm" data-testid={`tag-badge-${tag}`}>
+                                        {tag}
+                                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500 font-bold ml-0.5" data-testid={`remove-tag-${tag}`}>&times;</button>
+                                    </span>
+                                ))}
+                                <div className="relative flex-1 min-w-[120px]">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => handleTagInputChange(e.target.value)}
+                                        onKeyDown={handleTagKeyDown}
+                                        onFocus={() => { if (tagInput.trim()) setShowTagSuggestions(true); }}
+                                        onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
+                                        placeholder={formData.tags.length === 0 ? "Tag eingeben..." : "+"}
+                                        className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                                        data-testid="partner-tags-input"
+                                    />
+                                    {showTagSuggestions && tagSuggestions.length > 0 && (
+                                        <div className="absolute left-0 top-full mt-1 w-56 bg-card border border-border rounded-sm shadow-lg z-50 max-h-40 overflow-y-auto" data-testid="tag-suggestions">
+                                            {tagSuggestions.map(s => (
+                                                <button key={s} type="button" onMouseDown={() => addTag(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-foreground">{s}</button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {showTagSuggestions && tagInput.trim() && !allTags.includes(tagInput.trim()) && !formData.tags.includes(tagInput.trim()) && (
+                                        <div className="absolute left-0 top-full mt-1 w-56 bg-card border border-border rounded-sm shadow-lg z-50">
+                                            {tagSuggestions.map(s => (
+                                                <button key={s} type="button" onMouseDown={() => addTag(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-foreground">{s}</button>
+                                            ))}
+                                            <button type="button" onMouseDown={() => addTag(tagInput)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-[#114f55] font-medium border-t border-border" data-testid="create-new-tag">
+                                                + Neuen Tag "{tagInput.trim()}" erstellen
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                     </div>
                     <div>
                         <Label>{t('partner_linked_users')}</Label>

@@ -3,36 +3,28 @@
 ## Architecture
 ```
 /app/backend/
-  server.py        (952 lines - Routes + App setup)
-  database.py      (DB connection)
-  models.py        (Pydantic models)
-  auth.py          (JWT, password, auth helpers)
-  helpers.py       (Email, storage, audit, completion calc)
-  server.py.backup (Pre-refactor backup)
+  server.py, database.py, models.py, auth.py, helpers.py
+  server.py.backup (pre-refactor)
+  tests/ (4 test suites, 85+ tests)
 ```
 
-## Steps (12 total, 3 with duration for % calc)
-1-Persoenliche Daten, 2-Antragstellung Approbation, 3-Uebersicht Antragstellung (4w),
-4-FaMed, 5-Gleichwertigkeitspruefung, 6-Uebersicht Gleichwertigkeit (3m),
-7-Service Kenntnisprüfung, 8-Meilenstein Kenntnisprüfung (3m),
-9-Service Weiterbildung, 10-Meilenstein Job finden,
-11-Jobangebote (multiselection), 12-Du hast dich nun beworben!
-
-## Data Fixes Applied (2026-04-18)
-- Missing progress records for Steps 11+12 created for all users
-- Gap fix: Steps 5+6 auto-completed for users who already passed Step 7
-- Duplicate in_progress states fixed (max 1 per user)
-- MultiPartnerSubmission model: added missing `data` field
+## Cascade Delete Rules
+- **Partner delete**: submissions deleted, partner-users reverted to role "user"
+- **User delete**: progress, submissions, history, files deleted; removed from partner.linked_user_ids; partner.user_id unset
+- **Step delete**: user_progress and progress_history for that step deleted
 
 ## Test Coverage
-- E2E Walkthrough: 15 tests (all 12 steps + admin/partner verification + cleanup)
-- Partner linking: 13 tests
-- Step completion: 16 tests
+- test_e2e_step_walkthrough.py: 15 tests (full 12-step user journey)
+- test_crud_and_validation.py: 29 tests (CRUD + cascade + negative inputs)
+- test_partner_linking.py: 13 tests (m:n linking)
+- test_partner_step_completion.py: 16 tests
 
-## Completed
-- [x] All core features
-- [x] Refactoring: server.py split into modules (2026-04-18)
-- [x] DB data integrity fix + E2E walkthrough test (2026-04-18)
+## Partners (22)
+- Antragstellung: ILS, digiFORT Experts, HABS e.V., InterPers, FIA Academy, FaMed
+- Gleichwertigkeitspruefung: IQB, MedAkademie Berlin
+- Kenntnisprüfung: ILS2, HC&S, FIA Academy
+- Weiterbildung: ILS3, Lingoda, InterPers
+- Praxis: 9 Arztpraxen + PraxisConnect
 
 ## Backlog
 - [ ] P1: Step template library

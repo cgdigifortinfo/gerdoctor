@@ -505,8 +505,11 @@ async def admin_delete_user(user_id: str, request: Request):
     await db.partner_submissions.delete_many({"user_id": user_id})
     await db.progress_history.delete_many({"user_id": user_id})
     await db.files.delete_many({"user_id": user_id})
+    # Unlink from partner (1:1 dashboard access)
     if target.get("partner_id"):
-        await db.partners.update_one({"_id": ObjectId(target["partner_id"])}, {"$pull": {"user_ids": user_id}})
+        await db.partners.update_one({"_id": ObjectId(target["partner_id"])}, {"$unset": {"user_id": ""}})
+    # Remove from any partner's linked_user_ids (m:n)
+    await db.partners.update_many({"linked_user_ids": user_id}, {"$pull": {"linked_user_ids": user_id}})
     await db.users.delete_one({"_id": ObjectId(user_id)})
     await create_audit_log(admin_user["_id"], admin_user["email"], "user_delete", "user", user_id, {"email": target["email"]})
     return {"message": "User deleted"}
@@ -551,8 +554,13 @@ async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
 async def admin_delete_step(step_id: str, request: Request):
     admin_user = await require_role("admin")(request)
     step = await db.steps.find_one({"_id": ObjectId(step_id)})
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    # Cascade: remove all progress records for this step
+    await db.user_progress.delete_many({"step_id": step_id})
+    await db.progress_history.delete_many({"step_id": step_id})
     await db.steps.delete_one({"_id": ObjectId(step_id)})
-    await create_audit_log(admin_user["_id"], admin_user["email"], "step_delete", "step", step_id, {"title": step["title"] if step else "unknown"})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_delete", "step", step_id, {"title": step["title"]})
     return {"message": "Step deleted"}
 
 # Admin Partners
@@ -601,8 +609,18 @@ async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Re
 
 @admin_router.delete("/partners/{partner_id}")
 async def admin_delete_partner(partner_id: str, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    # Cascade: unlink partner-role users (set back to "user")
+    partner_users = await db.users.find({"partner_id": partner_id}).to_list(100)
+    for pu in partner_users:
+        await db.users.update_one({"_id": pu["_id"]}, {"$set": {"role": "user"}, "$unset": {"partner_id": ""}})
+    # Cascade: remove all submissions to this partner
+    await db.partner_submissions.delete_many({"partner_id": partner_id})
     await db.partners.delete_one({"_id": ObjectId(partner_id)})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "partner_delete", "partner", partner_id, {"name": partner["name"]})
     return {"message": "Partner deleted"}
 
 @admin_router.put("/partners/{partner_id}/link-user")
