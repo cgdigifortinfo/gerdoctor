@@ -686,6 +686,26 @@ async def admin_get_audit_log(request: Request, limit: int = 100, skip: int = 0,
 # PARTNER DASHBOARD ROUTES
 # ========================
 
+@api_router.get("/partner/profile")
+async def get_partner_profile(request: Request):
+    user = await require_role("partner")(request)
+    partner_id = user.get("partner_id")
+    if not partner_id:
+        return {"name": user["name"], "email": user["email"], "partner_name": None, "partner_id": None}
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    return {"name": user["name"], "email": user["email"], "partner_name": partner["name"] if partner else None, "partner_id": partner_id}
+
+@api_router.put("/partner/profile")
+async def update_partner_profile(data: ProfileUpdate, request: Request):
+    user = await require_role("partner")(request)
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "name" in update_data:
+        await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": {"name": update_data.pop("name")}})
+    if update_data:
+        await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": {f"profile.{k}": v for k, v in update_data.items()}})
+    return {"message": "Profile updated"}
+
+
 @api_router.get("/partner/submissions")
 async def get_partner_submissions(request: Request):
     user = await require_role("partner")(request)

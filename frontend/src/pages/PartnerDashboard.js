@@ -198,22 +198,26 @@ export default function PartnerDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [subsRes, otherRes, profileRes] = await Promise.all([
+            const [subsRes, otherRes] = await Promise.all([
                 partnerDashboardAPI.getSubmissions(),
                 partnerDashboardAPI.getOtherUsers(),
-                partnerDashboardAPI.getProfile()
             ]);
             setSubmissions(subsRes.data);
             setOtherUsers(otherRes.data);
-            setProfile(profileRes.data);
-            setProfileForm(profileRes.data);
+            try {
+                const profileRes = await partnerDashboardAPI.getProfile();
+                setProfile(profileRes.data);
+                setProfileForm(profileRes.data);
+            } catch {
+                setProfile({ name: user?.name, email: user?.email });
+            }
         } catch (error) {
             console.error('Failed to load data:', error);
             if (error.response?.status === 400) toast.error('Your account is not linked to a partner');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
