@@ -156,7 +156,7 @@ class MultiPartnerSubmission(BaseModel):
     data: Optional[dict] = None
 
 class CMSContentUpdate(BaseModel):
-    section: str
+    section: Optional[str] = None  # derived from URL path
     content: dict
     translations: Optional[dict] = None
 

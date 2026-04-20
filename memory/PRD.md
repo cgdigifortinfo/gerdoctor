@@ -44,6 +44,9 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-20: **Partner-Matching-Empfehlung** (Scoring nach fachrichtung_gewuenscht/praktiziert + Bundesland aus Step 1, Recommended-Badge + Sortierung in partner_selection & partner_multiselection, Praxis-Partner um Jobangebote-Tag + Bundesland-Tags erweitert)
+- [x] 2026-04-20: **P2 E2E Walkthrough-Suite** (`/app/backend/tests/p2_walkthrough.py` — Jobangebote Selbst/Partner + PartnerDashboard hide filter, 3/3 PASS, API+UI verifiziert)
+- [x] 2026-04-20: **Nice-to-haves** – `CMSContentUpdate.section` jetzt Optional, `apply-template` via `update_one(upsert=True)` statt `insert_many` (idempotent)
 - [x] 2026-04-20: **Step Template Library** (save-step-as-template, list/apply/delete, new MongoDB `step_templates` collection, Admin UI panel in Steps tab)
 - [x] 2026-04-20: **Landing-Page 3 Feature-Boxen via CMS** (6 neue Felder in `cms_content.home`, DE + EN Translations, Admin-CMS-Editor erweitert, Backfill für bestehende Installationen)
 - [x] 2026-04-20: **Anerkennungsstatus Auto-Skip** (5 Status-Werte mappen auf bereits-fertige Themenblöcke, `apply_anerkennungsstatus_skips` in helpers.py, Trigger bei User- und Admin-Progress-Update)
@@ -55,9 +58,8 @@
 
 ## Backlog
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
-- [ ] P2: Ausführliche Playwright-E2E-Tests für Jobangebote Selbst/Partner UI + PartnerDashboard Hide-Filter (Logik verifiziert, UI-Walkthrough noch nicht automatisiert)
-- [ ] Nice-to-have: CMSContentUpdate.section Optional machen (REST-konformer)
-- [ ] Nice-to-have: apply-template insert_many → upsert per (user_id,step_id)
+- [ ] P3: Partner können via eigene UI Bundesland/Fachrichtung-Tags pflegen (aktuell nur via Admin Tag-Multiselect)
+- [ ] P3: Recommendation-Score auch in PartnerDashboard-Matching-Ansicht zeigen
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).

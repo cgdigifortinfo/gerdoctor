@@ -78,6 +78,31 @@ function applyFieldMappings(step, allStepData) {
     return prefilled;
 }
 
+// Score a partner against the user's Step-1 profile (Fachrichtung + Bundesland).
+// >0 = recommended. Partners are sorted recommended-first + by score desc.
+function scorePartner(partner, profile) {
+    if (!profile) return 0;
+    const fach = profile.fachrichtung_gewuenscht || profile.fachrichtung_praktiziert || profile.field_of_study;
+    const bl = profile.anerkennungsverfahren_bundesland;
+    const tags = partner.tags || [];
+    let score = 0;
+    if (fach) {
+        if (partner.category === fach) score += 10;
+        if (tags.includes(fach)) score += 10;
+    }
+    if (bl && tags.includes(bl)) score += 5;
+    return score;
+}
+
+function sortPartnersByRecommendation(partners, profile) {
+    return [...partners]
+        .map(p => ({ ...p, _score: scorePartner(p, profile) }))
+        .sort((a, b) => {
+            if (b._score !== a._score) return b._score - a._score;
+            return (a.name || '').localeCompare(b.name || '');
+        });
+}
+
 export default function UserDashboard() {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t, localize, lang } = useLanguage();
@@ -542,10 +567,12 @@ export default function UserDashboard() {
                     </div>
                 );
             case 'partner_selection': {
-                const partnerTags = [...new Set(partners.flatMap(p => p.tags || []))].sort();
+                const profile = allStepData.find(s => s.order === 1)?.data || {};
+                const sortedPartners = sortPartnersByRecommendation(partners, profile);
+                const partnerTags = [...new Set(sortedPartners.flatMap(p => p.tags || []))].sort();
                 const filteredPartners = partnerTagFilter && partnerTagFilter !== 'all'
-                    ? partners.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
-                    : partners;
+                    ? sortedPartners.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
+                    : sortedPartners;
                 return (
                     <div className="space-y-6">
                         {partnerTags.length > 1 && (
@@ -564,7 +591,12 @@ export default function UserDashboard() {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPartners.map(partner => (
-                                <div key={partner.id} onClick={() => handlePartnerSelect(partner)} className={`partner-card p-6 rounded-sm cursor-pointer transition-all ${selectedPartner?.id === partner.id ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'}`} data-testid={`partner-select-${partner.id}`}>
+                                <div key={partner.id} onClick={() => handlePartnerSelect(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${selectedPartner?.id === partner.id ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[#114f55]/20' : ''}`} data-testid={`partner-select-${partner.id}`}>
+                                    {partner._score > 0 && (
+                                        <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[#114f55] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
+                                            ★ {t('recommended_for_you') || 'Empfohlen für dich'}
+                                        </span>
+                                    )}
                                     <div className="flex items-start gap-4">
                                         {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                         <div className="flex-1">
@@ -586,10 +618,12 @@ export default function UserDashboard() {
                 );
             }
             case 'partner_multiselection': {
-                const multiTags = [...new Set(partners.flatMap(p => p.tags || []).concat(partners.map(p => p.category).filter(Boolean)))].sort();
+                const profile = allStepData.find(s => s.order === 1)?.data || {};
+                const sortedMulti = sortPartnersByRecommendation(partners, profile);
+                const multiTags = [...new Set(sortedMulti.flatMap(p => p.tags || []).concat(sortedMulti.map(p => p.category).filter(Boolean)))].sort();
                 const filteredMultiPartners = partnerTagFilter && partnerTagFilter !== 'all'
-                    ? partners.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
-                    : partners;
+                    ? sortedMulti.filter(p => (p.tags || []).includes(partnerTagFilter) || p.category === partnerTagFilter)
+                    : sortedMulti;
                 return (
                     <div className="space-y-6">
                         {multiTags.length > 1 && (
@@ -611,7 +645,12 @@ export default function UserDashboard() {
                             {filteredMultiPartners.map(partner => {
                                 const isSelected = selectedPartners.some(p => p.id === partner.id);
                                 return (
-                                    <div key={partner.id} onClick={() => handleToggleMultiPartner(partner)} className={`partner-card p-6 rounded-sm cursor-pointer transition-all ${isSelected ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'}`} data-testid={`partner-multiselect-${partner.id}`}>
+                                    <div key={partner.id} onClick={() => handleToggleMultiPartner(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${isSelected ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[#114f55]/20' : ''}`} data-testid={`partner-multiselect-${partner.id}`}>
+                                        {partner._score > 0 && (
+                                            <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[#114f55] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
+                                                ★ {t('recommended_for_you') || 'Empfohlen für dich'}
+                                            </span>
+                                        )}
                                         <div className="flex items-start gap-4">
                                             {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                             <div className="flex-1">

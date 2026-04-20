@@ -1005,14 +1005,18 @@ async def admin_apply_template(template_id: str, request: Request, order: int = 
     cfg["created_at"] = datetime.now(timezone.utc).isoformat()
     result = await db.steps.insert_one(cfg)
     new_sid = str(result.inserted_id)
-    # Create pending progress entries for all users
+    # Create pending progress entries for all users (upsert to avoid duplicates)
     users = await db.users.find({"role": "user"}, {"_id": 1}).to_list(1000)
-    if users:
-        await db.user_progress.insert_many([
-            {"user_id": str(u["_id"]), "step_id": new_sid, "status": "pending",
-             "data": {}, "created_at": datetime.now(timezone.utc).isoformat()}
-            for u in users
-        ])
+    for u in users:
+        await db.user_progress.update_one(
+            {"user_id": str(u["_id"]), "step_id": new_sid},
+            {"$setOnInsert": {
+                "user_id": str(u["_id"]), "step_id": new_sid,
+                "status": "pending", "data": {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }},
+            upsert=True,
+        )
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_apply",
                             "step", new_sid, {"template_id": template_id, "order": order})
     return {"id": new_sid, "message": "Template applied as new step"}
