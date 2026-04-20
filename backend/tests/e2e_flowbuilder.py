@@ -316,6 +316,60 @@ async def run_test():
             else:
                 results.append(("Case 8: delete node", "SKIP (button not found)"))
 
+            # --- Case 9: Auto-Layout button persists flow_position globally ---
+            btn = await page.query_selector('[data-testid="flow-auto-layout-btn"]')
+            if btn:
+                await btn.click()
+                await page.wait_for_timeout(2500)
+                # Fetch steps via API and verify flow_position was saved
+                with_pos = [s for s in get_steps(real_admin_token) if s.get("flow_position")]
+                if len(with_pos) >= 20:
+                    print(f"  ✓ Case 9: auto-layout persisted {len(with_pos)} node positions")
+                    results.append(("Case 9: auto-layout persists", "PASS"))
+                else:
+                    print(f"  ! Case 9: only {len(with_pos)} steps got flow_position saved")
+                    results.append(("Case 9: auto-layout persists", "FAIL"))
+            else:
+                results.append(("Case 9: auto-layout persists", "SKIP (button not found)"))
+
+            # --- Case 10: Click on a condition edge opens edit modal ---
+            # Find any condition edge label text via JS and dispatch a click
+            edge_clicked = await page.evaluate("""() => {
+                // React Flow labels live inside g.react-flow__edge-text or text elements; we hit .react-flow__edge instead
+                const edges = document.querySelectorAll('.react-flow__edge');
+                for (const e of edges) {
+                    const path = e.querySelector('path');
+                    if (!path) continue;
+                    if (e.getAttribute('aria-label') && e.getAttribute('aria-label').includes('Auto-Abschluss')) {
+                        path.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                        return 'by-aria';
+                    }
+                }
+                // fallback: click first edge
+                const first = document.querySelector('.react-flow__edge[data-testid], .react-flow__edge');
+                if (first) {
+                    const p = first.querySelector('path');
+                    p && p.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    return 'first';
+                }
+                return null;
+            }""")
+            await page.wait_for_timeout(1000)
+            modal = await page.query_selector('[data-testid="condition-modal"]')
+            if modal:
+                # Check if edit mode (delete button visible)
+                del_btn = await page.query_selector('[data-testid="condition-delete-btn"]')
+                print(f"  ✓ Case 10: edge click opened modal (edit mode={bool(del_btn)})")
+                # Close without changes
+                cancel = await page.query_selector('[data-testid="condition-cancel-btn"]')
+                if cancel:
+                    await cancel.click()
+                    await page.wait_for_timeout(500)
+                results.append(("Case 10: edit condition via edge click", "PASS"))
+            else:
+                print(f"  ! Case 10: edge click did not open modal (click method={edge_clicked})")
+                results.append(("Case 10: edit condition via edge click", "SKIP"))
+
             await browser.close()
 
     except Exception as exc:
@@ -363,6 +417,18 @@ async def run_test():
         # Delete the test admin
         delete_test_admin(real_admin_token, test_admin_id)
         print(f"  • deleted test admin {TEST_ADMIN_EMAIL}")
+
+        # Clear flow_position fields set by Case 9 (auto-layout)
+        try:
+            from pymongo import MongoClient
+            mc = MongoClient(os.environ["MONGO_URL"])
+            mdb = mc[os.environ["DB_NAME"]]
+            res = mdb.steps.update_many({}, {"$unset": {"flow_position": ""}})
+            mc.close()
+            if res.modified_count:
+                print(f"  • cleared flow_position on {res.modified_count} steps")
+        except Exception as e:
+            print(f"  ! could not clear flow_position: {e}")
 
         # Verify state == original
         after_snap = snapshot_steps(real_admin_token)

@@ -814,6 +814,38 @@ export default function AdminDashboard() {
                                                 loadData();
                                             } catch (error) { toast.error(formatApiError(error)); }
                                         }}
+                                        onConditionUpdate={async (stepId, condIndex, updatedCond) => {
+                                            try {
+                                                const step = steps.find(s => s.id === stepId);
+                                                if (!step) return;
+                                                const conds = [...(step.conditions || [])];
+                                                conds[condIndex] = {
+                                                    source_step_order: updatedCond.source_step_order ?? conds[condIndex].source_step_order,
+                                                    action: updatedCond.action,
+                                                    field: updatedCond.field || '',
+                                                    operator: updatedCond.operator,
+                                                    value: updatedCond.value || '',
+                                                };
+                                                await adminAPI.updateStep(stepId, { ...step, conditions: conds });
+                                                toast.success('Condition aktualisiert');
+                                                loadData();
+                                            } catch (error) { toast.error(formatApiError(error)); }
+                                        }}
+                                        onConditionDelete={async (stepId, condIndex) => {
+                                            try {
+                                                const step = steps.find(s => s.id === stepId);
+                                                if (!step) return;
+                                                const conds = (step.conditions || []).filter((_, i) => i !== condIndex);
+                                                await adminAPI.updateStep(stepId, { ...step, conditions: conds });
+                                                toast.success('Condition gelöscht');
+                                                loadData();
+                                            } catch (error) { toast.error(formatApiError(error)); }
+                                        }}
+                                        onSaveLayout={async (positions) => {
+                                            try {
+                                                await adminAPI.saveStepLayout(positions);
+                                            } catch (error) { /* silent – non-blocking */ }
+                                        }}
                                     />
                                 </div>
                             ) : (

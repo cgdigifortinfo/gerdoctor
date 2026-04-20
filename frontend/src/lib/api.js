@@ -104,6 +104,7 @@ export const adminAPI = {
     updateStep: (id, data) => api.put(`/admin/steps/${id}`, data),
     deleteStep: (id) => api.delete(`/admin/steps/${id}`),
     reorderSteps: (step_ids) => api.put('/admin/steps/reorder', { step_ids }),
+    saveStepLayout: (positions) => api.put('/admin/steps/layout-bulk', { positions }),
     
     // Partners
     getPartners: () => api.get('/admin/partners'),

@@ -108,6 +108,7 @@ class StepCreate(BaseModel):
     email_subject_leave: Optional[str] = None
     email_body_leave: Optional[str] = None
     translations: Optional[dict] = None
+    flow_position: Optional[dict] = None  # {x, y}
 
 class StepUpdate(BaseModel):
     title: Optional[str] = None
@@ -138,6 +139,10 @@ class StepUpdate(BaseModel):
     email_body_leave: Optional[str] = None
     is_active: Optional[bool] = None
     translations: Optional[dict] = None
+    flow_position: Optional[dict] = None  # {x, y}
+
+class StepLayoutBulk(BaseModel):
+    positions: dict  # {step_id: {x, y}}
 
 class StepReorder(BaseModel):
     step_ids: List[str]

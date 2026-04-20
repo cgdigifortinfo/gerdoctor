@@ -5,8 +5,9 @@ import ReactFlow, {
     ReactFlowProvider, useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import dagre from 'dagre';
 import { Button } from './ui/button';
-import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph } from '@phosphor-icons/react';
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
@@ -80,14 +81,71 @@ function StepNode({ data }) {
 
 const nodeTypes = { stepNode: StepNode };
 
+// ---- Dagre-based auto layout ----
+const NODE_W = 240, NODE_H = 88;
+
+function dagreLayout(steps, edges) {
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ rankdir: 'LR', nodesep: 60, ranksep: 90, marginx: 20, marginy: 20 });
+    g.setDefaultEdgeLabel(() => ({}));
+    steps.forEach(s => g.setNode(s.id, { width: NODE_W, height: NODE_H }));
+    edges.forEach(e => { if (e.source && e.target && g.hasNode(e.source) && g.hasNode(e.target)) g.setEdge(e.source, e.target); });
+    dagre.layout(g);
+    const positions = {};
+    steps.forEach(s => {
+        const n = g.node(s.id);
+        if (n) positions[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
+    });
+    return positions;
+}
+
 function buildGraph(steps, callbacks) {
     const sorted = [...steps].sort((a, b) => a.order - b.order);
     const byOrder = Object.fromEntries(sorted.map(s => [s.order, s]));
 
-    const nodes = sorted.map((s, i) => ({
+    // First compute raw edges (so dagre can consider them)
+    const edges = [];
+    sorted.forEach(s => {
+        (s.conditions || []).forEach((c, idx) => {
+            const src = byOrder[c.source_step_order];
+            if (!src) return;
+            const action = ACTION_LABELS[c.action] || { label: c.action, color: '#64748b' };
+            const valueLabel = c.value ? ` = ${c.value}` : '';
+            const fieldLabel = c.field ? `${c.field}` : '(status)';
+            edges.push({
+                id: `cond-${s.id}-${idx}`,
+                source: src.id, target: s.id,
+                label: `${action.label}: ${fieldLabel}${valueLabel}`,
+                labelStyle: { fontSize: 10, fill: action.color, fontWeight: 600, cursor: 'pointer' },
+                labelBgPadding: [4, 2], labelBgBorderRadius: 2,
+                labelBgStyle: { fill: 'white', fillOpacity: 0.95, cursor: 'pointer' },
+                style: { stroke: action.color, strokeWidth: 1.6, strokeDasharray: c.action === 'hide' ? '4 3' : undefined, cursor: 'pointer' },
+                animated: c.action === 'auto_complete',
+                markerEnd: { type: MarkerType.ArrowClosed, color: action.color },
+                data: { stepId: s.id, condIndex: idx, condition: c, isCondition: true },
+            });
+        });
+    });
+
+    // Positions: use saved flow_position if present; otherwise dagre; fallback horizontal
+    const anyWithPosition = sorted.some(s => s.flow_position && typeof s.flow_position.x === 'number');
+    let positions = {};
+    if (anyWithPosition) {
+        sorted.forEach((s, i) => {
+            positions[s.id] = s.flow_position || { x: i * 280, y: 100 + (i % 2) * 40 };
+        });
+    } else {
+        try {
+            positions = dagreLayout(sorted, edges);
+        } catch {
+            sorted.forEach((s, i) => { positions[s.id] = { x: i * 280, y: 100 + (i % 2) * 40 }; });
+        }
+    }
+
+    const nodes = sorted.map(s => ({
         id: s.id,
         type: 'stepNode',
-        position: { x: i * 280, y: 100 + (i % 2) * 40 },
+        position: positions[s.id] || { x: 0, y: 0 },
         data: {
             id: s.id, order: s.order, title: s.title,
             step_type: s.step_type, filter_tag: s.filter_tag,
@@ -98,29 +156,7 @@ function buildGraph(steps, callbacks) {
         },
     }));
 
-    const edges = [];
-    sorted.forEach(s => {
-        for (const c of (s.conditions || [])) {
-            const src = byOrder[c.source_step_order];
-            if (!src) continue;
-            const action = ACTION_LABELS[c.action] || { label: c.action, color: '#64748b' };
-            const valueLabel = c.value ? ` = ${c.value}` : '';
-            const fieldLabel = c.field ? `${c.field}` : '(status)';
-            edges.push({
-                id: `${src.id}-${s.id}-${c.action}`,
-                source: src.id, target: s.id,
-                label: `${action.label}: ${fieldLabel}${valueLabel}`,
-                labelStyle: { fontSize: 10, fill: action.color, fontWeight: 600 },
-                labelBgPadding: [4, 2], labelBgBorderRadius: 2,
-                labelBgStyle: { fill: 'white', fillOpacity: 0.95 },
-                style: { stroke: action.color, strokeWidth: 1.6, strokeDasharray: c.action === 'hide' ? '4 3' : undefined },
-                animated: c.action === 'auto_complete',
-                markerEnd: { type: MarkerType.ArrowClosed, color: action.color },
-            });
-        }
-    });
-
-    // Sequence arrows between consecutive steps (soft grey)
+    // Sequence arrows between consecutive steps (soft grey, not clickable)
     for (let i = 0; i < sorted.length - 1; i++) {
         const from = sorted[i], to = sorted[i + 1];
         const hasCondEdge = edges.some(e => e.source === from.id && e.target === to.id);
@@ -130,6 +166,7 @@ function buildGraph(steps, callbacks) {
                 source: from.id, target: to.id,
                 style: { stroke: '#d4d4d8', strokeWidth: 1, strokeDasharray: '2 4' },
                 markerEnd: { type: MarkerType.ArrowClosed, color: '#d4d4d8' },
+                data: { isCondition: false },
             });
         }
     }
@@ -165,17 +202,21 @@ function Palette() {
     );
 }
 
-// ===== Condition creation modal (for edge-drag) =====
-function ConditionModal({ open, source, target, onCancel, onConfirm }) {
+// ===== Condition creation/edit modal =====
+function ConditionModal({ open, mode, source, target, initial, onCancel, onConfirm, onDelete }) {
     const [form, setForm] = useState({ action: 'hide', field: '', operator: 'equals', value: '' });
     useEffect(() => {
-        if (open) setForm({ action: 'hide', field: '', operator: 'equals', value: '' });
-    }, [open]);
+        if (open) {
+            setForm(initial ? { ...{ action: 'hide', field: '', operator: 'equals', value: '' }, ...initial } : { action: 'hide', field: '', operator: 'equals', value: '' });
+        }
+    }, [open, initial]);
     if (!open || !source || !target) return null;
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
             <div className="bg-card border border-border rounded-sm shadow-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()} data-testid="condition-modal">
-                <h3 className="text-lg font-semibold text-foreground mb-1">Neue Condition</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                    {mode === 'edit' ? 'Condition bearbeiten' : 'Neue Condition'}
+                </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                     Von <span className="font-semibold">#{source.order} {source.title}</span> →
                     auf <span className="font-semibold">#{target.order} {target.title}</span>
@@ -183,12 +224,7 @@ function ConditionModal({ open, source, target, onCancel, onConfirm }) {
                 <div className="space-y-3">
                     <div>
                         <label className="text-xs font-medium text-foreground">Aktion</label>
-                        <select
-                            value={form.action}
-                            onChange={(e) => setForm({ ...form, action: e.target.value })}
-                            className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
-                            data-testid="condition-action-select"
-                        >
+                        <select value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })} className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-action-select">
                             <option value="hide">Ausblenden</option>
                             <option value="block">Blockieren</option>
                             <option value="auto_complete">Auto-Abschließen</option>
@@ -199,23 +235,11 @@ function ConditionModal({ open, source, target, onCancel, onConfirm }) {
                     <div className="grid grid-cols-2 gap-2">
                         <div>
                             <label className="text-xs font-medium text-foreground">Feld (optional)</label>
-                            <input
-                                type="text"
-                                value={form.field}
-                                onChange={(e) => setForm({ ...form, field: e.target.value })}
-                                placeholder="decision"
-                                className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
-                                data-testid="condition-field-input"
-                            />
+                            <input type="text" value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })} placeholder="decision" className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-field-input" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-foreground">Operator</label>
-                            <select
-                                value={form.operator}
-                                onChange={(e) => setForm({ ...form, operator: e.target.value })}
-                                className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
-                                data-testid="condition-operator-select"
-                            >
+                            <select value={form.operator} onChange={(e) => setForm({ ...form, operator: e.target.value })} className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-operator-select">
                                 <option value="equals">gleich</option>
                                 <option value="not_equals">ungleich</option>
                                 <option value="contains">enthält</option>
@@ -228,19 +252,21 @@ function ConditionModal({ open, source, target, onCancel, onConfirm }) {
                     </div>
                     <div>
                         <label className="text-xs font-medium text-foreground">Wert</label>
-                        <input
-                            type="text"
-                            value={form.value}
-                            onChange={(e) => setForm({ ...form, value: e.target.value })}
-                            placeholder="upload"
-                            className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
-                            data-testid="condition-value-input"
-                        />
+                        <input type="text" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="upload" className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-value-input" />
                     </div>
                 </div>
-                <div className="flex gap-2 justify-end mt-5">
-                    <Button variant="outline" size="sm" onClick={onCancel} data-testid="condition-cancel-btn">Abbrechen</Button>
-                    <Button size="sm" onClick={() => onConfirm(form)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="condition-confirm-btn">Speichern</Button>
+                <div className="flex gap-2 justify-between mt-5">
+                    <div>
+                        {mode === 'edit' && (
+                            <Button variant="outline" size="sm" onClick={onDelete} className="border-red-200 text-red-600 hover:bg-red-50" data-testid="condition-delete-btn">
+                                <Trash size={14} className="mr-1" /> Löschen
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={onCancel} data-testid="condition-cancel-btn">Abbrechen</Button>
+                        <Button size="sm" onClick={() => onConfirm(form)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="condition-confirm-btn">Speichern</Button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -248,12 +274,12 @@ function ConditionModal({ open, source, target, onCancel, onConfirm }) {
 }
 
 // ===== Inner component with ReactFlow hooks =====
-function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onConditionAdd }) {
+function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onConditionAdd, onConditionUpdate, onConditionDelete, onSaveLayout }) {
     const callbacks = useMemo(() => ({ onEdit, onDelete }), [onEdit, onDelete]);
     const initial = useMemo(() => buildGraph(steps, callbacks), [steps, callbacks]);
     const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
-    const [pendingConnection, setPendingConnection] = useState(null);
+    const [modalState, setModalState] = useState(null);  // { mode, source, target, initial, edgeData }
     const flowWrapper = useRef(null);
     const { project } = useReactFlow();
 
@@ -263,12 +289,25 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         setEdges(fresh.edges);
     }, [steps, callbacks, setNodes, setEdges]);
 
-    // Edge drag → open modal
+    // Edge drag → open modal (create)
     const handleConnect = useCallback((params) => {
         const source = steps.find(s => s.id === params.source);
         const target = steps.find(s => s.id === params.target);
         if (!source || !target || source.id === target.id) return;
-        setPendingConnection({ source, target });
+        setModalState({ mode: 'create', source, target, initial: null });
+    }, [steps]);
+
+    // Edge click → edit existing condition
+    const handleEdgeClick = useCallback((event, edge) => {
+        if (!edge?.data?.isCondition) return;
+        const source = steps.find(s => s.id === edge.source);
+        const target = steps.find(s => s.id === edge.target);
+        if (!source || !target) return;
+        setModalState({
+            mode: 'edit', source, target,
+            initial: edge.data.condition,
+            edgeData: { stepId: edge.data.stepId, condIndex: edge.data.condIndex },
+        });
     }, [steps]);
 
     // Palette drop → create new step at that position
@@ -286,13 +325,31 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         onAddStepWithType?.(stepType, pos);
     }, [project, onAddStepWithType]);
 
+    // Persist a single node's position when user stops dragging it
+    const handleNodeDragStop = useCallback((_event, node) => {
+        if (!node?.id || !node.position) return;
+        onSaveLayout?.({ [node.id]: { x: node.position.x, y: node.position.y } });
+    }, [onSaveLayout]);
+
+    // Apply dagre auto-layout to everything + persist
+    const runAutoLayout = useCallback(() => {
+        try {
+            const positions = dagreLayout(steps, edges);
+            setNodes(nds => nds.map(n => positions[n.id] ? { ...n, position: positions[n.id] } : n));
+            onSaveLayout?.(positions);
+        } catch (e) { console.warn('Auto-layout failed:', e); }
+    }, [steps, edges, setNodes, onSaveLayout]);
+
     return (
         <div className="relative h-[640px] border border-border rounded-sm bg-muted/20 flex" data-testid="steps-flow-builder">
             <Palette />
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2">
                     <Button size="sm" onClick={() => onAddStep?.()} className="bg-[#114f55] hover:bg-[#0d3d42] text-white shadow" data-testid="flow-add-step-btn">
-                        <Plus size={14} className="mr-1" /> Step hinzufügen
+                        <Plus size={14} className="mr-1" /> Step
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
+                        <Graph size={14} className="mr-1" /> Auto-Layout
                     </Button>
                 </div>
                 <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end">
@@ -307,6 +364,8 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     nodes={nodes} edges={edges}
                     onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                     onConnect={handleConnect}
+                    onEdgeClick={handleEdgeClick}
+                    onNodeDragStop={handleNodeDragStop}
                     nodeTypes={nodeTypes}
                     fitView
                     fitViewOptions={{ padding: 0.2 }}
@@ -318,13 +377,23 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                 </ReactFlow>
             </div>
             <ConditionModal
-                open={!!pendingConnection}
-                source={pendingConnection?.source}
-                target={pendingConnection?.target}
-                onCancel={() => setPendingConnection(null)}
+                open={!!modalState}
+                mode={modalState?.mode}
+                source={modalState?.source}
+                target={modalState?.target}
+                initial={modalState?.initial}
+                onCancel={() => setModalState(null)}
                 onConfirm={(form) => {
-                    onConditionAdd?.(pendingConnection.source, pendingConnection.target, form);
-                    setPendingConnection(null);
+                    if (modalState.mode === 'edit') {
+                        onConditionUpdate?.(modalState.edgeData.stepId, modalState.edgeData.condIndex, { ...modalState.initial, ...form });
+                    } else {
+                        onConditionAdd?.(modalState.source, modalState.target, form);
+                    }
+                    setModalState(null);
+                }}
+                onDelete={() => {
+                    onConditionDelete?.(modalState.edgeData.stepId, modalState.edgeData.condIndex);
+                    setModalState(null);
                 }}
             />
         </div>

@@ -44,22 +44,20 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-20: **Flowbuilder v2** — Palette-Sidebar mit 6 draggable Step-Typen (Formular, Entscheidung, Partner, Partner Multi, Meilenstein, Info). Drag&Drop auf Canvas öffnet Step-Dialog mit vorausgefülltem Typ. Edge-Drag von Source-Handle zu Target-Handle öffnet Condition-Modal (Action/Feld/Operator/Wert) und persistiert die Condition via `adminAPI.updateStep`. Action-Legende oben rechts (Ausblenden, Blockieren, Auto-Abschluss, Weiter, Weiterleiten)
-- [x] 2026-04-20: **E2E-Flowbuilder-Test** (`/app/backend/tests/e2e_flowbuilder.py`) — 8/8 PASS mit frischem Test-Admin, deckt Node-Rendering (24 steps), View-Toggle, Palette, Palette-Drop, Node-Edit, Node-Create, Edge-Condition, Node-Delete ab. **Vollständiger Cleanup** verifiziert: Step-Count (24), IDs, Conditions wiederhergestellt, Test-User gelöscht
-- [x] 2026-04-20: **Admin Steps-Flowbuilder v1** (reactflow 11.11.4)
-- [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** — jetzt basierend auf Upload-Step-Status
+- [x] 2026-04-20: **Flowbuilder v3** — **Auto-Layout** mit `dagre` (LR-Richtung, verzweigt saubere Upload/Partner-Branches), persistiert globale Positionen in neuem `steps.flow_position` Feld via `PUT /api/admin/steps/layout-bulk`. **Edge-Click** öffnet Condition-Modal im Edit-Modus (pre-filled) mit Delete-Button. **Node-Drag** speichert Position sofort global. Wenn `flow_position` gesetzt → UI nutzt persistierte Werte, sonst dagre-Auto-Layout
+- [x] 2026-04-20: **E2E Flowbuilder Tests 10/10 PASS** (`/app/backend/tests/e2e_flowbuilder.py` — jetzt auch Auto-Layout-Persistenz + Edge-Click-Edit abgedeckt, vollständiger Cleanup inkl. flow_position)
+- [x] 2026-04-20: **Flowbuilder v2** (Palette-Sidebar + Edge-Drag für Conditions)
+- [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** (status_is auf Upload-Step)
 - [x] 2026-04-20: **Partner-Insights-Dashboard** + **Match-Score** + **Partner-Self-Service Tags-Editor**
 - [x] 2026-04-20: **Partner-Matching-Empfehlung** in User-Steps
-- [x] 2026-04-20: **P2 E2E Walkthrough** 3/3 PASS + **Repro-Test** Milestone
 - [x] 2026-04-20: **Step Template Library** + **Landing-Page CMS Feature-Boxen** + **Anerkennungsstatus Auto-Skip**
 - [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision + hide/auto_complete/block)
 
 ## Backlog
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
 - [ ] P2: Wöchentliche Insights-E-Mail an Partner (Mailgun bereits integriert)
-- [ ] P3: Flowbuilder — Condition per Click auf Edge bearbeiten (aktuell nur via Node-Dialog)
+- [ ] P3: Flowbuilder — Undo/Redo-History für Node/Condition/Delete-Operationen
 - [ ] P3: Flowbuilder — Journey Simulator (Node-Farbe zeigt Sichtbarkeit für simulierten User)
-- [ ] P3: Auto-Layout Button (dagre oder elk) statt horizontal-by-order
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).

@@ -26,7 +26,7 @@ from models import (
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
-    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate
+    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -539,7 +539,7 @@ async def admin_delete_user(user_id: str, request: Request):
 async def admin_get_steps(request: Request):
     await require_role("admin")(request)
     steps = await db.steps.find().sort("order", 1).to_list(100)
-    return [{"id": str(s["_id"]), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {})} for s in steps]
+    return [{"id": str(s["_id"]), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
 
 @admin_router.post("/steps")
 async def admin_create_step(data: StepCreate, request: Request):
@@ -557,6 +557,27 @@ async def admin_reorder_steps(data: StepReorder, request: Request):
         await db.steps.update_one({"_id": ObjectId(step_id)}, {"$set": {"order": idx + 1}})
     await create_audit_log(admin_user["_id"], admin_user["email"], "steps_reorder", "step", "", {"new_order": data.step_ids})
     return {"message": "Steps reordered"}
+
+@admin_router.put("/steps/layout-bulk")
+async def admin_save_step_layout_bulk(data: StepLayoutBulk, request: Request):
+    """Persist flow_position for many steps at once. Global — affects every admin."""
+    admin_user = await require_role("admin")(request)
+    updated = 0
+    for sid, pos in (data.positions or {}).items():
+        if not isinstance(pos, dict) or "x" not in pos or "y" not in pos:
+            continue
+        try:
+            await db.steps.update_one(
+                {"_id": ObjectId(sid)},
+                {"$set": {"flow_position": {"x": float(pos["x"]), "y": float(pos["y"])},
+                           "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            updated += 1
+        except Exception:
+            pass
+    await create_audit_log(admin_user["_id"], admin_user["email"], "steps_layout_saved",
+                            "step", "", {"count": updated})
+    return {"message": "Layout saved", "updated": updated}
 
 @admin_router.put("/steps/{step_id}")
 async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
