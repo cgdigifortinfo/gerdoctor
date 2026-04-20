@@ -789,6 +789,31 @@ export default function AdminDashboard() {
                                         onEdit={(s) => { setEditingStep(s); setShowStepDialog(true); }}
                                         onDelete={(s) => handleDeleteStep(s.id)}
                                         onAddStep={() => { setEditingStep(null); setShowStepDialog(true); }}
+                                        onAddStepWithType={(stepType) => {
+                                            const maxOrder = steps.length ? Math.max(...steps.map(s => s.order)) : 0;
+                                            setEditingStep({
+                                                title: '', description: '', step_type: stepType, order: maxOrder + 1,
+                                                fields: [], required_fields: [], required_uploads: [],
+                                                conditions: [], field_mappings: [], duration_value: 0, duration_unit: 'days',
+                                                is_active: true,
+                                            });
+                                            setShowStepDialog(true);
+                                        }}
+                                        onConditionAdd={async (source, target, form) => {
+                                            try {
+                                                const newCondition = {
+                                                    source_step_order: source.order,
+                                                    action: form.action,
+                                                    field: form.field || '',
+                                                    operator: form.operator,
+                                                    value: form.value || '',
+                                                };
+                                                const updatedConditions = [...(target.conditions || []), newCondition];
+                                                await adminAPI.updateStep(target.id, { ...target, conditions: updatedConditions });
+                                                toast.success(`Condition erstellt: ${form.action}`);
+                                                loadData();
+                                            } catch (error) { toast.error(formatApiError(error)); }
+                                        }}
                                     />
                                 </div>
                             ) : (

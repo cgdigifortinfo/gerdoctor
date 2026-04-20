@@ -44,24 +44,22 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-20: **Admin Steps-Flowbuilder** (`reactflow`-basiert, 6 Node-Typen farbkodiert, Condition-Edges mit Label, animierte auto_complete-Edges, Sequenz-Pfeile zwischen Nachbar-Steps, Edit/Delete inline, Minimap + Controls). Toggle **Flow-Ansicht ⇄ Listen-Ansicht** – alter Editor bleibt als Fallback erhalten
-- [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** – vorher: `decision==upload` löste Milestone aus (ohne dass Docs hochgeladen waren). Jetzt: Milestone-Condition nutzt `status_is=completed` auf den Upload-Step. Migration hat 6 Milestones umgestellt + 5 fälschlich auto-completed Progress-Rows zurückgesetzt. Regression-Test `/app/backend/tests/repro_milestone_skip.py` deckt beide Szenarien (partner-path + upload-path ohne/mit Docs) ab
-- [x] 2026-04-20: **Partner-Insights-Dashboard** (KPIs, BarCharts, 30-Tage-Timeline mit Empty-State, Conversion-Funnel)
-- [x] 2026-04-20: **Match-Score-Spalte** (Star-Badge, Default-Sort desc)
-- [x] 2026-04-20: **Partner-Self-Service Tags-Editor** (`PUT /api/partner/partner-data`)
-- [x] 2026-04-20: **Partner-Matching-Empfehlung** (partner_selection & partner_multiselection ★)
-- [x] 2026-04-20: **P2 E2E Walkthrough** 3/3 PASS
-- [x] 2026-04-20: **Step Template Library** (CRUD + save-from-step + apply)
-- [x] 2026-04-20: **Landing-Page CMS Feature-Boxen**
-- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip**
-- [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision + hide/auto_complete/block actions)
+- [x] 2026-04-20: **Flowbuilder v2** — Palette-Sidebar mit 6 draggable Step-Typen (Formular, Entscheidung, Partner, Partner Multi, Meilenstein, Info). Drag&Drop auf Canvas öffnet Step-Dialog mit vorausgefülltem Typ. Edge-Drag von Source-Handle zu Target-Handle öffnet Condition-Modal (Action/Feld/Operator/Wert) und persistiert die Condition via `adminAPI.updateStep`. Action-Legende oben rechts (Ausblenden, Blockieren, Auto-Abschluss, Weiter, Weiterleiten)
+- [x] 2026-04-20: **E2E-Flowbuilder-Test** (`/app/backend/tests/e2e_flowbuilder.py`) — 8/8 PASS mit frischem Test-Admin, deckt Node-Rendering (24 steps), View-Toggle, Palette, Palette-Drop, Node-Edit, Node-Create, Edge-Condition, Node-Delete ab. **Vollständiger Cleanup** verifiziert: Step-Count (24), IDs, Conditions wiederhergestellt, Test-User gelöscht
+- [x] 2026-04-20: **Admin Steps-Flowbuilder v1** (reactflow 11.11.4)
+- [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** — jetzt basierend auf Upload-Step-Status
+- [x] 2026-04-20: **Partner-Insights-Dashboard** + **Match-Score** + **Partner-Self-Service Tags-Editor**
+- [x] 2026-04-20: **Partner-Matching-Empfehlung** in User-Steps
+- [x] 2026-04-20: **P2 E2E Walkthrough** 3/3 PASS + **Repro-Test** Milestone
+- [x] 2026-04-20: **Step Template Library** + **Landing-Page CMS Feature-Boxen** + **Anerkennungsstatus Auto-Skip**
+- [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision + hide/auto_complete/block)
 
 ## Backlog
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
 - [ ] P2: Wöchentliche Insights-E-Mail an Partner (Mailgun bereits integriert)
-- [ ] P3: Flowbuilder – Edges direkt per Drag&Drop zwischen Nodes ziehen um neue Conditions anzulegen (aktuell: Edit über Node-Dialog)
-- [ ] P3: Flowbuilder – Step-Typ-Palette links (Drag neue Step-Typen auf Canvas)
-- [ ] P3: Insights `Unbekannt`-Label + `conversion_rate_pct` als Float
+- [ ] P3: Flowbuilder — Condition per Click auf Edge bearbeiten (aktuell nur via Node-Dialog)
+- [ ] P3: Flowbuilder — Journey Simulator (Node-Farbe zeigt Sichtbarkeit für simulierten User)
+- [ ] P3: Auto-Layout Button (dagre oder elk) statt horizontal-by-order
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).
