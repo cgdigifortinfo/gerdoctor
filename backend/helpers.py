@@ -248,6 +248,96 @@ async def apply_auto_completes(user_id: str):
     return sids
 
 
+# ========================
+# ANERKENNUNGSSTATUS → Block auto-skip
+# ========================
+# Each block is (decision_order, upload_order_or_None, milestone_order)
+BLOCK_DEFINITIONS = {
+    "Antragstellung Approbation": (2, 3, 5),
+    "Fachsprachenprüfung":        (6, 7, 9),
+    "Gleichwertigkeitsprüfung":  (10, 11, 13),
+    "Kenntnisprüfung":            (14, 15, 17),
+    "Weiterbildung":              (21, 22, 24),
+}
+
+# Which blocks are already-done when the user picks a given anerkennungsstatus.
+# Chosen mapping (can be refined later):
+#   "…Fachsprachenprüfung bestanden"          → Fachsprachenprüfung fertig
+#   "Berufserlaubnis erteilt"                  → Antragstellung fertig
+#   "Termin Kenntnisprüfung beantragt"         → Antragstellung + Fachsprachen fertig
+#   "Gleichwertigkeitsprüfung beantragt"       → Antragstellung + Fachsprachen fertig
+#   "In Deutschland approbiert"                → Antragstellung + Fachsprachen + Gleichwert. + Kenntnisprüfung fertig
+ANERKENNUNGSSTATUS_COMPLETE_MAP = {
+    "Ich habe die Fachsprachenprüfung Medizin bestanden": [
+        "Fachsprachenprüfung",
+    ],
+    "Die Berufserlaubnis wurde mir erteilt": [
+        "Antragstellung Approbation",
+    ],
+    "Ich habe einen Termin zur Kenntnisprüfung (beantragt)": [
+        "Antragstellung Approbation", "Fachsprachenprüfung",
+    ],
+    "Ich habe die Gleichwertigkeitsprüfung beantragt": [
+        "Antragstellung Approbation", "Fachsprachenprüfung",
+    ],
+    "Ich bin in Deutschland approbiert": [
+        "Antragstellung Approbation", "Fachsprachenprüfung",
+        "Gleichwertigkeitsprüfung", "Kenntnisprüfung",
+    ],
+}
+
+
+async def apply_anerkennungsstatus_skips(user_id: str, status: str):
+    """Auto-complete whole blocks based on the user's anerkennungsstatus.
+
+    Blocks marked complete stay hidden for the user (decision='upload' triggers
+    hide-conditions on partner step + auto_complete on milestone) and count as
+    done in progress/ETA.
+    Idempotent — already-completed steps are skipped."""
+    if not status:
+        return []
+    blocks = ANERKENNUNGSSTATUS_COMPLETE_MAP.get(status, [])
+    if not blocks:
+        return []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    affected = []
+    for block_name in blocks:
+        dec_order, upload_order, ms_order = BLOCK_DEFINITIONS[block_name]
+        for order in (dec_order, upload_order, ms_order):
+            if order is None:
+                continue
+            step = await db.steps.find_one({"order": order, "is_active": True})
+            if not step:
+                continue
+            sid = str(step["_id"])
+            existing = await db.user_progress.find_one({"user_id": user_id, "step_id": sid})
+            if existing and existing.get("status") == "completed":
+                continue
+            data = {"auto_skipped_by_status": True, "anerkennungsstatus": status}
+            if step.get("step_type") == "decision":
+                # Force the 'upload' branch so partner_step stays hidden + milestone auto-matches
+                data["decision"] = "upload"
+            await db.user_progress.update_one(
+                {"user_id": user_id, "step_id": sid},
+                {"$set": {
+                    "status": "completed", "data": data,
+                    "updated_at": now_iso,
+                    "completed_at": now_iso,
+                    "started_at": (existing or {}).get("started_at") or now_iso,
+                }},
+                upsert=True,
+            )
+            await db.progress_history.insert_one({
+                "user_id": user_id, "step_id": sid,
+                "step_title": step.get("title", ""),
+                "step_order": step.get("order", 0),
+                "action": "auto_skipped_by_status",
+                "timestamp": now_iso,
+            })
+            affected.append(sid)
+    return affected
+
+
 async def calculate_completion_pct(user_id: str) -> int:
     steps, _, hidden_ids, _ = await _get_step_context(user_id)
     countable_steps = [s for s in steps if s.get("duration_value", 0) > 0 and str(s["_id"]) not in hidden_ids]

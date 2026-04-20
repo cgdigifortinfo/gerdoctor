@@ -221,26 +221,38 @@ export default function Landing() {
             <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-y border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-3 gap-8">
-                        <div className="p-8 border border-border rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-1">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Users size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Guided Onboarding</h3>
-                            <p className="text-muted-foreground">Step-by-step process to complete your profile and find the perfect partner match.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
+                                {localizeCms(homeContent, 'box1_title', homeTrans) || 'Guided Onboarding'}
+                            </h3>
+                            <p className="text-muted-foreground">
+                                {localizeCms(homeContent, 'box1_description', homeTrans) || 'Step-by-step process to complete your profile and find the perfect partner match.'}
+                            </p>
                         </div>
-                        <div className="p-8 border border-border rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-2">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <Buildings size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Partner Network</h3>
-                            <p className="text-muted-foreground">Access our curated network of industry-leading partners across multiple sectors.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
+                                {localizeCms(homeContent, 'box2_title', homeTrans) || 'Partner Network'}
+                            </h3>
+                            <p className="text-muted-foreground">
+                                {localizeCms(homeContent, 'box2_description', homeTrans) || 'Access our curated network of industry-leading partners across multiple sectors.'}
+                            </p>
                         </div>
-                        <div className="p-8 border border-border rounded-sm card-hover">
+                        <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-3">
                             <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
                                 <CheckCircle size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">Progress Tracking</h3>
-                            <p className="text-muted-foreground">Monitor your journey with real-time progress updates and status notifications.</p>
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
+                                {localizeCms(homeContent, 'box3_title', homeTrans) || 'Progress Tracking'}
+                            </h3>
+                            <p className="text-muted-foreground">
+                                {localizeCms(homeContent, 'box3_description', homeTrans) || 'Monitor your journey with real-time progress updates and status notifications.'}
+                            </p>
                         </div>
                     </div>
                 </div>

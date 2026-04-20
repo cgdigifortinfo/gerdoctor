@@ -62,6 +62,8 @@ export default function AdminDashboard() {
     // Step management state
     const [editingStep, setEditingStep] = useState(null);
     const [showStepDialog, setShowStepDialog] = useState(false);
+    const [stepTemplates, setStepTemplates] = useState([]);
+    const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
 
     // Partner management state
     const [editingPartner, setEditingPartner] = useState(null);
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes, settingsRes] = await Promise.all([
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes, settingsRes, templatesRes] = await Promise.all([
                 adminAPI.getUsers(),
                 adminAPI.getSteps(),
                 adminAPI.getPartners(),
@@ -103,7 +105,8 @@ export default function AdminDashboard() {
                 adminAPI.getCmsContent('about'),
                 adminAPI.getCmsContent('partners'),
                 adminAPI.getAuditLog(50),
-                settingsAPI.get().catch(() => ({ data: {} }))
+                settingsAPI.get().catch(() => ({ data: {} })),
+                adminAPI.listStepTemplates().catch(() => ({ data: [] }))
             ]);
             setUsers(usersRes.data);
             setSteps(stepsRes.data);
@@ -118,6 +121,7 @@ export default function AdminDashboard() {
             setAuditLogs(auditRes.data.logs || []);
             setAuditActionTypes(auditRes.data.action_types || []);
             if (settingsRes.data) setSiteSettings(settingsRes.data);
+            setStepTemplates(templatesRes.data || []);
         } catch (error) {
             toast.error('Failed to load data');
         } finally {
@@ -229,6 +233,53 @@ export default function AdminDashboard() {
         } catch (error) {
             toast.error(formatApiError(error));
         }
+    };
+
+    // Step template handlers
+    const handleSaveStepAsTemplate = async (step) => {
+        const name = window.prompt(`Template-Name für "${step.title}":`, step.title);
+        if (!name || !name.trim()) return;
+        try {
+            await adminAPI.saveStepAsTemplate(step.id, name.trim(), step.description || '');
+            toast.success('Als Template gespeichert');
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleApplyTemplate = async (template) => {
+        const maxOrder = steps.length ? Math.max(...steps.map(s => s.order)) : 0;
+        const input = window.prompt(
+            `An welcher Position soll "${template.name}" eingefügt werden? (1-${maxOrder + 1})`,
+            String(maxOrder + 1)
+        );
+        if (!input) return;
+        const order = parseInt(input, 10);
+        if (!Number.isFinite(order) || order < 1) { toast.error('Ungültige Position'); return; }
+        try {
+            await adminAPI.applyStepTemplate(template.id, order);
+            toast.success(`Template "${template.name}" eingefügt`);
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleDeleteTemplate = (template) => {
+        setConfirmDialog({
+            message: `Template "${template.name}" dauerhaft löschen?`,
+            onConfirm: async () => {
+                try {
+                    await adminAPI.deleteStepTemplate(template.id);
+                    toast.success('Template gelöscht');
+                    loadData();
+                } catch (error) {
+                    toast.error(formatApiError(error));
+                }
+                setConfirmDialog(null);
+            }
+        });
     };
 
     // Partner handlers
@@ -662,12 +713,57 @@ export default function AdminDashboard() {
                     {/* ============ STEPS TAB ============ */}
                     <TabsContent value="steps">
                         <div className="bg-card border border-border rounded-sm">
-                            <div className="p-4 border-b border-border flex justify-between items-center">
+                            <div className="p-4 border-b border-border flex flex-wrap justify-between items-center gap-2">
                                 <h2 className="text-lg font-semibold text-foreground">Step Management</h2>
-                                <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-step-btn">
-                                    <Plus size={18} className="mr-2" /> Add Step
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowTemplatesPanel(v => !v)}
+                                        className="border-border"
+                                        data-testid="toggle-templates-panel-btn"
+                                    >
+                                        Templates ({stepTemplates.length})
+                                    </Button>
+                                    <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-step-btn">
+                                        <Plus size={18} className="mr-2" /> Add Step
+                                    </Button>
+                                </div>
                             </div>
+
+                            {showTemplatesPanel && (
+                                <div className="p-4 border-b border-border bg-muted/30" data-testid="step-templates-panel">
+                                    <h3 className="text-sm font-semibold text-foreground mb-3">Step-Templates</h3>
+                                    {stepTemplates.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            Noch keine Templates gespeichert. Klicke bei einem Schritt auf „Als Template speichern".
+                                        </p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {stepTemplates.map(tpl => (
+                                                <div key={tpl.id} className="border border-border rounded-sm p-3 bg-card" data-testid={`template-card-${tpl.id}`}>
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-foreground truncate">{tpl.name}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">{tpl.description || tpl.config?.step_type || ''}</p>
+                                                        </div>
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm flex-shrink-0">
+                                                            {tpl.config?.step_type || 'form'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2 mt-3">
+                                                        <Button size="sm" onClick={() => handleApplyTemplate(tpl)} className="h-7 px-2 text-xs bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid={`apply-template-${tpl.id}`}>
+                                                            Einfügen
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" onClick={() => handleDeleteTemplate(tpl)} className="h-7 px-2 text-xs border-red-200 text-red-500" data-testid={`delete-template-${tpl.id}`}>
+                                                            <Trash size={12} />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div className="p-4 space-y-4">
                                 {steps.sort((a, b) => a.order - b.order).map((step, idx) => (
                                     <div key={step.id} className="border border-border rounded-sm p-4">
@@ -718,6 +814,9 @@ export default function AdminDashboard() {
                                             <div className="flex gap-2 flex-shrink-0 ml-4">
                                                 <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-[#114f55] hover:bg-teal-50" data-testid={`edit-step-${step.id}`}>
                                                     <Pencil size={16} className="mr-1" /> Edit
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => handleSaveStepAsTemplate(step)} className="border-border text-muted-foreground hover:text-[#114f55]" data-testid={`save-template-${step.id}`} title="Als Template speichern">
+                                                    Template
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>
                                                     <Trash size={16} className="mr-1" /> Delete
@@ -821,7 +920,13 @@ export default function AdminDashboard() {
                                 fields={[
                                     { key: 'hero_title', label: 'Hero Title', type: 'text', placeholder: 'Transform Your Business Journey' },
                                     { key: 'hero_subtitle', label: 'Hero Subtitle', type: 'textarea', placeholder: 'A guided experience to connect you with the right partners' },
-                                    { key: 'hero_cta', label: 'CTA Button Text', type: 'text', placeholder: 'Get Started' }
+                                    { key: 'hero_cta', label: 'CTA Button Text', type: 'text', placeholder: 'Get Started' },
+                                    { key: 'box1_title', label: 'Feature-Box 1 · Titel', type: 'text', placeholder: 'Guided Onboarding' },
+                                    { key: 'box1_description', label: 'Feature-Box 1 · Beschreibung', type: 'textarea', placeholder: 'Step-by-step process to complete your profile…' },
+                                    { key: 'box2_title', label: 'Feature-Box 2 · Titel', type: 'text', placeholder: 'Partner Network' },
+                                    { key: 'box2_description', label: 'Feature-Box 2 · Beschreibung', type: 'textarea', placeholder: 'Access our curated network…' },
+                                    { key: 'box3_title', label: 'Feature-Box 3 · Titel', type: 'text', placeholder: 'Progress Tracking' },
+                                    { key: 'box3_description', label: 'Feature-Box 3 · Beschreibung', type: 'textarea', placeholder: 'Monitor your journey…' },
                                 ]}
                                 content={cmsHome}
                                 onChange={setCmsHome}

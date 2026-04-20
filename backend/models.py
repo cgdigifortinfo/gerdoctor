@@ -185,3 +185,13 @@ class SiteSettingsUpdate(BaseModel):
     footer_text: Optional[str] = None
     primary_color: Optional[str] = None
     meta_description: Optional[str] = None
+
+class StepTemplateCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    config: dict  # full step config (title, description, step_type, fields, conditions, ...)
+
+class StepTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    config: Optional[dict] = None

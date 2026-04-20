@@ -131,6 +131,16 @@ export const adminAPI = {
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
     updateCmsContent: (section, content, translations) => api.put(`/cms/${section}`, { section, content, translations }),
+
+    // Step Templates
+    listStepTemplates: () => api.get('/admin/step-templates'),
+    createStepTemplate: (data) => api.post('/admin/step-templates', data),
+    updateStepTemplate: (id, data) => api.put(`/admin/step-templates/${id}`, data),
+    deleteStepTemplate: (id) => api.delete(`/admin/step-templates/${id}`),
+    saveStepAsTemplate: (stepId, name, description = '') =>
+        api.post(`/admin/step-templates/from-step/${stepId}?name=${encodeURIComponent(name)}&description=${encodeURIComponent(description)}`),
+    applyStepTemplate: (templateId, order) =>
+        api.post(`/admin/step-templates/${templateId}/apply?order=${order}`),
 };
 
 // Notification Preferences APIs

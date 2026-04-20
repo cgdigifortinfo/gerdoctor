@@ -25,7 +25,8 @@ from models import (
     UserRegister, UserLogin, ForgotPassword, ResetPassword, UserResponse, ProfileUpdate,
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
-    CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate
+    CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
+    StepTemplateCreate, StepTemplateUpdate
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -35,7 +36,8 @@ from helpers import (
     init_storage, put_object, get_object, APP_NAME,
     send_email_notification, create_audit_log,
     calculate_completion_pct, calculate_estimated_completion,
-    apply_auto_completes, _get_step_context
+    apply_auto_completes, _get_step_context,
+    apply_anerkennungsstatus_skips
 )
 
 logger = logging.getLogger("server")
@@ -295,6 +297,9 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         update_fields["completed_at"] = now_iso
     await db.user_progress.update_one({"user_id": user["_id"], "step_id": data.step_id}, {"$set": update_fields}, upsert=True)
     await db.progress_history.insert_one({"user_id": user["_id"], "step_id": data.step_id, "step_title": step["title"], "step_order": step["order"], "action": data.status, "timestamp": now_iso})
+    # If this was the Stammdaten step (order=1), apply anerkennungsstatus-based block skips
+    if step.get("order") == 1 and (data.data or {}).get("anerkennungsstatus"):
+        await apply_anerkennungsstatus_skips(user["_id"], data.data["anerkennungsstatus"])
     # Trigger auto-completion for subsequent steps (e.g. milestones after upload decision)
     await apply_auto_completes(user["_id"])
     return {"message": "Progress updated"}
@@ -454,7 +459,10 @@ async def admin_get_user(user_id: str, request: Request):
 @admin_router.put("/users/{user_id}/progress")
 async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
     await require_role("admin")(request)
+    step = await db.steps.find_one({"_id": ObjectId(data.step_id)})
     await db.user_progress.update_one({"user_id": user_id, "step_id": data.step_id}, {"$set": {"status": data.status, "data": data.data or {}, "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    if step and step.get("order") == 1 and (data.data or {}).get("anerkennungsstatus"):
+        await apply_anerkennungsstatus_skips(user_id, data.data["anerkennungsstatus"])
     await apply_auto_completes(user_id)
     return {"message": "User progress updated"}
 
@@ -899,6 +907,118 @@ async def update_cms_content(section: str, data: CMSContentUpdate, request: Requ
     return {"message": "Content updated"}
 
 # ========================
+# STEP TEMPLATES (Admin)
+# ========================
+
+def _sanitize_template_config(cfg: dict) -> dict:
+    """Strip fields that shouldn't be re-used (order, is_active, created_at, _id, id)."""
+    if not isinstance(cfg, dict):
+        return {}
+    ignore = {"_id", "id", "order", "is_active", "created_at", "updated_at"}
+    return {k: v for k, v in cfg.items() if k not in ignore}
+
+
+@admin_router.get("/step-templates")
+async def admin_list_step_templates(request: Request):
+    await require_role("admin")(request)
+    tpls = await db.step_templates.find().sort("created_at", -1).to_list(200)
+    return [{
+        "id": str(t["_id"]), "name": t.get("name", ""),
+        "description": t.get("description", ""),
+        "config": t.get("config", {}),
+        "created_at": t.get("created_at"),
+    } for t in tpls]
+
+
+@admin_router.post("/step-templates")
+async def admin_create_step_template(data: StepTemplateCreate, request: Request):
+    admin_user = await require_role("admin")(request)
+    doc = {
+        "name": data.name,
+        "description": data.description or "",
+        "config": _sanitize_template_config(data.config or {}),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.step_templates.insert_one(doc)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_create",
+                            "step_template", str(result.inserted_id), {"name": data.name})
+    return {"id": str(result.inserted_id), "message": "Template created"}
+
+
+@admin_router.put("/step-templates/{template_id}")
+async def admin_update_step_template(template_id: str, data: StepTemplateUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    update = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "config" in update:
+        update["config"] = _sanitize_template_config(update["config"])
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.step_templates.update_one({"_id": ObjectId(template_id)}, {"$set": update})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_update",
+                            "step_template", template_id, {"fields": list(update.keys())})
+    return {"message": "Template updated"}
+
+
+@admin_router.delete("/step-templates/{template_id}")
+async def admin_delete_step_template(template_id: str, request: Request):
+    admin_user = await require_role("admin")(request)
+    tpl = await db.step_templates.find_one({"_id": ObjectId(template_id)})
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await db.step_templates.delete_one({"_id": ObjectId(template_id)})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_delete",
+                            "step_template", template_id, {"name": tpl.get("name", "")})
+    return {"message": "Template deleted"}
+
+
+@admin_router.post("/step-templates/from-step/{step_id}")
+async def admin_save_step_as_template(step_id: str, request: Request, name: str = Query(...), description: str = Query("")):
+    admin_user = await require_role("admin")(request)
+    step = await db.steps.find_one({"_id": ObjectId(step_id)})
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    cfg = {k: v for k, v in step.items() if k != "_id"}
+    doc = {
+        "name": name,
+        "description": description,
+        "config": _sanitize_template_config(cfg),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.step_templates.insert_one(doc)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_create",
+                            "step_template", str(result.inserted_id), {"from_step": step_id, "name": name})
+    return {"id": str(result.inserted_id), "message": "Template saved from step"}
+
+
+@admin_router.post("/step-templates/{template_id}/apply")
+async def admin_apply_template(template_id: str, request: Request, order: int = Query(...)):
+    """Instantiate a new step from a template at the given order.
+    All existing steps with order >= given are shifted by +1 to make room."""
+    admin_user = await require_role("admin")(request)
+    tpl = await db.step_templates.find_one({"_id": ObjectId(template_id)})
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    # Shift existing steps
+    await db.steps.update_many({"order": {"$gte": order}}, {"$inc": {"order": 1}})
+    cfg = _sanitize_template_config(tpl.get("config", {}))
+    cfg["order"] = order
+    cfg["is_active"] = True
+    cfg["created_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.steps.insert_one(cfg)
+    new_sid = str(result.inserted_id)
+    # Create pending progress entries for all users
+    users = await db.users.find({"role": "user"}, {"_id": 1}).to_list(1000)
+    if users:
+        await db.user_progress.insert_many([
+            {"user_id": str(u["_id"]), "step_id": new_sid, "status": "pending",
+             "data": {}, "created_at": datetime.now(timezone.utc).isoformat()}
+            for u in users
+        ])
+    await create_audit_log(admin_user["_id"], admin_user["email"], "step_template_apply",
+                            "step", new_sid, {"template_id": template_id, "order": order})
+    return {"id": new_sid, "message": "Template applied as new step"}
+
+
+# ========================
 # SITE SETTINGS
 # ========================
 
@@ -996,9 +1116,63 @@ async def startup():
         ])
         logger.info("Sample partners created")
     # Seed CMS
-    for section, defaults in {"home": {"hero_title": "GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland", "hero_subtitle": "Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich", "hero_cta": "Jetzt starten"}, "about": {"title": "Ueber uns", "description": "Erhalte die Arbeitserlaubnis zum Praktizieren in Deutschland.", "mission": "Der einfache Weg zur deutschen Approbation"}, "partners": {"title": "Unsere Partner unterstuetzen dich", "description": "Arbeiten Sie mit branchenfuehrenden Partnern zusammen."}}.items():
-        if not await db.cms_content.find_one({"section": section}):
-            await db.cms_content.insert_one({"section": section, "content": defaults, "created_at": datetime.now(timezone.utc).isoformat()})
+    _default_cms = {
+        "home": {
+            "hero_title": "GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland",
+            "hero_subtitle": "Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich",
+            "hero_cta": "Jetzt starten",
+            "box1_title": "Begleitetes Onboarding",
+            "box1_description": "Schritt-für-Schritt durch den Anerkennungsprozess mit individueller Begleitung.",
+            "box2_title": "Partner-Netzwerk",
+            "box2_description": "Zugang zu geprüften Partnern für Approbation, Fachsprachenprüfung, Kenntnisprüfung und Weiterbildung.",
+            "box3_title": "Fortschritts-Tracking",
+            "box3_description": "Behalte jederzeit den Überblick - Meilensteine, Fristen und voraussichtliches Approbationsdatum.",
+        },
+        "about": {
+            "title": "Ueber uns",
+            "description": "Erhalte die Arbeitserlaubnis zum Praktizieren in Deutschland.",
+            "mission": "Der einfache Weg zur deutschen Approbation",
+        },
+        "partners": {
+            "title": "Unsere Partner unterstuetzen dich",
+            "description": "Arbeiten Sie mit branchenfuehrenden Partnern zusammen.",
+        },
+    }
+    _default_cms_en = {
+        "home": {
+            "hero_title": "GERdoctor - your personal path to becoming a medical specialist in Germany",
+            "hero_subtitle": "From preparation to starting your career, we provide comprehensive support.",
+            "hero_cta": "Get Started",
+            "box1_title": "Guided Onboarding",
+            "box1_description": "Step-by-step through the recognition process with personalised guidance.",
+            "box2_title": "Partner Network",
+            "box2_description": "Access to vetted partners for Approbation, language exam, knowledge exam and further training.",
+            "box3_title": "Progress Tracking",
+            "box3_description": "Stay on top of every milestone — deadlines and your expected Approbation date.",
+        },
+    }
+    for section, defaults in _default_cms.items():
+        existing = await db.cms_content.find_one({"section": section})
+        if not existing:
+            doc = {"section": section, "content": defaults, "created_at": datetime.now(timezone.utc).isoformat()}
+            if section in _default_cms_en:
+                doc["translations"] = {"en": _default_cms_en[section]}
+            await db.cms_content.insert_one(doc)
+        else:
+            # Back-fill any missing keys so existing installs get new feature boxes
+            content = existing.get("content") or {}
+            added = {k: v for k, v in defaults.items() if k not in content}
+            update = {}
+            if added:
+                update["content"] = {**content, **added}
+            if section in _default_cms_en:
+                trans = existing.get("translations") or {}
+                en = trans.get("en") or {}
+                added_en = {k: v for k, v in _default_cms_en[section].items() if k not in en}
+                if added_en:
+                    update["translations"] = {**trans, "en": {**en, **added_en}}
+            if update:
+                await db.cms_content.update_one({"section": section}, {"$set": update})
     # Seed site settings
     if not await db.site_settings.find_one({"_key": "global"}):
         await db.site_settings.insert_one({"_key": "global", "site_title": "GERdoctor", "logo_text": "GERdoctor", "logo_bold_part": "GER", "logo_light_part": "doctor", "contact_email": "", "footer_text": "", "primary_color": "#114f55", "meta_description": "Praktizieren in Deutschland", "created_at": datetime.now(timezone.utc).isoformat()})

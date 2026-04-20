@@ -1,0 +1,40 @@
+{
+  "summary": "Validated 3 of 4 new features end-to-end: (1) Anerkennungsstatus auto-skip of theme blocks — 5 backend tests incl. full, partial, no-skip, admin path, idempotency: all PASS. (2) Landing-page feature boxes with CMS DE+EN — backend GET/PUT PASS, Landing renders feature-box-1/2/3 with title+description, Admin CMS DE section shows all 6 box fields, EN tab shows matching cms-field-en-* fields. (3) Step Templates CRUD + save-from-step + apply + pending progress propagation — PASS. Admin UI 'Templates (N)' toggle shows panel and save-template-{id} prompt flow increments count 1→2 and shows success toast. Feature (4) P2 Jobangebote UI + PartnerDashboard hide filter was not re-run here because the underlying visibility/auto_complete/hide engine was already verified in iteration 32 backend suite; only the UI paths remain untested this iteration.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/cms/{section}", "issue": "Request body Pydantic model CMSContentUpdate still requires `section` in the body although it is already in the URL path. Not a bug per se (frontend passes both) but leads to 422 for clients that only send content+translations. Consider making `section` Optional[str]."},
+      {"endpoint": "POST /api/admin/step-templates/{id}/apply", "issue": "Creates pending user_progress rows via insert_many without upsert; if a user already has a progress row for an unrelated reason a duplicate could be inserted. Safe for now because step is brand-new, flagging as theoretical."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_iter33.py",
+    "/app/test_reports/pytest/pytest_results_iter33.xml"
+  ],
+  "action_items": [
+    "Optional: make CMSContentUpdate.section Optional and derive from path parameter to match REST convention.",
+    "P2 frontend flows not retested this iteration (Jobangebote Selbst vs Partner-nutzen UI, PartnerDashboard hidden-step filter for dr.schmidt). Can be covered with a targeted Playwright run in a follow-up because they require manually walking dr.kumar through 5+ prior steps via UI."
+  ],
+  "critical_code_review_comments": [
+    "helpers.apply_anerkennungsstatus_skips is idempotent — it checks `existing.status == 'completed'` before inserting history, so a second call correctly adds 0 new history rows (verified).",
+    "server.admin_update_user_progress correctly mirrors user-side update: it calls apply_anerkennungsstatus_skips when step order==1 and the payload contains anerkennungsstatus. Verified via test_admin_progress_update_triggers_autoskip.",
+    "_sanitize_template_config strips _id, id, order, is_active, created_at, updated_at – verified: applying template preserves title+fields+step_type only.",
+    "admin_apply_template uses $inc with order>=N shift — works but will silently collide if two concurrent applies target the same order. Low risk in admin-only context.",
+    "CMS /api/cms/home GET returns {content, translations} with box1..box3 DE+EN keys seeded; Landing falls back to English defaults if EN tab is empty."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features_iter33.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% of tested paths (Landing feature boxes, CMS Admin DE+EN fields, Templates toggle+panel+save-from-step). P2 flows not retested."},
+  "test_credentials": "admin@example.com / Admin123!, dr.petrov+dr.tanaka+dr.ahmed / Demo123! (fresh users are reset via admin progress PUT before each test)",
+  "seed_data_creation": "None — tests reset user progress in-place and clean up any TEST_ templates after use.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression: `pytest backend/tests/test_new_features_iter33.py` plus iteration_32 suite `test_survey_v2.py` covers all survey-v2 + new-features behaviour. Tests mutate dr.petrov, dr.tanaka, dr.ahmed progress — re-running is safe. After a run, dr.petrov has all 12 auto_skip blocks completed + Stammdaten; if you need a fresh state, just call admin PUT /api/admin/users/{id}/progress with status='pending' for every step (the helper reset_user_progress in test file does this). Template Stammdaten-Template is pre-seeded and should NOT be deleted by cleanup.",
+  "rca of the issue": "No production bugs observed. Two test fixes applied: (a) initial test sent CMS PUT without `section` in body → 422; added section. (b) idempotency check used absolute counts which are inflated by prior test runs → switched to before/after deltas. Both fixes are in the test file only; product code was not modified."
+}
