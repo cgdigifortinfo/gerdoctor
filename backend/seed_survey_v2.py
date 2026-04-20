@@ -134,13 +134,24 @@ def partner_step(order, title, description, decision_order, filter_tag,
 
 
 def milestone_step(order, title, description, decision_order, dur_value, dur_unit,
-                   auto_value="upload", translations=None,
+                   upload_order=None, translations=None,
                    pending_msg=None, complete_msg=None):
-    """Milestone; auto-completes when decision_order.decision == auto_value."""
-    conditions = [{
-        "action": "auto_complete", "source_step_order": decision_order,
-        "field": "decision", "operator": "equals", "value": auto_value,
-    }]
+    """Milestone; auto-completes when the upload-step was really completed by the user.
+
+    If upload_order is provided → condition: upload-step status == completed
+    (meaning: user chose upload AND actually finished uploading the documents).
+    If upload_order is None (Jobangebote case) → condition: decision-step data.decision == 'selbst'
+    (user decided to search themselves — no upload needed)."""
+    if upload_order is not None:
+        conditions = [{
+            "action": "auto_complete", "source_step_order": upload_order,
+            "field": "", "operator": "status_is", "value": "completed",
+        }]
+    else:
+        conditions = [{
+            "action": "auto_complete", "source_step_order": decision_order,
+            "field": "decision", "operator": "equals", "value": "selbst",
+        }]
     return {
         "title": title, "description": description, "order": order,
         "step_type": "milestone", "fields": [],
@@ -217,12 +228,21 @@ def build_block(base_order, block_name, filter_tag, dur_value, dur_unit,
         next_order += 1
 
     # Milestone
-    auto_val = "upload" if not partner_multi else "selbst"
-    steps.append(milestone_step(next_order, f"Übersicht {block_name}",
-                                 f"Übersicht und Status Ihrer {block_name}.",
-                                 decision_order=decision_order,
-                                 dur_value=dur_value, dur_unit=dur_unit,
-                                 auto_value=auto_val))
+    milestone_order = next_order
+    if partner_multi:
+        # Jobangebote – no upload, auto_complete when decision=='selbst'
+        steps.append(milestone_step(milestone_order, f"Übersicht {block_name}",
+                                     f"Übersicht und Status Ihrer {block_name}.",
+                                     decision_order=decision_order,
+                                     dur_value=dur_value, dur_unit=dur_unit,
+                                     upload_order=None))
+    else:
+        upload_order = decision_order + 1 if include_upload else None
+        steps.append(milestone_step(milestone_order, f"Übersicht {block_name}",
+                                     f"Übersicht und Status Ihrer {block_name}.",
+                                     decision_order=decision_order,
+                                     dur_value=dur_value, dur_unit=dur_unit,
+                                     upload_order=upload_order))
     return steps
 
 
