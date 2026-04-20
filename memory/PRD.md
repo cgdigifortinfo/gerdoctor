@@ -44,6 +44,9 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-20: **Step Template Library** (save-step-as-template, list/apply/delete, new MongoDB `step_templates` collection, Admin UI panel in Steps tab)
+- [x] 2026-04-20: **Landing-Page 3 Feature-Boxen via CMS** (6 neue Felder in `cms_content.home`, DE + EN Translations, Admin-CMS-Editor erweitert, Backfill für bestehende Installationen)
+- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip** (5 Status-Werte mappen auf bereits-fertige Themenblöcke, `apply_anerkennungsstatus_skips` in helpers.py, Trigger bei User- und Admin-Progress-Update)
 - [x] 2026-04-20: **Survey v2 restructure** (24 steps, 3 new condition actions, 1 new step_type, PartnerDashboard hide-filter, demo-data reseed)
 - [x] 2026-04-20: Backend helpers refactor (_get_step_context, apply_auto_completes)
 - [x] 2026-04-20: Fixed "Maximum update depth" infinite re-render in UserDashboard via useMemo on visibleSteps
@@ -51,11 +54,10 @@
 - [x] Earlier: i18n DE/EN for Steps + CMS, admin impersonation, partner m:n linking, cascade deletes, ConfirmDialog, tag autocomplete
 
 ## Backlog
-- P0: Landing-Page 3 Feature-Boxen via CMS editierbar machen (in progress before v2 restructure)
-- P1: Step-Template-Bibliothek (Speichern/Wiederverwenden)
-- P1: Bulk Import/Export für Step-Konfigurationen
-- P2: Webhook-Integration für externe System-Benachrichtigungen
-- P2: E2E-Tests für Partner-Path + Jobangebote UI
+- [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
+- [ ] P2: Ausführliche Playwright-E2E-Tests für Jobangebote Selbst/Partner UI + PartnerDashboard Hide-Filter (Logik verifiziert, UI-Walkthrough noch nicht automatisiert)
+- [ ] Nice-to-have: CMSContentUpdate.section Optional machen (REST-konformer)
+- [ ] Nice-to-have: apply-template insert_many → upsert per (user_id,step_id)
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).
@@ -64,6 +66,21 @@
 - `GET /api/steps` - list (respects is_active)
 - `GET /api/steps/visibility` - returns `{hidden_step_ids, blocked_step_ids}` for current user
 - `GET /api/steps/progress` - user progress
-- `PUT /api/steps/progress` - triggers `apply_auto_completes` afterwards
-- `PUT /api/admin/users/{id}/progress` - also triggers auto-complete
-- `PUT /api/partner/users/{id}/progress` - also triggers auto-complete
+- `PUT /api/steps/progress` - triggers `apply_auto_completes` afterwards; if step_id==Stammdaten and data.anerkennungsstatus is set, triggers `apply_anerkennungsstatus_skips`
+- `PUT /api/admin/users/{id}/progress` - also triggers auto-complete + anerkennungsstatus skips
+- `PUT /api/partner/users/{id}/progress` - triggers auto-complete
+- `GET|POST|PUT|DELETE /api/admin/step-templates[/<id>]` - Template CRUD
+- `POST /api/admin/step-templates/from-step/{step_id}?name=X&description=Y` - save existing step as template
+- `POST /api/admin/step-templates/{id}/apply?order=N` - instantiate template as new step at order N (shifts others)
+- `GET /api/cms/home` - now includes `box1_title`, `box1_description`, `box2_*`, `box3_*` content + EN translations
+
+## Anerkennungsstatus → Block Auto-Skip Map
+| Anerkennungsstatus | Blocks automatisch erledigt |
+|--------------------|-----------------------------|
+| Fachsprachenprüfung Medizin ist geplant | — |
+| Fachsprachenprüfung Medizin bestanden | Fachsprachenprüfung |
+| Berufserlaubnis beantragt | — (User kommt normal durch Antragstellung) |
+| Berufserlaubnis erteilt | Antragstellung Approbation |
+| Termin Kenntnisprüfung beantragt | Antragstellung + Fachsprachen |
+| Gleichwertigkeitsprüfung beantragt | Antragstellung + Fachsprachen |
+| In Deutschland approbiert | Antragstellung + Fachsprachen + Gleichwert. + Kenntnisprüfung |
