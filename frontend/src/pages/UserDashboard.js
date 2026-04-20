@@ -73,7 +73,7 @@ function applyFieldMappings(step, allStepData) {
 
 export default function UserDashboard() {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
-    const { t, localize } = useLanguage();
+    const { t, localize, lang } = useLanguage();
     const loc = (step, field) => localize(step, field);
     const navigate = useNavigate();
     const [steps, setSteps] = useState([]);
@@ -387,11 +387,12 @@ export default function UserDashboard() {
     const renderFormField = (field) => {
         const value = formData[field.name] || '';
         const hasError = validationErrors.some(e => e.includes(field.label || field.name));
+        const fieldLabel = (lang !== 'de' && currentStep?.translations?.[lang]?.field_labels?.[field.name]) || field.label;
 
         if (field.field_type === 'selectbox' || field.field_type === 'select') {
             return (
                 <div key={field.name} className="space-y-2">
-                    <Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
+                    <Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label>
                     <Select value={value} onValueChange={(val) => handleInputChange(field.name, val)}>
                         <SelectTrigger className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`}>
                             <SelectValue placeholder="Bitte wählen..." />
@@ -405,7 +406,7 @@ export default function UserDashboard() {
             const entries = formData[field.name] || [];
             return (
                 <div key={field.name} className="space-y-3">
-                    <Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
+                    <Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label>
                     {entries.map((entry, idx) => (
                         <div key={idx} className="flex flex-col sm:flex-row gap-2 p-3 bg-muted rounded-sm border border-border" data-testid={`multiupload-entry-${idx}`}>
                             <div className="flex-1">
@@ -432,15 +433,15 @@ export default function UserDashboard() {
             );
         }
         if (field.field_type === 'textarea') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label><Textarea value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm min-h-[100px] ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
+            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Textarea value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm min-h-[100px] ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
         }
         if (field.field_type === 'file') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone p-6 rounded-sm text-center cursor-pointer"><input type="file" id={field.name} className="hidden" onChange={(e) => e.target.files[0] && handleFileUpload(field.name, e.target.files[0])} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{uploadedFiles[field.name] ? <div className="flex items-center justify-center gap-2 text-[#114f55]"><Check size={20} /><span>{uploadedFiles[field.name].filename}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>Klicken zum Hochladen</span></div>}</label></div></div>);
+            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone p-6 rounded-sm text-center cursor-pointer"><input type="file" id={field.name} className="hidden" onChange={(e) => e.target.files[0] && handleFileUpload(field.name, e.target.files[0])} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{uploadedFiles[field.name] ? <div className="flex items-center justify-center gap-2 text-[#114f55]"><Check size={20} /><span>{uploadedFiles[field.name].filename}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>Klicken zum Hochladen</span></div>}</label></div></div>);
         }
         if (field.field_type === 'date') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label><Input type="date" value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
+            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type="date" value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
         }
-        return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{field.label} {field.required && <span className="text-red-500">*</span>}</Label><Input type={field.field_type === 'phone' ? 'tel' : field.field_type === 'email' ? 'email' : 'text'} value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
+        return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type={field.field_type === 'phone' ? 'tel' : field.field_type === 'email' ? 'email' : 'text'} value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
     };
 
     const renderStepContent = () => {
@@ -515,7 +516,7 @@ export default function UserDashboard() {
                         </div>
                         <div className="flex flex-wrap gap-3 pt-4">
                             <Button onClick={handlePartnerSubmission} disabled={!selectedPartner || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-partner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
-                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Ueberspringen'}</Button>}
+                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {loc(currentStep, 'skip_label') || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
                 );
@@ -566,7 +567,7 @@ export default function UserDashboard() {
                         )}
                         <div className="flex flex-wrap gap-3 pt-4">
                             <Button onClick={handleMultiPartnerSubmission} disabled={selectedPartners.length === 0 || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-multipartner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
-                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {currentStep.skip_label || 'Ueberspringen'}</Button>}
+                            {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {loc(currentStep, 'skip_label') || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
                 );
@@ -577,7 +578,7 @@ export default function UserDashboard() {
                         {stepStatus === 'completed' ? (
                             <div className="p-8 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm text-center">
                                 <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
-                                <p className="text-lg font-semibold text-green-800 dark:text-green-300">{currentStep.complete_message || 'Alles erledigt!'}</p>
+                                <p className="text-lg font-semibold text-green-800 dark:text-green-300">{loc(currentStep, 'complete_message') || t('dash_all_done')}</p>
                                 <Button onClick={() => { if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             </div>
                         ) : (
@@ -613,7 +614,7 @@ export default function UserDashboard() {
                             </div>
                         )}
                         <div className="flex flex-wrap gap-3">
-                            {currentStep.action_label ? (
+                            {loc(currentStep, 'action_label') ? (
                                 <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-action-btn">{loc(currentStep, 'action_label')} <ArrowRight className="ml-2" size={16} /></Button>
                             ) : (
                                 <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
@@ -831,9 +832,9 @@ export default function UserDashboard() {
                                         <div className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold">
                                             {currentStepIndex + 1}
                                         </div>
-                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{steps[currentStepIndex].title}</h1>
+                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{loc(steps[currentStepIndex], 'title')}</h1>
                                     </div>
-                                    <p className="text-muted-foreground ml-11">{steps[currentStepIndex].description}</p>
+                                    <p className="text-muted-foreground ml-11">{loc(steps[currentStepIndex], 'description')}</p>
                                 </div>
                                 {renderStepContent()}
                             </>

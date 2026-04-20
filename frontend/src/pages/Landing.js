@@ -10,7 +10,7 @@ import { Logo } from '../components/Logo';
 
 export default function Landing() {
     const { user, loading } = useAuth();
-    const { t, localizeCms } = useLanguage();
+    const { t, localizeCms, lang } = useLanguage();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [homeContent, setHomeContent] = useState({});
