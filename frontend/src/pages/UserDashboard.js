@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -107,8 +107,12 @@ export default function UserDashboard() {
     const containerRef = useRef(null);
     const desktopStepRefs = useRef({});
 
-    // Visible steps = all active steps except those whose hide-condition matches
-    const visibleSteps = steps.filter(s => !isStepHidden(s, allStepData));
+    // Visible steps = all active steps except those whose hide-condition matches.
+    // Memoised so its reference is stable and doesn't trigger effect loops.
+    const visibleSteps = useMemo(
+        () => steps.filter(s => !isStepHidden(s, allStepData)),
+        [steps, allStepData]
+    );
 
     const loadData = useCallback(async () => {
         try {
@@ -464,7 +468,7 @@ export default function UserDashboard() {
         return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type={field.field_type === 'phone' ? 'tel' : field.field_type === 'email' ? 'email' : 'text'} value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
     };
 
-    const renderStepContent = () => {
+    const renderStepContent = (scope = 'desktop') => {
         const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return null;
         const stepStatus = getStepStatus(currentStep.id);
@@ -501,7 +505,7 @@ export default function UserDashboard() {
                                                 ? 'border-[#114f55] bg-[#114f55]/5 shadow-md'
                                                 : 'border-border bg-card hover:border-[#114f55]/40 hover:shadow-sm'}
                                             ${submitting ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
-                                        data-testid={`decision-option-${i}`}
+                                        data-testid={`decision-option-${scope === 'desktop' ? i : `mobile-${i}`}`}
                                     >
                                         <div className="flex items-start gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors
@@ -866,7 +870,7 @@ export default function UserDashboard() {
                                             <div className="ml-[50px] pb-6 pr-2">
                                                 <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
                                                     <p className="text-sm text-muted-foreground mb-4">{loc(step, 'description')}</p>
-                                                    {isActive && renderStepContent()}
+                                                    {isActive && renderStepContent('mobile')}
                                                     {!isActive && isCompleted && (
                                                         <div className="flex items-center gap-2 text-green-600 text-sm">
                                                             <CheckCircle size={16} /> Abgeschlossen
@@ -896,7 +900,7 @@ export default function UserDashboard() {
                                     </div>
                                     <p className="text-muted-foreground ml-11">{loc(visibleSteps[currentStepIndex], 'description')}</p>
                                 </div>
-                                {renderStepContent()}
+                                {renderStepContent('desktop')}
                             </>
                         )}
                         {currentStepIndex > 0 && (
