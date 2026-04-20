@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 34 e2e validation of 3 new features (Partner Self-Service tags, Match scoring column, Insights dashboard). Backend: 9/9 pytest PASS (profile extended fields, partner-data PUT dedup/strip/ignore-admin-fields, insights payload shape with 30-day timeline + funnel + kpis, submissions include bundesland + exclude partner self, match data fields present). Frontend: Playwright flow PASS — ILS partner login, Insights tab renders kpi-new-7d=0 kpi-new-30d=0 kpi-total-users=4, chart-fachrichtung & chart-bundesland bars render with labels+counts (Kardiologie/Unbekannt/Plastische Chirurgie/Pädiatrie and Berlin/Unbekannt/Hamburg/Bayern), timeline-30d container visible, funnel-received/accepted/completed + conversion-rate=0% render. Profile tab: edit mode shows 5 existing tag chips, add-tag-btn adds TestTagE2E chip (visible), remove-tag-TestTagE2E removes it, save-profile-btn returns UI to read mode. My-Users table: 2 match-{uid} cells, one shows '5' (Yilmaz Bayern match = +5) and one shows '—' (non-match), sort-my-users-match_score header visible. Other-Users table: 11 match cells visible.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/partner/insights", "issue": "conversion_rate_pct uses round() (integer), but problem statement implies percentage — small cosmetic: 33.3% shows as 33. Not a bug per acceptance criteria."},
+      {"endpoint": "GET /api/partner/insights", "issue": "by_fachrichtung/by_bundesland fall back to 'Unbekannt' label when user has no step-1 data; consider excluding users who never started onboarding to avoid 'Unbekannt' bar dominating the chart."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Insights → Trend (30 Tage)", "issues": ["When all 30 days have count=0 (new partner), timeline renders an empty area with no zero-state text. Suggest showing 'Noch keine Einträge in den letzten 30 Tagen' placeholder."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_iter34.py",
+    "/app/test_reports/pytest/pytest_results_iter34.xml"
+  ],
+  "action_items": [
+    "Optional: add empty-state placeholder to timeline-30d when all daily counts are 0.",
+    "Optional: exclude users without step-1 data (or map to 'Nicht erfasst') from by_fachrichtung/by_bundesland to improve chart signal."
+  ],
+  "critical_code_review_comments": [
+    "PartnerSelfUpdate correctly restricts fields to description + tags; extra fields (name/category/logo) are silently dropped by pydantic model, verified via test_partner_update_rejects_name_category_logo.",
+    "update_own_partner_data dedupes tags via set() then sorted() — stable deterministic order, strips whitespace, drops empty strings. Good.",
+    "get_partner_insights computes new_7/new_30 using ISO-string comparison of submitted_at — works correctly because ISO format is lexicographically sortable; safe.",
+    "get_partner_insights uses target_user_ids = submissions ∪ linked_user_ids for fachrichtung/bundesland aggregation so partners see insights even without submission records. Correct behavior.",
+    "get_partner_submissions filters linked users with `u.role == 'user'` so partners (whose role was changed to 'partner') do not appear in own dashboard. Verified: partner@example.com not in My-Users of ILS.",
+    "UserTable.scoreUserForPartner uses lowercase Set matching on bundesland + field_of_study + fachrichtung_gewuenscht/praktiziert; Dr. Yilmaz (bundesland=Bayern) correctly scores 5 against tag 'Bayern'. Works as specified.",
+    "UserTable.partnerTags memoization recomputes match_score on every data/partnerTags change — sort-desc default on match_score is correctly wired via useState init."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features_iter34.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% of critical flows tested (Insights tab, Profile tag add/remove/save, Match column on my-users and other-users)"},
+  "test_credentials": "admin@example.com/Admin123!, partner@example.com/Partner123! (ILS), empfang@hausarztpraxis-marienplatz.de/Partner123! (Praxis)",
+  "seed_data_creation": "Tests temporarily modify ILS partner tags + description but restore original state after the update test. No persistent seed changes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 34 suite in /app/backend/tests/test_new_features_iter34.py is idempotent (restores original ILS description/tags after update test). Loads REACT_APP_BACKEND_URL from /app/frontend/.env so it runs standalone. The my-users tab currently shows 2 users for ILS (Yilmaz + one other) — this is because some of the 'linked' users have their role changed to 'partner' during earlier test runs and are therefore filtered by the role=='user' guard in /api/partner/submissions. This is correct behavior per the feature spec (partner-self exclusion), so don't regress the filter.",
+  "rca of the issue": "No bugs found. Match scoring, Insights payload, and tag self-service flows all working end-to-end against the public preview URL."
+}

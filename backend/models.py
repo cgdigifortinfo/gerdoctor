@@ -155,6 +155,10 @@ class MultiPartnerSubmission(BaseModel):
     partner_ids: List[str]
     data: Optional[dict] = None
 
+class PartnerSelfUpdate(BaseModel):
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+
 class CMSContentUpdate(BaseModel):
     section: Optional[str] = None  # derived from URL path
     content: dict

@@ -26,7 +26,7 @@ from models import (
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
-    StepTemplateCreate, StepTemplateUpdate
+    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -713,7 +713,17 @@ async def get_partner_profile(request: Request):
     if not partner_id:
         return {"name": user["name"], "email": user["email"], "partner_name": None, "partner_id": None}
     partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
-    return {"name": user["name"], "email": user["email"], "partner_name": partner["name"] if partner else None, "partner_id": partner_id}
+    if not partner:
+        return {"name": user["name"], "email": user["email"], "partner_name": None, "partner_id": partner_id}
+    return {
+        "name": user["name"], "email": user["email"],
+        "partner_name": partner.get("name"),
+        "partner_id": partner_id,
+        "description": partner.get("description", ""),
+        "category": partner.get("category", ""),
+        "tags": partner.get("tags", []),
+        "logo_url": partner.get("logo_url", ""),
+    }
 
 @api_router.put("/partner/profile")
 async def update_partner_profile(data: ProfileUpdate, request: Request):
@@ -724,6 +734,105 @@ async def update_partner_profile(data: ProfileUpdate, request: Request):
     if update_data:
         await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": {f"profile.{k}": v for k, v in update_data.items()}})
     return {"message": "Profile updated"}
+
+
+@api_router.put("/partner/partner-data")
+async def update_own_partner_data(data: PartnerSelfUpdate, request: Request):
+    """Allow a partner user to edit their own Partner record (description + tags only,
+    name/category/logo remain admin-controlled)."""
+    user = await require_role("partner")(request)
+    partner_id = user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    update = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "tags" in update:
+        # dedupe + strip empty
+        update["tags"] = sorted({t.strip() for t in update["tags"] if isinstance(t, str) and t.strip()})
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update})
+    await create_audit_log(user["_id"], user["email"], "partner_self_update",
+                            "partner", partner_id, {"fields": list(update.keys())})
+    return {"message": "Partner data updated"}
+
+
+@api_router.get("/partner/insights")
+async def get_partner_insights(request: Request):
+    """Return a compact analytics payload for the partner's dashboard:
+       - new_submissions_7d / _30d
+       - by_fachrichtung (counts)
+       - by_bundesland (counts)
+       - conversion_funnel (received -> accepted -> completed)
+       - timeline_30d (daily new submissions)"""
+    user = await require_role("partner")(request)
+    partner_id = user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    now = datetime.now(timezone.utc)
+    cutoff_7 = (now - timedelta(days=7)).isoformat()
+    cutoff_30 = (now - timedelta(days=30)).isoformat()
+
+    partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    linked_user_ids = set((partner_doc or {}).get("linked_user_ids", []))
+    submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(5000)
+
+    # Combine submission user_ids and linked user_ids for analysis
+    target_user_ids = set(s.get("user_id") for s in submissions if s.get("user_id")) | linked_user_ids
+
+    new_7 = sum(1 for s in submissions if (s.get("submitted_at") or "") >= cutoff_7)
+    new_30 = sum(1 for s in submissions if (s.get("submitted_at") or "") >= cutoff_30)
+
+    # Group counts by user's step-1 profile data
+    step1 = await db.steps.find_one({"order": 1, "is_active": True})
+    step1_id = str(step1["_id"]) if step1 else None
+    by_fach = {}
+    by_bl = {}
+    funnel = {"received": 0, "accepted": 0, "completed": 0}
+    timeline = {}  # iso-date -> count
+
+    for uid in target_user_ids:
+        if step1_id:
+            prog = await db.user_progress.find_one({"user_id": uid, "step_id": step1_id})
+            profile = (prog or {}).get("data", {}) or {}
+            fach = profile.get("fachrichtung_gewuenscht") or profile.get("fachrichtung_praktiziert") or profile.get("field_of_study") or "Unbekannt"
+            bl = profile.get("anerkennungsverfahren_bundesland") or "Unbekannt"
+            by_fach[fach] = by_fach.get(fach, 0) + 1
+            by_bl[bl] = by_bl.get(bl, 0) + 1
+
+    for s in submissions:
+        funnel["received"] += 1
+        status = s.get("status")
+        if status in ("accepted", "in_progress", "completed"):
+            funnel["accepted"] += 1
+        if status == "completed":
+            funnel["completed"] += 1
+        ts = s.get("submitted_at") or ""
+        if ts >= cutoff_30:
+            day = ts[:10]
+            timeline[day] = timeline.get(day, 0) + 1
+
+    # 30 day continuous timeline
+    timeline_series = []
+    for i in range(29, -1, -1):
+        d = (now - timedelta(days=i)).date().isoformat()
+        timeline_series.append({"date": d, "count": timeline.get(d, 0)})
+
+    total_users = len(target_user_ids)
+    conversion_rate = round((funnel["accepted"] / funnel["received"]) * 100) if funnel["received"] else 0
+
+    return {
+        "new_submissions_7d": new_7,
+        "new_submissions_30d": new_30,
+        "total_linked_users": total_users,
+        "by_fachrichtung": sorted(
+            [{"label": k, "count": v} for k, v in by_fach.items()],
+            key=lambda x: x["count"], reverse=True)[:10],
+        "by_bundesland": sorted(
+            [{"label": k, "count": v} for k, v in by_bl.items()],
+            key=lambda x: x["count"], reverse=True)[:10],
+        "conversion_funnel": funnel,
+        "conversion_rate_pct": conversion_rate,
+        "timeline_30d": timeline_series,
+    }
 
 
 @api_router.get("/partner/submissions")
@@ -745,20 +854,26 @@ async def get_partner_submissions(request: Request):
             sub["completion_pct"] = await calculate_completion_pct(uid)
             if step1:
                 prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-                sub["field_of_study"] = prog.get("data", {}).get("field_of_study", "") if prog else ""
+                s1data = (prog or {}).get("data", {}) or {}
+                sub["field_of_study"] = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
+                sub["bundesland"] = s1data.get("anerkennungsverfahren_bundesland", "")
             else:
                 sub["field_of_study"] = ""
+                sub["bundesland"] = ""
     for uid in linked_user_ids:
         if uid in seen_user_ids:
             continue
         u = await db.users.find_one({"_id": ObjectId(uid)}, {"password_hash": 0})
-        if not u or u.get("role") == "admin":
+        if not u or u.get("role") != "user":
             continue
         field_of_study = ""
+        bundesland = ""
         if step1:
             prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-            field_of_study = prog.get("data", {}).get("field_of_study", "") if prog else ""
-        submissions.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked", "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study})
+            s1data = (prog or {}).get("data", {}) or {}
+            field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
+            bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
+        submissions.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked", "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland})
         seen_user_ids.add(uid)
     return submissions
 
@@ -780,10 +895,13 @@ async def get_partner_other_users(request: Request):
         if uid in my_user_ids:
             continue
         field_of_study = ""
+        bundesland = ""
         if step1:
             prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-            field_of_study = prog.get("data", {}).get("field_of_study", "") if prog else ""
-        result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "created_at": u.get("created_at", "")})
+            s1data = (prog or {}).get("data", {}) or {}
+            field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
+            bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
+        result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland, "created_at": u.get("created_at", "")})
     return result
 
 @api_router.get("/partner/users/{user_id}")
