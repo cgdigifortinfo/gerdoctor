@@ -128,9 +128,129 @@ def add_duration(start_date, value, unit):
         return start_date + relativedelta(years=value)
     return start_date
 
+# ========================
+# CONDITION EVALUATION (server-side, mirrors frontend)
+# ========================
+def _evaluate_condition(cond: dict, order_map: dict) -> bool:
+    """Evaluate a single condition against a map {order: {data, status}}."""
+    source = order_map.get(cond.get("source_step_order"))
+    if not source:
+        return False
+    field = cond.get("field")
+    data = source.get("data") or {}
+    field_value = data.get(field) if field in data else source.get("status")
+    expected = cond.get("value")
+    op = cond.get("operator", "equals")
+    if op == "equals":
+        return str(field_value) == str(expected)
+    if op == "not_equals":
+        return str(field_value) != str(expected)
+    if op == "contains":
+        return str(expected) in str(field_value or "")
+    if op == "not_empty":
+        return bool(field_value) and field_value != ""
+    if op == "empty":
+        return not field_value or field_value == ""
+    if op == "status_is":
+        return source.get("status") == expected
+    if op == "status_not":
+        return source.get("status") != expected
+    if op == "has_upload":
+        uploads = data.get(field) or []
+        return isinstance(uploads, list) and any(
+            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id") for u in uploads
+        )
+    if op == "missing_upload":
+        uploads = data.get(field) or []
+        return not isinstance(uploads, list) or not any(
+            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id") for u in uploads
+        )
+    return False
+
+
+async def _get_step_context(user_id: str):
+    """Return (steps_sorted, order_map, hidden_step_ids, blocked_step_ids) for a user."""
+    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(200)
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    progress_map = {p["step_id"]: p for p in progress}
+    order_map = {}
+    for s in steps:
+        sid = str(s["_id"])
+        p = progress_map.get(sid, {})
+        order_map[s["order"]] = {"data": p.get("data", {}), "status": p.get("status", "pending")}
+
+    hidden_ids = set()
+    blocked_ids = set()
+    for s in steps:
+        sid = str(s["_id"])
+        for cond in (s.get("conditions") or []):
+            action = cond.get("action")
+            if action not in ("hide", "block"):
+                continue
+            if _evaluate_condition(cond, order_map):
+                if action == "hide":
+                    hidden_ids.add(sid)
+                elif action == "block":
+                    blocked_ids.add(sid)
+    return steps, order_map, hidden_ids, blocked_ids
+
+
+async def compute_auto_complete_steps(user_id: str):
+    """Return list of step_ids that should be auto-completed based on conditions.
+    Called after a progress update so e.g. milestones auto-complete when an upload path was taken."""
+    steps, order_map, hidden_ids, _ = await _get_step_context(user_id)
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    status_map = {p["step_id"]: p.get("status", "pending") for p in progress}
+    to_auto = []
+    for s in steps:
+        sid = str(s["_id"])
+        if sid in hidden_ids:
+            continue
+        if status_map.get(sid) == "completed":
+            continue
+        for cond in (s.get("conditions") or []):
+            if cond.get("action") != "auto_complete":
+                continue
+            if _evaluate_condition(cond, order_map):
+                to_auto.append(sid)
+                break
+    return to_auto
+
+
+async def apply_auto_completes(user_id: str):
+    """Complete any steps whose auto_complete condition is currently met."""
+    sids = await compute_auto_complete_steps(user_id)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for sid in sids:
+        existing = await db.user_progress.find_one({"user_id": user_id, "step_id": sid})
+        if existing and existing.get("status") == "completed":
+            continue
+        step = await db.steps.find_one({"_id": ObjectId(sid)})
+        update_fields = {
+            "status": "completed",
+            "data": (existing or {}).get("data") or {"auto_completed": True},
+            "updated_at": now_iso,
+            "completed_at": now_iso,
+        }
+        if not (existing and existing.get("started_at")):
+            update_fields["started_at"] = now_iso
+        await db.user_progress.update_one(
+            {"user_id": user_id, "step_id": sid},
+            {"$set": update_fields},
+            upsert=True,
+        )
+        await db.progress_history.insert_one({
+            "user_id": user_id, "step_id": sid,
+            "step_title": (step or {}).get("title", ""),
+            "step_order": (step or {}).get("order", 0),
+            "action": "auto_completed", "timestamp": now_iso,
+        })
+    return sids
+
+
 async def calculate_completion_pct(user_id: str) -> int:
-    steps = await db.steps.find({"is_active": True}).to_list(100)
-    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0]
+    steps, _, hidden_ids, _ = await _get_step_context(user_id)
+    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0 and str(s["_id"]) not in hidden_ids]
     if not countable_steps:
         return 0
     countable_ids = {str(s["_id"]) for s in countable_steps}
@@ -142,14 +262,16 @@ async def calculate_completion_pct(user_id: str) -> int:
     return round((completed / len(countable_steps) * 100))
 
 async def calculate_estimated_completion(user_id: str) -> Optional[str]:
-    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
-    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    steps, _, hidden_ids, _ = await _get_step_context(user_id)
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
     progress_map = {p["step_id"]: p for p in progress}
     if not steps:
         return None
     last_completed_at = None
     for s in steps:
         sid = str(s["_id"])
+        if sid in hidden_ids:
+            continue
         p = progress_map.get(sid, {})
         if p.get("status") == "completed" and p.get("completed_at"):
             ts = p["completed_at"]
@@ -172,6 +294,8 @@ async def calculate_estimated_completion(user_id: str) -> Optional[str]:
     current = start_date
     for s in steps:
         sid = str(s["_id"])
+        if sid in hidden_ids:
+            continue
         p = progress_map.get(sid, {})
         if p.get("status") != "completed":
             duration_value = s.get("duration_value", 0)

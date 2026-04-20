@@ -1494,7 +1494,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                             <div><Label>{t('step_description')}</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><Label>{t('step_order')}</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
-                                <div><Label>{t('step_type')}</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
+                                <div><Label>{t('step_type')}</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="decision">Entscheidung (2 Buttons)</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
                             </div>
                             <div className="flex items-center justify-between"><Label>{t('step_active')}</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
                             <div className="flex items-center justify-between"><Label>{t('step_skippable')}</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
@@ -1642,6 +1642,8 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                                                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="block">Blockieren</SelectItem>
+                                                    <SelectItem value="hide">Ausblenden</SelectItem>
+                                                    <SelectItem value="auto_complete">Auto-Abschließen</SelectItem>
                                                     <SelectItem value="allow_next">Weiter erlauben</SelectItem>
                                                     <SelectItem value="redirect">Zu Schritt weiterleiten</SelectItem>
                                                 </SelectContent>

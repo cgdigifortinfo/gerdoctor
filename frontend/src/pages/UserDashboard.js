@@ -47,16 +47,23 @@ function evaluateCondition(cond, allStepData) {
 
 function evaluateStepConditions(step, allStepData) {
     const conditions = step.conditions || [];
-    if (conditions.length === 0) return { allowed: true, blocked: false, message: '', redirectStep: null };
+    if (conditions.length === 0) return { allowed: true, blocked: false, hidden: false, message: '', redirectStep: null };
+    let result = { allowed: true, blocked: false, hidden: false, message: '', redirectStep: null };
     for (const cond of conditions) {
-        const result = evaluateCondition(cond, allStepData);
-        if (result) {
-            if (cond.action === 'block') return { allowed: false, blocked: true, message: cond.message || 'Dieser Schritt ist gesperrt.', redirectStep: null };
-            if (cond.action === 'allow_next') return { allowed: true, blocked: false, message: cond.message || '', redirectStep: null };
-            if (cond.action === 'redirect') return { allowed: true, blocked: false, message: cond.message || '', redirectStep: cond.target_step_order };
+        const matches = evaluateCondition(cond, allStepData);
+        if (matches) {
+            if (cond.action === 'block') { result.allowed = false; result.blocked = true; result.message = cond.message || 'Dieser Schritt ist gesperrt.'; }
+            else if (cond.action === 'hide') { result.hidden = true; }
+            else if (cond.action === 'allow_next') { result.allowed = true; result.message = cond.message || ''; }
+            else if (cond.action === 'redirect') { result.redirectStep = cond.target_step_order; }
+            // auto_complete is handled server-side; here we just note it
         }
     }
-    return { allowed: true, blocked: false, message: '', redirectStep: null };
+    return result;
+}
+
+function isStepHidden(step, allStepData) {
+    return evaluateStepConditions(step, allStepData).hidden;
 }
 
 function applyFieldMappings(step, allStepData) {
@@ -100,6 +107,9 @@ export default function UserDashboard() {
     const containerRef = useRef(null);
     const desktopStepRefs = useRef({});
 
+    // Visible steps = all active steps except those whose hide-condition matches
+    const visibleSteps = steps.filter(s => !isStepHidden(s, allStepData));
+
     const loadData = useCallback(async () => {
         try {
             const [stepsRes, progressRes, allDataRes, notifRes, historyRes, estRes] = await Promise.all([
@@ -118,20 +128,23 @@ export default function UserDashboard() {
             const progressMap = {};
             progressRes.data.forEach(p => { progressMap[p.step_id] = p; });
 
+            // Work on the visible subset
+            const visible = stepsRes.data.filter(s => !isStepHidden(s, allDataRes.data));
+
             let currentIdx = 0;
-            for (let i = 0; i < stepsRes.data.length; i++) {
-                const sp = progressMap[stepsRes.data[i].id];
+            for (let i = 0; i < visible.length; i++) {
+                const sp = progressMap[visible[i].id];
                 if (!sp || sp.status !== 'completed') { currentIdx = i; break; }
-                if (i === stepsRes.data.length - 1) currentIdx = i;
+                if (i === visible.length - 1) currentIdx = i;
             }
             setCurrentStepIndex(currentIdx);
             setExpandedStep(currentIdx);
 
-            const currentProgress = progressMap[stepsRes.data[currentIdx]?.id];
+            const currentProgress = progressMap[visible[currentIdx]?.id];
             if (currentProgress?.data && Object.keys(currentProgress.data).length > 0) {
                 setFormData(currentProgress.data);
             } else {
-                const prefilled = applyFieldMappings(stepsRes.data[currentIdx] || {}, allDataRes.data);
+                const prefilled = applyFieldMappings(visible[currentIdx] || {}, allDataRes.data);
                 setFormData(prefilled);
             }
 
@@ -160,7 +173,7 @@ export default function UserDashboard() {
     }, [loading, expandedStep]);
 
     useEffect(() => {
-        const currentStep = steps[currentStepIndex];
+        const currentStep = visibleSteps[currentStepIndex];
         if (currentStep?.step_type === 'partner_selection' || currentStep?.step_type === 'partner_multiselection') {
             const existingProg = progress.find(p => p.step_id === currentStep.id);
             partnersAPI.getAll(currentStep.filter_tag || '').then(res => {
@@ -186,12 +199,12 @@ export default function UserDashboard() {
         }
         setValidationErrors([]);
         setPartnerTagFilter('all');
-    }, [currentStepIndex, steps, allStepData, progress]);
+    }, [currentStepIndex, visibleSteps, allStepData, progress]);
 
     const handleLogout = async () => { await logout(); navigate('/'); };
     const getProgressPercentage = () => {
-        if (steps.length === 0) return 0;
-        const countable = steps.filter(s => s.duration_value > 0);
+        if (visibleSteps.length === 0) return 0;
+        const countable = visibleSteps.filter(s => s.duration_value > 0);
         if (countable.length === 0) return 0;
         const completedCountable = countable.filter(s => getStepStatus(s.id) === 'completed').length;
         return Math.round((completedCountable / countable.length) * 100);
@@ -231,7 +244,7 @@ export default function UserDashboard() {
     };
 
     const validateStep = () => {
-        const currentStep = steps[currentStepIndex];
+        const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return true;
         const errors = [];
         const reqFields = currentStep.required_fields || [];
@@ -260,17 +273,18 @@ export default function UserDashboard() {
         return errors.length === 0;
     };
 
-    const handleStepSubmit = async (markComplete = false) => {
-        const currentStep = steps[currentStepIndex];
+    const handleStepSubmit = async (markComplete = false, overrideData = null) => {
+        const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return;
-        if (markComplete && !validateStep()) { toast.error('Bitte füllen Sie alle Pflichtfelder aus'); return; }
+        const payload = overrideData !== null ? overrideData : formData;
+        if (markComplete && overrideData === null && !validateStep()) { toast.error('Bitte füllen Sie alle Pflichtfelder aus'); return; }
         setSubmitting(true);
         try {
             const status = markComplete ? 'completed' : 'in_progress';
-            await stepsAPI.updateProgress(currentStep.id, status, formData);
+            await stepsAPI.updateProgress(currentStep.id, status, payload);
             if (markComplete) {
                 toast.success('Schritt abgeschlossen!');
-                if (currentStepIndex < steps.length - 1) {
+                if (currentStepIndex < visibleSteps.length - 1) {
                     const nextIdx = currentStepIndex + 1;
                     setCurrentStepIndex(nextIdx);
                     setExpandedStep(nextIdx);
@@ -284,14 +298,19 @@ export default function UserDashboard() {
         finally { setSubmitting(false); }
     };
 
+    const handleDecisionChoice = async (value) => {
+        // A decision step is completed immediately when a choice is made
+        await handleStepSubmit(true, { decision: value });
+    };
+
     const handleSkipStep = async () => {
-        const currentStep = steps[currentStepIndex];
+        const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return;
         setSubmitting(true);
         try {
             await stepsAPI.updateProgress(currentStep.id, 'completed', { skipped: true });
             toast.success('Schritt übersprungen');
-            if (currentStepIndex < steps.length - 1) {
+            if (currentStepIndex < visibleSteps.length - 1) {
                 const nextIdx = currentStepIndex + 1;
                 setCurrentStepIndex(nextIdx);
                 setExpandedStep(nextIdx);
@@ -338,7 +357,7 @@ export default function UserDashboard() {
     };
 
     const canNavigateToStep = (idx) => {
-        const step = steps[idx];
+        const step = visibleSteps[idx];
         if (!step) return false;
         const status = getStepStatus(step.id);
         if (status === 'completed') return true;
@@ -354,7 +373,7 @@ export default function UserDashboard() {
         if (!canNavigateToStep(idx)) return;
         setCurrentStepIndex(idx);
         setExpandedStep(expandedStep === idx ? null : idx);
-        const step = steps[idx];
+        const step = visibleSteps[idx];
         const stepProgress = progress.find(p => p.step_id === step?.id);
         if (stepProgress?.data && Object.keys(stepProgress.data).length > 0) {
             setFormData(stepProgress.data);
@@ -387,6 +406,7 @@ export default function UserDashboard() {
     const renderFormField = (field) => {
         const value = formData[field.name] || '';
         const hasError = validationErrors.some(e => e.includes(field.label || field.name));
+        const currentStep = visibleSteps[currentStepIndex];
         const fieldLabel = (lang !== 'de' && currentStep?.translations?.[lang]?.field_labels?.[field.name]) || field.label;
 
         if (field.field_type === 'selectbox' || field.field_type === 'select') {
@@ -445,7 +465,7 @@ export default function UserDashboard() {
     };
 
     const renderStepContent = () => {
-        const currentStep = steps[currentStepIndex];
+        const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return null;
         const stepStatus = getStepStatus(currentStep.id);
         const condResult = allStepData.length > 0 ? evaluateStepConditions(currentStep, allStepData) : { allowed: true, blocked: false, message: '' };
@@ -459,6 +479,46 @@ export default function UserDashboard() {
         }
 
         switch (currentStep.step_type) {
+            case 'decision': {
+                const decField = (currentStep.fields || []).find(f => f.field_type === 'decision') || (currentStep.fields || [])[0];
+                const options = decField?.options || [];
+                const currentChoice = formData.decision;
+                return (
+                    <div className="space-y-6" data-testid="decision-step">
+                        {(currentStep.content || currentStep.pending_message) && (
+                            <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: currentStep.content || currentStep.pending_message }} />
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {options.map((opt, i) => {
+                                const isActive = currentChoice === opt.value;
+                                return (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => handleDecisionChoice(opt.value)}
+                                        disabled={submitting}
+                                        className={`group relative text-left p-6 rounded-sm border-2 transition-all duration-200
+                                            ${isActive
+                                                ? 'border-[#114f55] bg-[#114f55]/5 shadow-md'
+                                                : 'border-border bg-card hover:border-[#114f55]/40 hover:shadow-sm'}
+                                            ${submitting ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                                        data-testid={`decision-option-${i}`}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors
+                                                ${isActive ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground group-hover:bg-[#114f55]/10 group-hover:text-[#114f55]'}`}>
+                                                {isActive ? <Check size={18} weight="bold" /> : <ArrowRight size={18} />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className={`font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{opt.label}</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            }
             case 'form':
                 return (
                     <div className="space-y-6">
@@ -579,7 +639,7 @@ export default function UserDashboard() {
                             <div className="p-8 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm text-center">
                                 <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
                                 <p className="text-lg font-semibold text-green-800 dark:text-green-300">{loc(currentStep, 'complete_message') || t('dash_all_done')}</p>
-                                <Button onClick={() => { if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => { if (currentStepIndex < visibleSteps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             </div>
                         ) : (
                             <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm text-center">
@@ -629,8 +689,8 @@ export default function UserDashboard() {
 
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
 
-    const completedCount = progress.filter(p => p.status === 'completed').length;
-    const mobileProgress = steps.length === 0 ? 0 : Math.round((completedCount / steps.length) * 100);
+    const completedCount = visibleSteps.filter(s => getStepStatus(s.id) === 'completed').length;
+    const mobileProgress = visibleSteps.length === 0 ? 0 : Math.round((completedCount / visibleSteps.length) * 100);
 
     return (
         <div className="min-h-screen bg-background">
@@ -677,7 +737,7 @@ export default function UserDashboard() {
                 <div className="hidden md:block mb-8">
                     <div className="rounded-lg overflow-hidden overflow-x-auto shadow-sm border border-border">
                         <div className="flex min-w-max">
-                            {steps.map((step, index) => {
+                            {visibleSteps.map((step, index) => {
                                 const status = getStepStatus(step.id);
                                 const isActive = index === currentStepIndex;
                                 const isCompleted = status === 'completed';
@@ -697,7 +757,7 @@ export default function UserDashboard() {
                                         onClick={() => navigable && handleStepClick(index)}
                                         disabled={!navigable}
                                         className={`relative text-left transition-all duration-200
-                                            ${index < steps.length - 1 ? 'border-r border-border' : ''}
+                                            ${index < visibleSteps.length - 1 ? 'border-r border-border' : ''}
                                             ${isBlocked ? 'opacity-40 cursor-not-allowed bg-card' :
                                             isActive ? 'bg-[#114f55]/5' :
                                             isCompleted ? 'bg-green-50/50 dark:bg-green-900/10' :
@@ -750,7 +810,7 @@ export default function UserDashboard() {
                         </div>
 
                         <div className="space-y-0">
-                            {steps.map((step, index) => {
+                            {visibleSteps.map((step, index) => {
                                 const status = getStepStatus(step.id);
                                 const isActive = index === currentStepIndex;
                                 const isCompleted = status === 'completed';
@@ -825,16 +885,16 @@ export default function UserDashboard() {
                 {/* ====== DESKTOP: Active step content ====== */}
                 <div className="hidden md:block">
                     <div className="bg-card border border-border rounded-lg p-6 sm:p-8 shadow-sm animate-fadeIn">
-                        {steps[currentStepIndex] && (
+                        {visibleSteps[currentStepIndex] && (
                             <>
                                 <div className="mb-6">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold">
                                             {currentStepIndex + 1}
                                         </div>
-                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{loc(steps[currentStepIndex], 'title')}</h1>
+                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{loc(visibleSteps[currentStepIndex], 'title')}</h1>
                                     </div>
-                                    <p className="text-muted-foreground ml-11">{loc(steps[currentStepIndex], 'description')}</p>
+                                    <p className="text-muted-foreground ml-11">{loc(visibleSteps[currentStepIndex], 'description')}</p>
                                 </div>
                                 {renderStepContent()}
                             </>

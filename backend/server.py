@@ -34,7 +34,8 @@ from auth import (
 from helpers import (
     init_storage, put_object, get_object, APP_NAME,
     send_email_notification, create_audit_log,
-    calculate_completion_pct, calculate_estimated_completion
+    calculate_completion_pct, calculate_estimated_completion,
+    apply_auto_completes, _get_step_context
 )
 
 logger = logging.getLogger("server")
@@ -294,6 +295,8 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         update_fields["completed_at"] = now_iso
     await db.user_progress.update_one({"user_id": user["_id"], "step_id": data.step_id}, {"$set": update_fields}, upsert=True)
     await db.progress_history.insert_one({"user_id": user["_id"], "step_id": data.step_id, "step_title": step["title"], "step_order": step["order"], "action": data.status, "timestamp": now_iso})
+    # Trigger auto-completion for subsequent steps (e.g. milestones after upload decision)
+    await apply_auto_completes(user["_id"])
     return {"message": "Progress updated"}
 
 @steps_router.get("/history")
@@ -305,6 +308,14 @@ async def get_user_history(request: Request):
 async def get_estimated_completion(request: Request):
     user = await get_current_user(request)
     return {"estimated_completion": await calculate_estimated_completion(user["_id"])}
+
+@steps_router.get("/visibility")
+async def get_step_visibility(request: Request):
+    """Return hidden/blocked step ids based on conditions evaluated server-side.
+    Used to filter steps in user/partner/admin views and to reflect the true step plan."""
+    user = await get_current_user(request)
+    _, _, hidden_ids, blocked_ids = await _get_step_context(user["_id"])
+    return {"hidden_step_ids": list(hidden_ids), "blocked_step_ids": list(blocked_ids)}
 
 # ========================
 # PARTNERS ROUTES (Public)
@@ -444,6 +455,7 @@ async def admin_get_user(user_id: str, request: Request):
 async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
     await require_role("admin")(request)
     await db.user_progress.update_one({"user_id": user_id, "step_id": data.step_id}, {"$set": {"status": data.status, "data": data.data or {}, "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    await apply_auto_completes(user_id)
     return {"message": "User progress updated"}
 
 @admin_router.put("/users/bulk-role")
@@ -825,6 +837,8 @@ async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, r
         update_fields["completed_at"] = now_iso
     await db.user_progress.update_one({"user_id": user_id, "step_id": data.step_id}, {"$set": update_fields}, upsert=True)
     await db.progress_history.insert_one({"user_id": user_id, "step_id": data.step_id, "step_title": step.get("title", ""), "step_order": step.get("order", 0), "action": data.status, "changed_by": partner_user["email"], "timestamp": now_iso})
+    # Trigger auto-completion for subsequent steps
+    await apply_auto_completes(user_id)
     if data.status == "completed":
         user_prefs = target_user.get("notification_preferences", {"email_on_step_enter": True, "email_on_step_edit": False, "email_on_step_leave": True})
         partner_name = partner_doc.get("name", "") if partner_doc else ""

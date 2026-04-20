@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
+import { filterVisibleSteps } from '../lib/stepVisibility';
 
 // ===== Shared sortable/filterable user table =====
 function UserTable({ data, onViewUser, showStatus = false, tableId = 'table', t }) {
@@ -394,7 +395,7 @@ export default function PartnerDashboard() {
                                     </div>
                                     <Progress value={userDetail.completion_pct} className="h-2 mb-4" />
                                     <div className="space-y-3">
-                                        {userDetail.steps?.map((step) => {
+                                        {filterVisibleSteps(userDetail.steps, userDetail.progress).map((step) => {
                                             const prog = userDetail.progress?.find(p => p.step_id === step.id);
                                             const status = prog?.status || 'pending';
                                             const stepData = prog?.data || {};

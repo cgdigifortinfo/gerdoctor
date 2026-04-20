@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the Survey v2 restructure (24 steps, decision/hide/auto_complete/block). All backend behaviour works correctly. Frontend user flow confirmed end-to-end for upload path. One notable React warning in UserDashboard ('Maximum update depth exceeded') floods the console but does not block the happy path.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/steps (Stammdaten)", "issue": "FACHRICHTUNGEN list in seed_survey_v2.py currently has 35 options, review_request expected 36. Either update FACHRICHTUNGEN to include the missing Fachrichtung or adjust the spec."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UserDashboard.js", "issue": "Console repeatedly logs 'Maximum update depth exceeded. This can happen when a component calls setState inside useEffect...'. Indicates a useEffect dependency causing infinite re-renders. Non-blocking (UI still works) but will impact perf & may intermittently cause Playwright 'element not visible' races.", "selector": "dashboard root", "priority": "HIGH"},
+      {"component": "UserDashboard.js", "issue": "Duplicate data-testid='decision-option-0' rendered twice (likely mobile + desktop variants). Tests must use .first; ideally give the hidden variant a different testid or use CSS to avoid duplicate testids.", "selector": "[data-testid='decision-option-0']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_survey_v2.py",
+    "/app/test_reports/pytest/pytest_results_iter32.xml"
+  ],
+  "action_items": [
+    "Investigate the infinite setState loop in UserDashboard (evaluateStepConditions / visibleSteps useEffect dependency list) — Maximum update depth warning.",
+    "Either deduplicate the duplicate data-testid='decision-option-N' buttons or differentiate mobile/desktop testids.",
+    "Decide whether FACHRICHTUNGEN should have 35 or 36 options (spec said 36, seed has 35)."
+  ],
+  "critical_code_review_comments": [
+    "admin_update_user_progress and partner_update_user_progress both correctly call apply_auto_completes after update — auto_complete therefore fires regardless of who updates progress. Confirmed.",
+    "helpers._evaluate_condition: when `field` is empty string the check `field in data` is False so it falls back to `source.get('status')` — that is why block(5) with field='' operator=status_not works. Consider making this explicit by skipping field lookup when operator is status_is/status_not.",
+    "calculate_completion_pct correctly uses countable_steps denominator that excludes hidden steps; upload-path vs partner-path users therefore have comparable but different denominators. Verified via admin /users endpoint.",
+    "seed_survey_v2 resets all user_progress and partner_submissions on every run — destructive but documented. Do not run in production without a guard."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_survey_v2.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "90% (upload decision -> milestone auto-complete -> Fachsprachen unlocked all verified; not exercised: partner path UI, Jobangebote selbst/partner_nutzen UI, Stammdaten select options, PartnerDashboard hidden-step filtering)"},
+  "test_credentials": "Used credentials from /app/memory/test_credentials.md (Admin123!, Partner123!, Demo123!).",
+  "seed_data_creation": "Re-ran /app/backend/seed_survey_v2.py to restore deterministic seed (the previous smoke test had mutated dr.kumar so step 2 had decision=upload and step 5 was auto_completed). After reseed kumar is back to only step 1 done.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suite /app/backend/tests/test_survey_v2.py is comprehensive for step structure, visibility, auto_complete & block, completion_pct. Use `pytest backend/tests/test_survey_v2.py` from /app. If the order of other tests in the module changes Kumar's starting state again, simply re-run `cd /app/backend && python3 seed_survey_v2.py` before the visibility/autocomplete tests. Frontend: I verified upload path but did NOT test partner-selection, Jobangebote multi-partner, PartnerDashboard hidden-step filtering, and full Stammdaten field rendering. Recommend targeted follow-up once the React infinite-loop warning is fixed — the loop slows the page and occasionally makes click() calls flaky.",
+  "rca of the issue": "No blocker bugs. The two identified issues: (1) 'Maximum update depth exceeded' — most likely cause is that evaluateStepConditions or visibleSteps memoisation is missing or its dependency array contains an object that is recreated on every render (e.g. steps/progress arrays). Fix: wrap with useMemo keyed on stable primitives (ids+statuses) or move derivation into reducer. (2) Duplicate data-testid — UserDashboard.js around line 475 likely renders desktop+mobile variants; add index suffix or hide attr on hidden variant."
+}
