@@ -44,22 +44,24 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-20: **Partner-Insights-Dashboard** (KPI-Cards, Fachrichtung/Bundesland-BarCharts, 30-Tage-Timeline, Conversion-Funnel – alles ohne externe Chart-Libraries)
-- [x] 2026-04-20: **Match-Score-Spalte** im PartnerDashboard (sortiert desc nach Default, Star-Badge wenn match > 0, basiert auf `scoreUserForPartner` mit Partner-Tags vs User Bundesland/Fachrichtung)
-- [x] 2026-04-20: **Partner-Self-Service Tags-Editor** (Chip-Multiselect mit Datalist-Autocomplete, Schnellauswahl-Chips, `/api/partner/partner-data` endpoint - nur `description` + `tags`)
-- [x] 2026-04-20: **Partner-Matching-Empfehlung** (Scoring fachrichtung_gewuenscht/praktiziert + Bundesland, Recommended-Badge + Sortierung in partner_selection & partner_multiselection)
-- [x] 2026-04-20: **P2 E2E Walkthrough-Suite** (`/app/backend/tests/p2_walkthrough.py` — 3/3 PASS)
-- [x] 2026-04-20: **CMSContentUpdate.section** Optional + **apply-template** upsert
-- [x] 2026-04-20: **Step Template Library** (CRUD + save-from-step + apply-at-order)
-- [x] 2026-04-20: **Landing-Page 3 Feature-Boxen via CMS** (6 neue Felder, DE + EN)
-- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip** (5 Status-Werte mappen auf fertige Blöcke)
-- [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision type, hide/auto_complete/block actions)
-- [x] Earlier: i18n DE/EN, admin impersonation, partner m:n, cascade deletes, ConfirmDialog, tag autocomplete
+- [x] 2026-04-20: **Admin Steps-Flowbuilder** (`reactflow`-basiert, 6 Node-Typen farbkodiert, Condition-Edges mit Label, animierte auto_complete-Edges, Sequenz-Pfeile zwischen Nachbar-Steps, Edit/Delete inline, Minimap + Controls). Toggle **Flow-Ansicht ⇄ Listen-Ansicht** – alter Editor bleibt als Fallback erhalten
+- [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** – vorher: `decision==upload` löste Milestone aus (ohne dass Docs hochgeladen waren). Jetzt: Milestone-Condition nutzt `status_is=completed` auf den Upload-Step. Migration hat 6 Milestones umgestellt + 5 fälschlich auto-completed Progress-Rows zurückgesetzt. Regression-Test `/app/backend/tests/repro_milestone_skip.py` deckt beide Szenarien (partner-path + upload-path ohne/mit Docs) ab
+- [x] 2026-04-20: **Partner-Insights-Dashboard** (KPIs, BarCharts, 30-Tage-Timeline mit Empty-State, Conversion-Funnel)
+- [x] 2026-04-20: **Match-Score-Spalte** (Star-Badge, Default-Sort desc)
+- [x] 2026-04-20: **Partner-Self-Service Tags-Editor** (`PUT /api/partner/partner-data`)
+- [x] 2026-04-20: **Partner-Matching-Empfehlung** (partner_selection & partner_multiselection ★)
+- [x] 2026-04-20: **P2 E2E Walkthrough** 3/3 PASS
+- [x] 2026-04-20: **Step Template Library** (CRUD + save-from-step + apply)
+- [x] 2026-04-20: **Landing-Page CMS Feature-Boxen**
+- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip**
+- [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision + hide/auto_complete/block actions)
 
 ## Backlog
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
-- [ ] P3: Insights `by_fachrichtung`/`by_bundesland` – 'Unbekannt' zu 'Nicht erfasst' umbenennen oder Users ohne Step-1-Daten herausfiltern
-- [ ] P3: Insights `conversion_rate_pct` als Float mit einer Nachkommastelle
+- [ ] P2: Wöchentliche Insights-E-Mail an Partner (Mailgun bereits integriert)
+- [ ] P3: Flowbuilder – Edges direkt per Drag&Drop zwischen Nodes ziehen um neue Conditions anzulegen (aktuell: Edit über Node-Dialog)
+- [ ] P3: Flowbuilder – Step-Typ-Palette links (Drag neue Step-Typen auf Canvas)
+- [ ] P3: Insights `Unbekannt`-Label + `conversion_rate_pct` als Float
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).

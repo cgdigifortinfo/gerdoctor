@@ -22,6 +22,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
+import StepsFlowBuilder from '../components/StepsFlowBuilder';
 
 export default function AdminDashboard() {
     const { user, logout, impersonate } = useAuth();
@@ -64,6 +65,7 @@ export default function AdminDashboard() {
     const [showStepDialog, setShowStepDialog] = useState(false);
     const [stepTemplates, setStepTemplates] = useState([]);
     const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+    const [stepsView, setStepsView] = useState('flow'); // 'flow' | 'list'
 
     // Partner management state
     const [editingPartner, setEditingPartner] = useState(null);
@@ -715,7 +717,23 @@ export default function AdminDashboard() {
                         <div className="bg-card border border-border rounded-sm">
                             <div className="p-4 border-b border-border flex flex-wrap justify-between items-center gap-2">
                                 <h2 className="text-lg font-semibold text-foreground">Step Management</h2>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <div className="inline-flex rounded-sm border border-border overflow-hidden" data-testid="steps-view-toggle">
+                                        <button
+                                            onClick={() => setStepsView('flow')}
+                                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${stepsView === 'flow' ? 'bg-[#114f55] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                                            data-testid="steps-view-flow"
+                                        >
+                                            Flow-Ansicht
+                                        </button>
+                                        <button
+                                            onClick={() => setStepsView('list')}
+                                            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-border ${stepsView === 'list' ? 'bg-[#114f55] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                                            data-testid="steps-view-list"
+                                        >
+                                            Listen-Ansicht
+                                        </button>
+                                    </div>
                                     <Button
                                         variant="outline"
                                         onClick={() => setShowTemplatesPanel(v => !v)}
@@ -764,6 +782,16 @@ export default function AdminDashboard() {
                                     )}
                                 </div>
                             )}
+                            {stepsView === 'flow' ? (
+                                <div className="p-4">
+                                    <StepsFlowBuilder
+                                        steps={steps}
+                                        onEdit={(s) => { setEditingStep(s); setShowStepDialog(true); }}
+                                        onDelete={(s) => handleDeleteStep(s.id)}
+                                        onAddStep={() => { setEditingStep(null); setShowStepDialog(true); }}
+                                    />
+                                </div>
+                            ) : (
                             <div className="p-4 space-y-4">
                                 {steps.sort((a, b) => a.order - b.order).map((step, idx) => (
                                     <div key={step.id} className="border border-border rounded-sm p-4">
@@ -826,6 +854,7 @@ export default function AdminDashboard() {
                                     </div>
                                 ))}
                             </div>
+                            )}
                         </div>
                     </TabsContent>
 
