@@ -370,6 +370,66 @@ async def run_test():
                 print(f"  ! Case 10: edge click did not open modal (click method={edge_clicked})")
                 results.append(("Case 10: edit condition via edge click", "SKIP"))
 
+            # --- Case 11: Fullscreen button exists and is clickable ---
+            fs_btn = await page.query_selector('[data-testid="flow-fullscreen-btn"]')
+            if fs_btn:
+                # We can verify the button exists and that the handler tries to requestFullscreen.
+                # Actual fullscreen may be blocked in headless Chromium; we stub the API and verify the handler.
+                called = await page.evaluate("""() => {
+                    const el = document.querySelector('[data-testid="steps-flow-builder"]');
+                    if (!el) return false;
+                    let wasCalled = false;
+                    el.requestFullscreen = () => { wasCalled = true; return Promise.resolve(); };
+                    document.querySelector('[data-testid="flow-fullscreen-btn"]').click();
+                    return wasCalled;
+                }""")
+                if called:
+                    print(f"  ✓ Case 11: fullscreen button triggers requestFullscreen()")
+                    results.append(("Case 11: fullscreen trigger", "PASS"))
+                else:
+                    print(f"  ! Case 11: handler did not call requestFullscreen")
+                    results.append(("Case 11: fullscreen trigger", "FAIL"))
+            else:
+                results.append(("Case 11: fullscreen trigger", "SKIP (button not found)"))
+
+            # --- Case 12: Linear layout — alternative steps share X coordinate ---
+            # Step order 3 (upload) and step order 4 (partner_selection) should have
+            # approximately the same X but different Y (parallel lanes).
+            positions = await page.evaluate("""() => {
+                const nodes = document.querySelectorAll('.react-flow__node');
+                const result = {};
+                nodes.forEach(n => {
+                    const tid = n.querySelector('[data-testid^="flow-node-"]')?.getAttribute('data-testid');
+                    if (!tid) return;
+                    const t = n.style.transform || '';
+                    const m = t.match(/translate\\(([^,]+)px,\\s*([^\\)]+)px\\)/);
+                    if (m) result[tid] = { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+                });
+                return result;
+            }""")
+            # Find IDs for order 3 (upload) and order 4 (partner)
+            step_by_order = {v["order"]: k for k, v in original_snapshot.items()}
+            up_id = step_by_order.get(3)
+            pa_id = step_by_order.get(4)
+            if up_id and pa_id:
+                up_pos = positions.get(f"flow-node-{up_id}")
+                pa_pos = positions.get(f"flow-node-{pa_id}")
+                if up_pos and pa_pos:
+                    same_x = abs(up_pos["x"] - pa_pos["x"]) < 30
+                    diff_y = abs(up_pos["y"] - pa_pos["y"]) > 80
+                    if same_x and diff_y:
+                        print(f"  ✓ Case 12: upload(order=3) and partner(order=4) are parallel (same x, different y)")
+                        print(f"     upload: {up_pos}, partner: {pa_pos}")
+                        results.append(("Case 12: parallel alternatives", "PASS"))
+                    else:
+                        print(f"  ! Case 12: layout is NOT parallel — same_x={same_x}, diff_y={diff_y}")
+                        print(f"     upload: {up_pos}, partner: {pa_pos}")
+                        results.append(("Case 12: parallel alternatives", "FAIL"))
+                else:
+                    results.append(("Case 12: parallel alternatives", "SKIP (no positions)"))
+            else:
+                results.append(("Case 12: parallel alternatives", "SKIP (steps not found)"))
+
             await browser.close()
 
     except Exception as exc:

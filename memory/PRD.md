@@ -44,9 +44,11 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-20: **Flowbuilder v3** — **Auto-Layout** mit `dagre` (LR-Richtung, verzweigt saubere Upload/Partner-Branches), persistiert globale Positionen in neuem `steps.flow_position` Feld via `PUT /api/admin/steps/layout-bulk`. **Edge-Click** öffnet Condition-Modal im Edit-Modus (pre-filled) mit Delete-Button. **Node-Drag** speichert Position sofort global. Wenn `flow_position` gesetzt → UI nutzt persistierte Werte, sonst dagre-Auto-Layout
-- [x] 2026-04-20: **E2E Flowbuilder Tests 10/10 PASS** (`/app/backend/tests/e2e_flowbuilder.py` — jetzt auch Auto-Layout-Persistenz + Edge-Click-Edit abgedeckt, vollständiger Cleanup inkl. flow_position)
-- [x] 2026-04-20: **Flowbuilder v2** (Palette-Sidebar + Edge-Drag für Conditions)
+- [x] 2026-04-20: **Flowbuilder Linear-Layout** — neuer Algorithmus respektiert `step.order` streng. Aufeinanderfolgende Steps mit `hide`-Conditions auf dieselbe Decision werden als **parallele Lanes** (vertikal gestapelt) bei gleicher X-Position gerendert, alle anderen Steps seriell auf der Mittelachse. Ersetzt dagre als Default-Layout — dagre bleibt als interner Fallback
+- [x] 2026-04-20: **Fullscreen-Modus** — Browser Fullscreen API (kein Library-Dependency), Toggle-Button oben links, Node-Layout dehnt sich auf `h-screen w-screen`. `fullscreenchange`-Event-Listener synchronisiert Icon (ArrowsOut ↔ ArrowsIn)
+- [x] 2026-04-20: **E2E Flowbuilder Tests 12/12 PASS** — erweitert um Case 11 (Fullscreen-Trigger) + Case 12 (parallele Lanes: upload+partner haben gleiches X, unterschiedliches Y), vollständiger Cleanup
+- [x] 2026-04-20: **Flowbuilder Condition-Edit via Edge-Click** + **Auto-Layout + Global Persistence** (`steps.flow_position` + `PUT /api/admin/steps/layout-bulk`)
+- [x] 2026-04-20: **Flowbuilder Palette + Edge-Drag**
 - [x] 2026-04-20: **Bugfix Milestone-Auto-Complete** (status_is auf Upload-Step)
 - [x] 2026-04-20: **Partner-Insights-Dashboard** + **Match-Score** + **Partner-Self-Service Tags-Editor**
 - [x] 2026-04-20: **Partner-Matching-Empfehlung** in User-Steps

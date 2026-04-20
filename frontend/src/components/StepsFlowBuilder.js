@@ -7,7 +7,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Button } from './ui/button';
-import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn } from '@phosphor-icons/react';
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
@@ -81,7 +81,7 @@ function StepNode({ data }) {
 
 const nodeTypes = { stepNode: StepNode };
 
-// ---- Dagre-based auto layout ----
+// ---- Dagre-based auto layout (fallback, for non-linear graphs) ----
 const NODE_W = 240, NODE_H = 88;
 
 function dagreLayout(steps, edges) {
@@ -96,6 +96,61 @@ function dagreLayout(steps, edges) {
         const n = g.node(s.id);
         if (n) positions[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
     });
+    return positions;
+}
+
+// ---- Linear layout that respects step.order and renders branch alternatives in parallel lanes ----
+// For our Survey v2 pattern:  decision → (upload | partner) → milestone
+// Consecutive steps whose hide-condition references the same decision step are
+// stacked vertically at the same X column (parallel), then we resume single-line.
+function linearLayout(steps) {
+    const sorted = [...steps].sort((a, b) => a.order - b.order);
+    const positions = {};
+    const X_STEP = 280;       // column width
+    const Y_CENTER = 140;     // vertical baseline
+    const LANE_GAP = 160;     // vertical spacing between parallel lanes
+    let x = 20;
+    let i = 0;
+
+    while (i < sorted.length) {
+        const s = sorted[i];
+        // Is this step a conditional alternative branch?
+        // Heuristic: it has action='hide' referencing a decision step (field='decision')
+        const hideCond = (s.conditions || []).find(
+            c => c.action === 'hide' && (c.field === 'decision' || c.operator === 'not_equals' || c.operator === 'equals')
+        );
+
+        if (hideCond) {
+            const decOrder = hideCond.source_step_order;
+            // Group all consecutive steps with a hide-condition referencing the same decision
+            const group = [];
+            while (i < sorted.length) {
+                const cand = sorted[i];
+                const candHide = (cand.conditions || []).find(
+                    c => c.action === 'hide' && c.source_step_order === decOrder
+                );
+                if (candHide) {
+                    group.push({ step: cand, decision_value: candHide.value || '' });
+                    i++;
+                } else {
+                    break;
+                }
+            }
+            // Sort so 'upload' path stays above 'partner' path consistently
+            group.sort((a, b) => (a.decision_value || '').localeCompare(b.decision_value || ''));
+            const n = group.length;
+            group.forEach((g, idx) => {
+                // lanes: idx=0 → top, idx=n-1 → bottom; symmetric around Y_CENTER
+                const laneOffset = (idx - (n - 1) / 2) * LANE_GAP;
+                positions[g.step.id] = { x, y: Y_CENTER + laneOffset };
+            });
+            x += X_STEP;
+        } else {
+            positions[s.id] = { x, y: Y_CENTER };
+            x += X_STEP;
+            i++;
+        }
+    }
     return positions;
 }
 
@@ -127,18 +182,18 @@ function buildGraph(steps, callbacks) {
         });
     });
 
-    // Positions: use saved flow_position if present; otherwise dagre; fallback horizontal
+    // Positions: use saved flow_position if present; otherwise use the linear (order-based) layout
     const anyWithPosition = sorted.some(s => s.flow_position && typeof s.flow_position.x === 'number');
     let positions = {};
     if (anyWithPosition) {
         sorted.forEach((s, i) => {
-            positions[s.id] = s.flow_position || { x: i * 280, y: 100 + (i % 2) * 40 };
+            positions[s.id] = s.flow_position || { x: i * 280, y: 140 };
         });
     } else {
         try {
-            positions = dagreLayout(sorted, edges);
+            positions = linearLayout(sorted);
         } catch {
-            sorted.forEach((s, i) => { positions[s.id] = { x: i * 280, y: 100 + (i % 2) * 40 }; });
+            sorted.forEach((s, i) => { positions[s.id] = { x: i * 280, y: 140 }; });
         }
     }
 
@@ -279,9 +334,30 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     const initial = useMemo(() => buildGraph(steps, callbacks), [steps, callbacks]);
     const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
-    const [modalState, setModalState] = useState(null);  // { mode, source, target, initial, edgeData }
+    const [modalState, setModalState] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const flowWrapper = useRef(null);
+    const rootRef = useRef(null);
     const { project } = useReactFlow();
+
+    // Track fullscreen state (works for both user-pressed F11-like exit and programmatic)
+    useEffect(() => {
+        const onFsChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', onFsChange);
+        return () => document.removeEventListener('fullscreenchange', onFsChange);
+    }, []);
+
+    const toggleFullscreen = useCallback(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.();
+        } else {
+            el.requestFullscreen?.().catch(() => { /* browser may block */ });
+        }
+    }, []);
 
     useEffect(() => {
         const fresh = buildGraph(steps, callbacks);
@@ -331,17 +407,21 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         onSaveLayout?.({ [node.id]: { x: node.position.x, y: node.position.y } });
     }, [onSaveLayout]);
 
-    // Apply dagre auto-layout to everything + persist
+    // Apply automatic layout (order-respecting, parallel alternatives) + persist
     const runAutoLayout = useCallback(() => {
         try {
-            const positions = dagreLayout(steps, edges);
+            const positions = linearLayout(steps);
             setNodes(nds => nds.map(n => positions[n.id] ? { ...n, position: positions[n.id] } : n));
             onSaveLayout?.(positions);
         } catch (e) { console.warn('Auto-layout failed:', e); }
-    }, [steps, edges, setNodes, onSaveLayout]);
+    }, [steps, setNodes, onSaveLayout]);
 
     return (
-        <div className="relative h-[640px] border border-border rounded-sm bg-muted/20 flex" data-testid="steps-flow-builder">
+        <div
+            ref={rootRef}
+            className={`relative border border-border rounded-sm bg-muted/20 flex ${isFullscreen ? 'h-screen w-screen' : 'h-[640px]'}`}
+            data-testid="steps-flow-builder"
+        >
             <Palette />
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2">
@@ -350,6 +430,10 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     </Button>
                     <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
                         <Graph size={14} className="mr-1" /> Auto-Layout
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={toggleFullscreen} className="bg-card border-border shadow" data-testid="flow-fullscreen-btn" title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}>
+                        {isFullscreen ? <ArrowsIn size={14} className="mr-1" /> : <ArrowsOut size={14} className="mr-1" />}
+                        {isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
                     </Button>
                 </div>
                 <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end">
