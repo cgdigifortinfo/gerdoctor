@@ -430,6 +430,83 @@ async def run_test():
             else:
                 results.append(("Case 12: parallel alternatives", "SKIP (steps not found)"))
 
+            # --- Case 13: Journey Simulator — dropdown switches node badges ---
+            sim_select = await page.query_selector('[data-testid="flow-simulator-select"]')
+            if sim_select:
+                # 'none' → no sim-badge elements
+                badges_none = await page.query_selector_all('[data-testid^="sim-badge-"]')
+                # Switch to upload_path — nodes that only exist on partner path should be hidden
+                await sim_select.select_option('upload_path')
+                await page.wait_for_timeout(800)
+                badges_upload = await page.query_selector_all('[data-testid^="sim-badge-"]')
+                # Switch to partner_path — different set
+                await sim_select.select_option('partner_path')
+                await page.wait_for_timeout(800)
+                badges_partner = await page.query_selector_all('[data-testid^="sim-badge-"]')
+                # Reset
+                await sim_select.select_option('none')
+                await page.wait_for_timeout(500)
+                badges_reset = await page.query_selector_all('[data-testid^="sim-badge-"]')
+
+                if (len(badges_none) == 0
+                        and len(badges_upload) > 0
+                        and len(badges_partner) > 0
+                        and len(badges_reset) == 0):
+                    print(f"  ✓ Case 13: simulator toggles badges (none=0, upload={len(badges_upload)}, partner={len(badges_partner)}, reset=0)")
+                    results.append(("Case 13: journey simulator", "PASS"))
+                else:
+                    print(f"  ! Case 13: badges unexpected — none={len(badges_none)}, upload={len(badges_upload)}, partner={len(badges_partner)}, reset={len(badges_reset)}")
+                    results.append(("Case 13: journey simulator", "FAIL"))
+            else:
+                results.append(("Case 13: journey simulator", "SKIP (select not found)"))
+
+            # --- Case 14: Undo/Redo after Auto-Layout ---
+            # Note: earlier cases (9) already pushed history entries, so undo is likely enabled here.
+            # We verify the transition: auto-layout → undo toggles redo enabled → redo consumes it.
+
+            # Trigger auto-layout to ensure at least one fresh history entry
+            auto_btn = await page.query_selector('[data-testid="flow-auto-layout-btn"]')
+            if auto_btn:
+                await auto_btn.click()
+                await page.wait_for_timeout(1500)
+
+            undo_enabled = await page.evaluate("""() => {
+                const b = document.querySelector('[data-testid="flow-undo-btn"]');
+                return b ? !b.disabled : null;
+            }""")
+
+            redo_disabled_before = await page.evaluate("""() => {
+                const b = document.querySelector('[data-testid="flow-redo-btn"]');
+                return b ? b.disabled : null;
+            }""")
+
+            # Click Undo → redo should become enabled
+            redo_enabled_after_undo = None
+            if undo_enabled:
+                await page.click('[data-testid="flow-undo-btn"]')
+                await page.wait_for_timeout(1500)
+                redo_enabled_after_undo = await page.evaluate("""() => {
+                    const b = document.querySelector('[data-testid="flow-redo-btn"]');
+                    return b ? !b.disabled : null;
+                }""")
+
+            # Click Redo to round-trip
+            redo_click_ok = None
+            if redo_enabled_after_undo:
+                await page.click('[data-testid="flow-redo-btn"]')
+                await page.wait_for_timeout(1500)
+                redo_click_ok = True
+
+            if (undo_enabled is True
+                    and redo_disabled_before is True
+                    and redo_enabled_after_undo is True
+                    and redo_click_ok is True):
+                print(f"  ✓ Case 14: undo/redo buttons toggle correctly (undo→redo enabled→redo consumed)")
+                results.append(("Case 14: undo/redo flow", "PASS"))
+            else:
+                print(f"  ! Case 14: undo_enabled={undo_enabled}, redo_disabled_before={redo_disabled_before}, redo_enabled_after_undo={redo_enabled_after_undo}, redo_click_ok={redo_click_ok}")
+                results.append(("Case 14: undo/redo flow", "FAIL"))
+
             await browser.close()
 
     except Exception as exc:

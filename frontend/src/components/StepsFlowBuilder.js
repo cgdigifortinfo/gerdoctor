@@ -7,8 +7,10 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Button } from './ui/button';
-import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight, Play } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight } from '@phosphor-icons/react';
 import { simulateJourney, SIMULATOR_PROFILES } from '../lib/stepVisibility';
+import { useFlowHistory } from '../hooks/useFlowHistory';
+import FlowSimulatorPanel from './FlowSimulatorPanel';
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
@@ -338,9 +340,36 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
     const [modalState, setModalState] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [simulatorKey, setSimulatorKey] = useState('none');
+    const history = useFlowHistory();
     const flowWrapper = useRef(null);
     const rootRef = useRef(null);
     const { project } = useReactFlow();
+
+    // Snapshot helper — captures current node positions as {id: {x, y}}
+    const nodesToSnapshot = useCallback((nds) => {
+        const out = {};
+        nds.forEach((n) => {
+            if (n.position) out[n.id] = { x: n.position.x, y: n.position.y };
+        });
+        return out;
+    }, []);
+
+    // Compute simulator states whenever profile or steps change and decorate nodes
+    const simStates = useMemo(() => {
+        const profile = SIMULATOR_PROFILES[simulatorKey]?.profile;
+        if (!profile) return null;
+        const { hidden, blocked, autoComplete } = simulateJourney(steps, profile);
+        const map = {};
+        steps.forEach((s) => {
+            const sid = s.id || s.step_id;
+            if (hidden.has(sid)) map[sid] = 'hidden';
+            else if (blocked.has(sid)) map[sid] = 'blocked';
+            else if (autoComplete.has(sid)) map[sid] = 'auto_complete';
+            else map[sid] = 'visible';
+        });
+        return map;
+    }, [simulatorKey, steps]);
 
     // Track fullscreen state (works for both user-pressed F11-like exit and programmatic)
     useEffect(() => {
@@ -363,9 +392,18 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
 
     useEffect(() => {
         const fresh = buildGraph(steps, callbacks);
-        setNodes(fresh.nodes);
+        const simMap = simStates;
+        setNodes(fresh.nodes.map((n) => simMap
+            ? { ...n, data: { ...n.data, simState: simMap[n.id] } }
+            : n));
         setEdges(fresh.edges);
-    }, [steps, callbacks, setNodes, setEdges]);
+    }, [steps, callbacks, simStates, setNodes, setEdges]);
+
+    // Reset undo/redo history whenever the underlying step set changes upstream
+    useEffect(() => {
+        history.clear();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [steps]);
 
     // Edge drag → open modal (create)
     const handleConnect = useCallback((params) => {
@@ -404,6 +442,11 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     }, [project, onAddStepWithType]);
 
     // Persist a single node's position when user stops dragging it
+    const handleNodeDragStart = useCallback(() => {
+        // Snapshot BEFORE the drag mutates positions
+        history.push(nodesToSnapshot(nodes));
+    }, [history, nodes, nodesToSnapshot]);
+
     const handleNodeDragStop = useCallback((_event, node) => {
         if (!node?.id || !node.position) return;
         onSaveLayout?.({ [node.id]: { x: node.position.x, y: node.position.y } });
@@ -412,11 +455,44 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     // Apply automatic layout (order-respecting, parallel alternatives) + persist
     const runAutoLayout = useCallback(() => {
         try {
+            history.push(nodesToSnapshot(nodes));
             const positions = linearLayout(steps);
             setNodes(nds => nds.map(n => positions[n.id] ? { ...n, position: positions[n.id] } : n));
             onSaveLayout?.(positions);
         } catch (e) { console.warn('Auto-layout failed:', e); }
-    }, [steps, setNodes, onSaveLayout]);
+    }, [steps, setNodes, onSaveLayout, history, nodes, nodesToSnapshot]);
+
+    // ----- Undo / Redo -----
+    const applySnapshot = useCallback((snapshot) => {
+        if (!snapshot) return;
+        setNodes((nds) => nds.map((n) => snapshot[n.id] ? { ...n, position: snapshot[n.id] } : n));
+        onSaveLayout?.(snapshot);
+    }, [setNodes, onSaveLayout]);
+
+    const handleUndo = useCallback(() => {
+        const prev = history.undo(nodesToSnapshot(nodes));
+        applySnapshot(prev);
+    }, [history, nodes, nodesToSnapshot, applySnapshot]);
+
+    const handleRedo = useCallback(() => {
+        const next = history.redo(nodesToSnapshot(nodes));
+        applySnapshot(next);
+    }, [history, nodes, nodesToSnapshot, applySnapshot]);
+
+    // Keyboard shortcuts: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl+Y (redo)
+    useEffect(() => {
+        const onKey = (e) => {
+            const mod = e.ctrlKey || e.metaKey;
+            if (!mod) return;
+            // Ignore when focus is in an input / textarea / contenteditable
+            const tag = (e.target?.tagName || '').toUpperCase();
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+            if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+            else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo(); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [handleUndo, handleRedo]);
 
     return (
         <div
@@ -426,7 +502,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         >
             <Palette />
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
-                <div className="absolute top-3 left-3 z-10 flex gap-2">
+                <div className="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center">
                     <Button size="sm" onClick={() => onAddStep?.()} className="bg-[#114f55] hover:bg-[#0d3d42] text-white shadow" data-testid="flow-add-step-btn">
                         <Plus size={14} className="mr-1" /> Step
                     </Button>
@@ -437,6 +513,29 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         {isFullscreen ? <ArrowsIn size={14} className="mr-1" /> : <ArrowsOut size={14} className="mr-1" />}
                         {isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
                     </Button>
+                    <div className="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={handleUndo}
+                            disabled={!history.canUndo}
+                            title="Rückgängig (Strg+Z)"
+                            data-testid="flow-undo-btn"
+                            className="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+                        >
+                            <ArrowUUpLeft size={14} /> Undo
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleRedo}
+                            disabled={!history.canRedo}
+                            title="Wiederherstellen (Strg+Shift+Z)"
+                            data-testid="flow-redo-btn"
+                            className="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                        >
+                            <ArrowUUpRight size={14} /> Redo
+                        </button>
+                    </div>
+                    <FlowSimulatorPanel value={simulatorKey} onChange={setSimulatorKey} />
                 </div>
                 <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end">
                     {Object.entries(ACTION_LABELS).map(([k, v]) => (
@@ -451,6 +550,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                     onConnect={handleConnect}
                     onEdgeClick={handleEdgeClick}
+                    onNodeDragStart={handleNodeDragStart}
                     onNodeDragStop={handleNodeDragStop}
                     nodeTypes={nodeTypes}
                     fitView

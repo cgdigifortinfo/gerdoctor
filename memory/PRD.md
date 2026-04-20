@@ -44,6 +44,7 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-20: **Journey Simulator + Undo/Redo History** — Toolbar-Dropdown (4 Profile: Frisch, Upload-Pfad, Partner-Pfad, Approbiert) tint Nodes live (sichtbar/versteckt/blockiert/auto-abgeschlossen). Undo/Redo-Stack für Node-Positionen (Auto-Layout + Drag), Toolbar-Buttons + Keyboard-Shortcuts (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y). Logik in `hooks/useFlowHistory.js` + `components/FlowSimulatorPanel.js` ausgelagert. E2E Flowbuilder Tests 14/14 PASS (+ Case 13 Simulator, Case 14 Undo/Redo)
 - [x] 2026-04-20: **Flowbuilder Linear-Layout** — neuer Algorithmus respektiert `step.order` streng. Aufeinanderfolgende Steps mit `hide`-Conditions auf dieselbe Decision werden als **parallele Lanes** (vertikal gestapelt) bei gleicher X-Position gerendert, alle anderen Steps seriell auf der Mittelachse. Ersetzt dagre als Default-Layout — dagre bleibt als interner Fallback
 - [x] 2026-04-20: **Fullscreen-Modus** — Browser Fullscreen API (kein Library-Dependency), Toggle-Button oben links, Node-Layout dehnt sich auf `h-screen w-screen`. `fullscreenchange`-Event-Listener synchronisiert Icon (ArrowsOut ↔ ArrowsIn)
 - [x] 2026-04-20: **E2E Flowbuilder Tests 12/12 PASS** — erweitert um Case 11 (Fullscreen-Trigger) + Case 12 (parallele Lanes: upload+partner haben gleiches X, unterschiedliches Y), vollständiger Cleanup
@@ -56,10 +57,9 @@
 - [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision + hide/auto_complete/block)
 
 ## Backlog
+- [ ] P1: Bulk Import/Export für Step-Konfigurationen (JSON)
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
 - [ ] P2: Wöchentliche Insights-E-Mail an Partner (Mailgun bereits integriert)
-- [ ] P3: Flowbuilder — Undo/Redo-History für Node/Condition/Delete-Operationen
-- [ ] P3: Flowbuilder — Journey Simulator (Node-Farbe zeigt Sichtbarkeit für simulierten User)
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).
