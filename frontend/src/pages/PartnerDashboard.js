@@ -79,10 +79,14 @@ function BarChart({ data, accent = '#114f55', valueSuffix = '', testid = 'barcha
 // Compact 30-day timeline sparkline
 function Timeline({ series, accent = '#114f55' }) {
     if (!series || series.length === 0) return null;
+    const total = series.reduce((sum, s) => sum + s.count, 0);
+    if (total === 0) {
+        return <p className="text-sm text-muted-foreground py-6 text-center" data-testid="timeline-30d-empty">Noch keine Einträge in den letzten 30 Tagen</p>;
+    }
     const max = Math.max(1, ...series.map(s => s.count));
     return (
         <div className="flex items-end gap-[2px] h-20" data-testid="timeline-30d">
-            {series.map((s, i) => (
+            {series.map((s) => (
                 <div key={s.date} title={`${s.date}: ${s.count}`} className="flex-1 rounded-t-sm transition-all" style={{
                     height: `${(s.count / max) * 100}%`,
                     minHeight: '2px',

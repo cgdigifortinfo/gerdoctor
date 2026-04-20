@@ -44,22 +44,22 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-20: **Partner-Matching-Empfehlung** (Scoring nach fachrichtung_gewuenscht/praktiziert + Bundesland aus Step 1, Recommended-Badge + Sortierung in partner_selection & partner_multiselection, Praxis-Partner um Jobangebote-Tag + Bundesland-Tags erweitert)
-- [x] 2026-04-20: **P2 E2E Walkthrough-Suite** (`/app/backend/tests/p2_walkthrough.py` — Jobangebote Selbst/Partner + PartnerDashboard hide filter, 3/3 PASS, API+UI verifiziert)
-- [x] 2026-04-20: **Nice-to-haves** – `CMSContentUpdate.section` jetzt Optional, `apply-template` via `update_one(upsert=True)` statt `insert_many` (idempotent)
-- [x] 2026-04-20: **Step Template Library** (save-step-as-template, list/apply/delete, new MongoDB `step_templates` collection, Admin UI panel in Steps tab)
-- [x] 2026-04-20: **Landing-Page 3 Feature-Boxen via CMS** (6 neue Felder in `cms_content.home`, DE + EN Translations, Admin-CMS-Editor erweitert, Backfill für bestehende Installationen)
-- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip** (5 Status-Werte mappen auf bereits-fertige Themenblöcke, `apply_anerkennungsstatus_skips` in helpers.py, Trigger bei User- und Admin-Progress-Update)
-- [x] 2026-04-20: **Survey v2 restructure** (24 steps, 3 new condition actions, 1 new step_type, PartnerDashboard hide-filter, demo-data reseed)
-- [x] 2026-04-20: Backend helpers refactor (_get_step_context, apply_auto_completes)
-- [x] 2026-04-20: Fixed "Maximum update depth" infinite re-render in UserDashboard via useMemo on visibleSteps
-- [x] 2026-04-20: Deduplicated data-testid on decision-options (desktop vs mobile scope)
-- [x] Earlier: i18n DE/EN for Steps + CMS, admin impersonation, partner m:n linking, cascade deletes, ConfirmDialog, tag autocomplete
+- [x] 2026-04-20: **Partner-Insights-Dashboard** (KPI-Cards, Fachrichtung/Bundesland-BarCharts, 30-Tage-Timeline, Conversion-Funnel – alles ohne externe Chart-Libraries)
+- [x] 2026-04-20: **Match-Score-Spalte** im PartnerDashboard (sortiert desc nach Default, Star-Badge wenn match > 0, basiert auf `scoreUserForPartner` mit Partner-Tags vs User Bundesland/Fachrichtung)
+- [x] 2026-04-20: **Partner-Self-Service Tags-Editor** (Chip-Multiselect mit Datalist-Autocomplete, Schnellauswahl-Chips, `/api/partner/partner-data` endpoint - nur `description` + `tags`)
+- [x] 2026-04-20: **Partner-Matching-Empfehlung** (Scoring fachrichtung_gewuenscht/praktiziert + Bundesland, Recommended-Badge + Sortierung in partner_selection & partner_multiselection)
+- [x] 2026-04-20: **P2 E2E Walkthrough-Suite** (`/app/backend/tests/p2_walkthrough.py` — 3/3 PASS)
+- [x] 2026-04-20: **CMSContentUpdate.section** Optional + **apply-template** upsert
+- [x] 2026-04-20: **Step Template Library** (CRUD + save-from-step + apply-at-order)
+- [x] 2026-04-20: **Landing-Page 3 Feature-Boxen via CMS** (6 neue Felder, DE + EN)
+- [x] 2026-04-20: **Anerkennungsstatus Auto-Skip** (5 Status-Werte mappen auf fertige Blöcke)
+- [x] 2026-04-20: **Survey v2 restructure** (24 steps, decision type, hide/auto_complete/block actions)
+- [x] Earlier: i18n DE/EN, admin impersonation, partner m:n, cascade deletes, ConfirmDialog, tag autocomplete
 
 ## Backlog
 - [ ] P2: Webhook-Integration für externe System-Benachrichtigungen
-- [ ] P3: Partner können via eigene UI Bundesland/Fachrichtung-Tags pflegen (aktuell nur via Admin Tag-Multiselect)
-- [ ] P3: Recommendation-Score auch in PartnerDashboard-Matching-Ansicht zeigen
+- [ ] P3: Insights `by_fachrichtung`/`by_bundesland` – 'Unbekannt' zu 'Nicht erfasst' umbenennen oder Users ohne Step-1-Daten herausfiltern
+- [ ] P3: Insights `conversion_rate_pct` als Float mit einer Nachkommastelle
 
 ## Known Warnings
 - None blocking. Two console errors observed on load (non-blocking, non-React-loop).
