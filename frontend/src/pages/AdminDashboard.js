@@ -68,6 +68,9 @@ export default function AdminDashboard() {
     const [showPartnerDialog, setShowPartnerDialog] = useState(false);
     const [showLinkDialog, setShowLinkDialog] = useState(null);
 
+    // Confirm dialog state
+    const [confirmDialog, setConfirmDialog] = useState(null);
+
     // CMS state
     const [cmsHome, setCmsHome] = useState({});
     const [cmsAbout, setCmsAbout] = useState({});
@@ -187,14 +190,19 @@ export default function AdminDashboard() {
     };
 
     const handleDeleteStep = async (stepId) => {
-        if (!window.confirm('Are you sure you want to delete this step?')) return;
-        try {
-            await adminAPI.deleteStep(stepId);
-            toast.success('Step deleted');
-            loadData();
-        } catch (error) {
-            toast.error(formatApiError(error));
-        }
+        setConfirmDialog({
+            message: 'Sind Sie sicher, dass Sie diesen Schritt loeschen moechten? Alle Fortschrittsdaten der Nutzer fuer diesen Schritt werden ebenfalls entfernt.',
+            onConfirm: async () => {
+                try {
+                    await adminAPI.deleteStep(stepId);
+                    toast.success('Step deleted');
+                    loadData();
+                } catch (error) {
+                    toast.error(formatApiError(error));
+                }
+                setConfirmDialog(null);
+            }
+        });
     };
 
     const handleMoveStep = async (stepId, direction) => {
@@ -235,14 +243,19 @@ export default function AdminDashboard() {
     };
 
     const handleDeletePartner = async (partnerId) => {
-        if (!window.confirm('Are you sure you want to delete this partner?')) return;
-        try {
-            await adminAPI.deletePartner(partnerId);
-            toast.success('Partner deleted');
-            loadData();
-        } catch (error) {
-            toast.error(formatApiError(error));
-        }
+        setConfirmDialog({
+            message: 'Sind Sie sicher, dass Sie diesen Partner loeschen moechten? Alle Verknuepfungen und Submissions werden ebenfalls entfernt.',
+            onConfirm: async () => {
+                try {
+                    await adminAPI.deletePartner(partnerId);
+                    toast.success('Partner deleted');
+                    loadData();
+                } catch (error) {
+                    toast.error(formatApiError(error));
+                }
+                setConfirmDialog(null);
+            }
+        });
     };
 
     const handleLinkUser = async (partnerId, userId) => {
@@ -1230,6 +1243,19 @@ export default function AdminDashboard() {
                 partners={partners}
                 t={t}
             />
+            {/* Confirm Dialog */}
+            <Dialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Bestaetigung</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground py-4" data-testid="confirm-dialog-message">{confirmDialog?.message}</p>
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setConfirmDialog(null)} data-testid="confirm-dialog-cancel">Abbrechen</Button>
+                        <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => confirmDialog?.onConfirm()} data-testid="confirm-dialog-yes">Ja, loeschen</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -1774,9 +1800,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
     };
 
     const removeTag = (tag) => {
-        if (window.confirm(`Tag "${tag}" wirklich entfernen?`)) {
-            setFormData(fd => ({ ...fd, tags: fd.tags.filter(t => t !== tag) }));
-        }
+        setFormData(fd => ({ ...fd, tags: fd.tags.filter(t => t !== tag) }));
     };
 
     const handleTagKeyDown = (e) => {
