@@ -519,12 +519,12 @@ async def admin_delete_user(user_id: str, request: Request):
 async def admin_get_steps(request: Request):
     await require_role("admin")(request)
     steps = await db.steps.find().sort("order", 1).to_list(100)
-    return [{"id": str(s["_id"]), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days")} for s in steps]
+    return [{"id": str(s["_id"]), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {})} for s in steps]
 
 @admin_router.post("/steps")
 async def admin_create_step(data: StepCreate, request: Request):
     await require_role("admin")(request)
-    step_doc = {"title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": [f.model_dump() for f in data.fields] if data.fields else [], "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": data.required_fields or [], "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    step_doc = {"title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": [f.model_dump() for f in data.fields] if data.fields else [], "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": data.required_fields or [], "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.steps.insert_one(step_doc)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
@@ -865,17 +865,22 @@ async def get_user_estimated_completion(user_id: str, request: Request):
 @cms_router.get("")
 async def get_cms_content():
     content = await db.cms_content.find({}, {"_id": 0}).to_list(100)
-    return {c["section"]: c.get("content", {}) for c in content}
+    return {c["section"]: {"content": c.get("content", {}), "translations": c.get("translations", {})} for c in content}
 
 @cms_router.get("/{section}")
 async def get_cms_section(section: str):
     content = await db.cms_content.find_one({"section": section}, {"_id": 0})
-    return content.get("content", {}) if content else {}
+    if not content:
+        return {"content": {}, "translations": {}}
+    return {"content": content.get("content", {}), "translations": content.get("translations", {})}
 
 @cms_router.put("/{section}")
 async def update_cms_content(section: str, data: CMSContentUpdate, request: Request):
     admin_user = await require_role("admin")(request)
-    await db.cms_content.update_one({"section": section}, {"$set": {"section": section, "content": data.content, "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    update_fields = {"section": section, "content": data.content, "updated_at": datetime.now(timezone.utc).isoformat()}
+    if data.translations is not None:
+        update_fields["translations"] = data.translations
+    await db.cms_content.update_one({"section": section}, {"$set": update_fields}, upsert=True)
     await create_audit_log(admin_user["_id"], admin_user["email"], "cms_update", "cms", section, {"section": section})
     return {"message": "Content updated"}
 

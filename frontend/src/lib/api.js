@@ -130,7 +130,7 @@ export const adminAPI = {
     
     // CMS
     getCmsContent: (section) => api.get(`/cms/${section}`),
-    updateCmsContent: (section, content) => api.put(`/cms/${section}`, { section, content }),
+    updateCmsContent: (section, content, translations) => api.put(`/cms/${section}`, { section, content, translations }),
 };
 
 // Notification Preferences APIs

@@ -73,7 +73,8 @@ function applyFieldMappings(step, allStepData) {
 
 export default function UserDashboard() {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
-    const { t } = useLanguage();
+    const { t, localize } = useLanguage();
+    const loc = (step, field) => localize(step, field);
     const navigate = useNavigate();
     const [steps, setSteps] = useState([]);
     const [progress, setProgress] = useState([]);
@@ -582,7 +583,7 @@ export default function UserDashboard() {
                         ) : (
                             <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm text-center">
                                 <WarningCircle size={48} className="mx-auto text-yellow-600 mb-4" />
-                                <p className="text-lg font-semibold text-yellow-800 dark:text-yellow-300">{currentStep.pending_message || 'Warten auf Abschluss...'}</p>
+                                <p className="text-lg font-semibold text-yellow-800 dark:text-yellow-300">{loc(currentStep, 'pending_message') || t('dash_waiting')}</p>
                                 <p className="text-sm text-muted-foreground mt-2">Dieser Schritt wird von Ihrem Partner bearbeitet.</p>
                             </div>
                         )}
@@ -591,13 +592,13 @@ export default function UserDashboard() {
             case 'display':
                 return (
                     <div className="space-y-6">
-                        {currentStep.content && (
-                            <div className="prose prose-sm dark:prose-invert max-w-none p-6 bg-muted rounded-sm border border-border" dangerouslySetInnerHTML={{ __html: currentStep.content }} />
+                        {loc(currentStep, 'content') && (
+                            <div className="prose prose-sm dark:prose-invert max-w-none p-6 bg-muted rounded-sm border border-border" dangerouslySetInnerHTML={{ __html: loc(currentStep, 'content') }} />
                         )}
-                        {currentStep.pending_message && !currentStep.content && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{currentStep.pending_message}</p></div>}
+                        {loc(currentStep, 'pending_message') && !loc(currentStep, 'content') && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{loc(currentStep, 'pending_message')}</p></div>}
                         {currentStep.link_url && (
                             <a href={currentStep.link_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-[#114f55]/10 text-[#114f55] rounded-sm hover:bg-[#114f55]/20 transition-colors font-medium text-sm" data-testid="step-external-link">
-                                {currentStep.link_label || currentStep.link_url}
+                                {loc(currentStep, 'link_label') || currentStep.link_url}
                                 <ArrowRight size={14} />
                             </a>
                         )}
@@ -613,7 +614,7 @@ export default function UserDashboard() {
                         )}
                         <div className="flex flex-wrap gap-3">
                             {currentStep.action_label ? (
-                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-action-btn">{currentStep.action_label} <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-action-btn">{loc(currentStep, 'action_label')} <ArrowRight className="ml-2" size={16} /></Button>
                             ) : (
                                 <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             )}
@@ -723,7 +724,7 @@ export default function UserDashboard() {
                                                 'bg-muted text-muted-foreground'}`}>
                                                 {isBlocked ? <Lock size={11} /> : isCompleted ? <Check size={11} weight="bold" /> : index + 1}
                                             </div>
-                                            <span className={`text-sm font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{step.title}</span>
+                                            <span className={`text-sm font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{loc(step, 'title')}</span>
                                         </div>
                                     </button>
                                 );
@@ -784,10 +785,10 @@ export default function UserDashboard() {
 
                                             <div className="flex-1 min-w-0">
                                                 <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : isCompleted ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
-                                                    {step.title}
+                                                    {loc(step, 'title')}
                                                 </p>
                                                 {!isExpanded && (
-                                                    <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{loc(step, 'description')}</p>
                                                 )}
                                             </div>
 
@@ -803,7 +804,7 @@ export default function UserDashboard() {
                                         >
                                             <div className="ml-[50px] pb-6 pr-2">
                                                 <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
-                                                    <p className="text-sm text-muted-foreground mb-4">{step.description}</p>
+                                                    <p className="text-sm text-muted-foreground mb-4">{loc(step, 'description')}</p>
                                                     {isActive && renderStepContent()}
                                                     {!isActive && isCompleted && (
                                                         <div className="flex items-center gap-2 text-green-600 text-sm">

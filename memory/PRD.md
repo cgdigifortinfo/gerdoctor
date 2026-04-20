@@ -4,27 +4,24 @@
 ```
 /app/backend/
   server.py, database.py, models.py, auth.py, helpers.py
-  server.py.backup (pre-refactor)
-  tests/ (4 test suites, 85+ tests)
+  tests/ (4 suites, 90 tests)
 ```
 
-## Cascade Delete Rules
-- **Partner delete**: submissions deleted, partner-users reverted to role "user"
-- **User delete**: progress, submissions, history, files deleted; removed from partner.linked_user_ids; partner.user_id unset
-- **Step delete**: user_progress and progress_history for that step deleted
+## i18n System
+- **UI strings**: LanguageContext.js with DE/EN translations (150+ keys)
+- **Steps**: `translations` field per step: `{en: {title, description, ...}}`
+- **CMS**: `translations` field per section: `{en: {hero_title, hero_subtitle, ...}}`
+- **Admin**: DE/EN tabs in Step Editor and CMS Editor
+- **Frontend**: `localize(item, field)` and `localizeCms(content, field, trans)` helpers
+- Default language: German (stored in main fields), EN in `translations.en`
 
-## Test Coverage
-- test_e2e_step_walkthrough.py: 15 tests (full 12-step user journey)
-- test_crud_and_validation.py: 29 tests (CRUD + cascade + negative inputs)
-- test_partner_linking.py: 13 tests (m:n linking)
-- test_partner_step_completion.py: 16 tests
-
-## Partners (22)
-- Antragstellung: ILS, digiFORT Experts, HABS e.V., InterPers, FIA Academy, FaMed
-- Gleichwertigkeitspruefung: IQB, MedAkademie Berlin
-- Kenntnisprüfung: ILS2, HC&S, FIA Academy
-- Weiterbildung: ILS3, Lingoda, InterPers
-- Praxis: 9 Arztpraxen + PraxisConnect
+## Completed
+- [x] i18n for Steps and CMS content (2026-04-20)
+- [x] Admin Step Editor: EN translation tab
+- [x] Admin CMS Editor: DE/EN toggle per section
+- [x] All 12 steps translated to English
+- [x] All 3 CMS sections translated to English
+- [x] Landing page uses localized CMS content
 
 ## Backlog
 - [ ] P1: Step template library

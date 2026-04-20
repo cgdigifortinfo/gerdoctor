@@ -75,6 +75,10 @@ export default function AdminDashboard() {
     const [cmsHome, setCmsHome] = useState({});
     const [cmsAbout, setCmsAbout] = useState({});
     const [cmsPartners, setCmsPartners] = useState({});
+    const [cmsHomeTrans, setCmsHomeTrans] = useState({});
+    const [cmsAboutTrans, setCmsAboutTrans] = useState({});
+    const [cmsPartnersTrans, setCmsPartnersTrans] = useState({});
+    const [cmsLang, setCmsLang] = useState('de');
     const [cmsSaving, setCmsSaving] = useState(false);
 
     // Bulk selection state
@@ -106,8 +110,11 @@ export default function AdminDashboard() {
             setPartners(partnersRes.data);
             setAnalytics(analyticsRes.data);
             setCmsHome(homeRes.data.content || {});
+            setCmsHomeTrans(homeRes.data.translations || {});
             setCmsAbout(aboutRes.data.content || {});
+            setCmsAboutTrans(aboutRes.data.translations || {});
             setCmsPartners(partnersContentRes.data.content || {});
+            setCmsPartnersTrans(partnersContentRes.data.translations || {});
             setAuditLogs(auditRes.data.logs || []);
             setAuditActionTypes(auditRes.data.action_types || []);
             if (settingsRes.data) setSiteSettings(settingsRes.data);
@@ -280,10 +287,10 @@ export default function AdminDashboard() {
     };
 
     // CMS handlers
-    const handleSaveCms = async (section, content) => {
+    const handleSaveCms = async (section, content, trans) => {
         setCmsSaving(true);
         try {
-            await adminAPI.updateCmsContent(section, content);
+            await adminAPI.updateCmsContent(section, content, trans);
             toast.success(`${section} content updated`);
             loadData();
         } catch (error) {
@@ -818,7 +825,9 @@ export default function AdminDashboard() {
                                 ]}
                                 content={cmsHome}
                                 onChange={setCmsHome}
-                                onSave={() => handleSaveCms('home', cmsHome)}
+                                translations={cmsHomeTrans}
+                                onTransChange={setCmsHomeTrans}
+                                onSave={() => handleSaveCms('home', cmsHome, cmsHomeTrans)}
                                 saving={cmsSaving}
                             />
 
@@ -832,7 +841,9 @@ export default function AdminDashboard() {
                                 ]}
                                 content={cmsAbout}
                                 onChange={setCmsAbout}
-                                onSave={() => handleSaveCms('about', cmsAbout)}
+                                translations={cmsAboutTrans}
+                                onTransChange={setCmsAboutTrans}
+                                onSave={() => handleSaveCms('about', cmsAbout, cmsAboutTrans)}
                                 saving={cmsSaving}
                             />
 
@@ -845,7 +856,9 @@ export default function AdminDashboard() {
                                 ]}
                                 content={cmsPartners}
                                 onChange={setCmsPartners}
-                                onSave={() => handleSaveCms('partners', cmsPartners)}
+                                translations={cmsPartnersTrans}
+                                onTransChange={setCmsPartnersTrans}
+                                onSave={() => handleSaveCms('partners', cmsPartners, cmsPartnersTrans)}
                                 saving={cmsSaving}
                             />
                         </div>
@@ -1271,43 +1284,51 @@ function StatCard({ label, value }) {
     );
 }
 
-function CmsSection({ title, fields, content, onChange, onSave, saving }) {
+function CmsSection({ title, fields, content, onChange, translations, onTransChange, onSave, saving }) {
+    const [cmsLang, setCmsLang] = useState('de');
+
+    const setTrans = (lang, key, value) => {
+        onTransChange(prev => ({ ...prev, [lang]: { ...(prev?.[lang] || {}), [key]: value } }));
+    };
+
     return (
         <div className="bg-card border border-border rounded-sm">
             <div className="p-4 border-b border-border flex justify-between items-center">
                 <h3 className="font-semibold text-foreground">{title}</h3>
-                <Button
-                    onClick={onSave}
-                    disabled={saving}
-                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
-                    data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <div className="flex border border-border rounded-sm overflow-hidden">
+                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
+                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
+                    </div>
+                    <Button onClick={onSave} disabled={saving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {saving ? 'Saving...' : 'Save'}
+                    </Button>
+                </div>
             </div>
             <div className="p-4 space-y-4">
-                {fields.map((field) => (
-                    <div key={field.key}>
-                        <Label className="text-foreground">{field.label}</Label>
-                        {field.type === 'textarea' ? (
-                            <Textarea
-                                value={content[field.key] || ''}
-                                onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
-                                placeholder={field.placeholder}
-                                className="mt-1 border-border rounded-sm min-h-[80px]"
-                                data-testid={`cms-field-${field.key}`}
-                            />
-                        ) : (
-                            <Input
-                                value={content[field.key] || ''}
-                                onChange={(e) => onChange({ ...content, [field.key]: e.target.value })}
-                                placeholder={field.placeholder}
-                                className="mt-1 border-border rounded-sm"
-                                data-testid={`cms-field-${field.key}`}
-                            />
-                        )}
-                    </div>
-                ))}
+                {cmsLang === 'de' ? (
+                    fields.map((field) => (
+                        <div key={field.key}>
+                            <Label className="text-foreground">{field.label} <span className="text-xs text-muted-foreground">(DE)</span></Label>
+                            {field.type === 'textarea' ? (
+                                <Textarea value={content[field.key] || ''} onChange={(e) => onChange({ ...content, [field.key]: e.target.value })} placeholder={field.placeholder} className="mt-1 border-border rounded-sm min-h-[80px]" data-testid={`cms-field-${field.key}`} />
+                            ) : (
+                                <Input value={content[field.key] || ''} onChange={(e) => onChange({ ...content, [field.key]: e.target.value })} placeholder={field.placeholder} className="mt-1 border-border rounded-sm" data-testid={`cms-field-${field.key}`} />
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    fields.map((field) => (
+                        <div key={field.key}>
+                            <Label className="text-foreground">{field.label} <span className="text-xs font-bold text-blue-600">EN</span></Label>
+                            {field.type === 'textarea' ? (
+                                <Textarea value={translations?.en?.[field.key] || ''} onChange={(e) => setTrans('en', field.key, e.target.value)} placeholder={content[field.key] || field.placeholder} className="mt-1 border-border rounded-sm min-h-[80px]" data-testid={`cms-field-en-${field.key}`} />
+                            ) : (
+                                <Input value={translations?.en?.[field.key] || ''} onChange={(e) => setTrans('en', field.key, e.target.value)} placeholder={content[field.key] || field.placeholder} className="mt-1 border-border rounded-sm" data-testid={`cms-field-en-${field.key}`} />
+                            )}
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
@@ -1377,6 +1398,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
         duration_value: 0, duration_unit: 'days',
         email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
     });
+    const [translations, setTranslations] = useState({});
     const [showFieldForm, setShowFieldForm] = useState(false);
     const [editingField, setEditingField] = useState(null);
     const [activeSection, setActiveSection] = useState('basic');
@@ -1396,6 +1418,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                 email_on_enter: step.email_on_enter || false, email_on_edit: step.email_on_edit || false,
                 email_on_leave: step.email_on_leave || false, is_active: step.is_active !== false
             });
+            setTranslations(step.translations || {});
         } else {
             setFormData({
                 title: '', description: '', order: existingSteps.length + 1,
@@ -1406,10 +1429,18 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                 duration_value: 0, duration_unit: 'days',
                 email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
             });
+            setTranslations({});
         }
     }, [step, existingSteps.length]);
 
-    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+    const handleSubmit = (e) => { e.preventDefault(); onSave({ ...formData, translations }); };
+
+    const setTrans = (lang, field, value) => {
+        setTranslations(prev => ({
+            ...prev,
+            [lang]: { ...(prev[lang] || {}), [field]: value }
+        }));
+    };
     const handleAddField = (field) => {
         if (editingField !== null) { const nf = [...formData.fields]; nf[editingField] = field; setFormData({ ...formData, fields: nf }); setEditingField(null); }
         else { setFormData({ ...formData, fields: [...formData.fields, field] }); }
@@ -1452,6 +1483,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                     <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>{t('step_mappings')} ({formData.field_mappings.length})</button>
                     <button type="button" onClick={() => setActiveSection('conditions')} className={sectionBtnClass('conditions')}>{t('step_conditions')} ({formData.conditions.length})</button>
                     <button type="button" onClick={() => setActiveSection('notifications')} className={sectionBtnClass('notifications')}>{t('step_notifications')}</button>
+                    <button type="button" onClick={() => setActiveSection('translations')} className={sectionBtnClass('translations')}>EN</button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -1668,6 +1700,45 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                             )}
                         </div>
                     )}
+
+                    {activeSection === 'translations' && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-sm border border-blue-200 dark:border-blue-800">
+                                <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-200 dark:bg-blue-800 px-1.5 py-0.5 rounded">EN</span>
+                                <span className="text-sm text-blue-700 dark:text-blue-300">English Translation</span>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <Label className="text-xs">Title (EN)</Label>
+                                    <Input value={translations.en?.title || ''} onChange={(e) => setTrans('en', 'title', e.target.value)} className="h-8 text-sm mt-1" placeholder={formData.title} data-testid="trans-en-title" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs">Description (EN)</Label>
+                                    <Textarea value={translations.en?.description || ''} onChange={(e) => setTrans('en', 'description', e.target.value)} className="text-sm mt-1 min-h-[60px]" placeholder={formData.description} data-testid="trans-en-description" />
+                                </div>
+                                {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
+                                    <>
+                                        <div>
+                                            <Label className="text-xs">Pending Message (EN)</Label>
+                                            <Input value={translations.en?.pending_message || ''} onChange={(e) => setTrans('en', 'pending_message', e.target.value)} className="h-8 text-sm mt-1" placeholder={formData.pending_message} />
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs">Action Label (EN)</Label>
+                                            <Input value={translations.en?.action_label || ''} onChange={(e) => setTrans('en', 'action_label', e.target.value)} className="h-8 text-sm mt-1" placeholder={formData.action_label} />
+                                        </div>
+                                    </>
+                                )}
+                                {formData.skippable && (
+                                    <div>
+                                        <Label className="text-xs">Skip Label (EN)</Label>
+                                        <Input value={translations.en?.skip_label || ''} onChange={(e) => setTrans('en', 'skip_label', e.target.value)} className="h-8 text-sm mt-1" placeholder={formData.skip_label} />
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Deutsche Texte (DE) werden im Tab "Basis" gepflegt. Hier nur die englische Uebersetzung eingeben.</p>
+                        </div>
+                    )}
+
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>

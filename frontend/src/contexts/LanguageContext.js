@@ -249,10 +249,28 @@ export function LanguageProvider({ children }) {
 
   const t = (key) => translations[lang]?.[key] || translations.en[key] || key;
 
+  // Localize DB content: localize(item, 'title') -> returns translated title or fallback to default
+  const localize = (item, field) => {
+    if (!item) return '';
+    if (lang !== 'de' && item.translations?.[lang]?.[field]) {
+      return item.translations[lang][field];
+    }
+    return item[field] || '';
+  };
+
+  // Localize CMS: localizeCms(cmsContent, 'hero_title', translations) 
+  const localizeCms = (content, field, cmsTrans) => {
+    if (!content) return '';
+    if (lang !== 'de' && cmsTrans?.[lang]?.[field]) {
+      return cmsTrans[lang][field];
+    }
+    return content[field] || '';
+  };
+
   const toggleLang = () => setLang(prev => prev === 'en' ? 'de' : 'en');
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, toggleLang }}>
+    <LanguageContext.Provider value={{ lang, setLang, t, toggleLang, localize, localizeCms }}>
       {children}
     </LanguageContext.Provider>
   );

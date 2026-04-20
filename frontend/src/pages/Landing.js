@@ -10,12 +10,15 @@ import { Logo } from '../components/Logo';
 
 export default function Landing() {
     const { user, loading } = useAuth();
-    const { t } = useLanguage();
+    const { t, localizeCms } = useLanguage();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [homeContent, setHomeContent] = useState({});
+    const [homeTrans, setHomeTrans] = useState({});
     const [aboutContent, setAboutContent] = useState({});
+    const [aboutTrans, setAboutTrans] = useState({});
     const [partnersContent, setPartnersContent] = useState({});
+    const [partnersTrans, setPartnersTrans] = useState({});
     const [partners, setPartners] = useState([]);
 
     useEffect(() => {
@@ -29,8 +32,11 @@ export default function Landing() {
                     partnersAPI.getAll()
                 ]);
                 setHomeContent(homeRes.data.content || {});
+                setHomeTrans(homeRes.data.translations || {});
                 setAboutContent(aboutRes.data.content || {});
+                setAboutTrans(aboutRes.data.translations || {});
                 setPartnersContent(partnersRes.data.content || {});
+                setPartnersTrans(partnersRes.data.translations || {});
                 setPartners(partnersListRes.data || []);
             } catch (error) {
                 console.error('Failed to load content:', error);
@@ -52,6 +58,9 @@ export default function Landing() {
         }
     }, [user, loading, navigate]);
 
+    const hc = (field) => localizeCms(homeContent, field, homeTrans);
+    const ac = (field) => localizeCms(aboutContent, field, aboutTrans);
+    const pc = (field) => localizeCms(partnersContent, field, partnersTrans);
     const scrollToSection = (id) => {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
         setMobileMenuOpen(false);
@@ -161,10 +170,10 @@ export default function Landing() {
                                 Praktizieren in Deutschland
                             </p>
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl tracking-tighter leading-none font-black text-foreground mb-6">
-                                {homeContent.hero_title || 'GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland'}
+                                {hc('hero_title') || 'GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland'}
                             </h1>
                             <p className="text-base leading-relaxed text-muted-foreground mb-8 max-w-lg">
-                                {homeContent.hero_subtitle || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich'}
+                                {hc('hero_subtitle') || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich'}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link to="/register">
@@ -172,7 +181,7 @@ export default function Landing() {
                                         className="w-full sm:w-auto bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
                                         data-testid="hero-cta-btn"
                                     >
-                                        {homeContent.hero_cta || 'Jetzt starten'}
+                                        {hc('hero_cta') || 'Jetzt starten'}
                                         <ArrowRight className="ml-2" size={16} />
                                     </Button>
                                 </Link>
@@ -253,13 +262,13 @@ export default function Landing() {
                                 Who We Are
                             </p>
                             <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-6">
-                                {aboutContent.title || 'About Us'}
+                                {ac('title') || 'About Us'}
                             </h2>
                             <p className="text-base leading-relaxed text-muted-foreground mb-6">
-                                {aboutContent.description || 'We help businesses connect with the right partners through a streamlined onboarding process. Our platform simplifies the journey from initial contact to successful partnership.'}
+                                {ac('description') || 'We help connect international doctors with the right partners.'}
                             </p>
                             <p className="text-base leading-relaxed text-muted-foreground">
-                                {aboutContent.mission || 'Our mission is to simplify business partnerships and create meaningful connections that drive growth and innovation.'}
+                                {ac('mission') || 'The easy way to your German medical license.'}
                             </p>
                         </div>
                     </div>
@@ -274,10 +283,10 @@ export default function Landing() {
                             Our Network
                         </p>
                         <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-4">
-                            {partnersContent.title || 'Our Partners'}
+                            {pc('title') || 'Our Partners'}
                         </h2>
                         <p className="text-muted-foreground max-w-2xl mx-auto">
-                            {partnersContent.description || 'Work with industry-leading partners to achieve your goals.'}
+                            {pc('description') || 'Work with industry-leading partners.'}
                         </p>
                     </div>
                     

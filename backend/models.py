@@ -107,6 +107,7 @@ class StepCreate(BaseModel):
     email_body_edit: Optional[str] = None
     email_subject_leave: Optional[str] = None
     email_body_leave: Optional[str] = None
+    translations: Optional[dict] = None
 
 class StepUpdate(BaseModel):
     title: Optional[str] = None
@@ -136,6 +137,7 @@ class StepUpdate(BaseModel):
     email_subject_leave: Optional[str] = None
     email_body_leave: Optional[str] = None
     is_active: Optional[bool] = None
+    translations: Optional[dict] = None
 
 class StepReorder(BaseModel):
     step_ids: List[str]
@@ -156,6 +158,7 @@ class MultiPartnerSubmission(BaseModel):
 class CMSContentUpdate(BaseModel):
     section: str
     content: dict
+    translations: Optional[dict] = None
 
 class NotificationPreferences(BaseModel):
     email_on_step_enter: bool = True
