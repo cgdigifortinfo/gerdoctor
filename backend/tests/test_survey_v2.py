@@ -104,9 +104,15 @@ class TestStepsStructure:
         # Partner step 4 hidden when 2 != partner
         c4 = by_order[4]["conditions"]
         assert any(c["action"] == "hide" and c["source_step_order"] == 2 for c in c4)
-        # Milestone 5 auto_complete on decision=upload
+        # Milestone 5 auto_complete on upload step (#3) status=completed
         c5 = by_order[5]["conditions"]
-        assert any(c["action"] == "auto_complete" and c.get("value") == "upload" for c in c5)
+        assert any(
+            c["action"] == "auto_complete"
+            and c["source_step_order"] == 3
+            and c.get("operator") == "status_is"
+            and c.get("value") == "completed"
+            for c in c5
+        ), f"milestone 5 should auto_complete on upload step #3 status=completed, got {c5}"
         # Fachsprachen decision step 6 blocked on milestone 5 status_not completed
         c6 = by_order[6]["conditions"]
         assert any(c["action"] == "block" and c["source_step_order"] == 5 for c in c6)
@@ -180,18 +186,38 @@ class TestAutoComplete:
             }, timeout=15)
 
     def test_upload_triggers_milestone_auto_complete(self, steps):
+        """After the milestone-bugfix, milestone 5 only auto-completes once the
+        upload step (#3) itself is marked completed — not just the decision."""
         s = self._login_kumar()
         self._reset_kumar(s, steps)
         by_order = {st["order"]: st for st in steps}
         sid2 = str(by_order[2].get("id") or by_order[2].get("_id"))
+        sid3 = str(by_order[3].get("id") or by_order[3].get("_id"))
         sid5 = str(by_order[5].get("id") or by_order[5].get("_id"))
 
+        # 1) Choose upload path on decision step
         r = s.put(f"{API}/steps/progress", json={
             "step_id": sid2, "status": "completed", "data": {"decision": "upload"}
         }, timeout=15)
         assert r.status_code in (200, 201), r.text
 
-        # Re-fetch progress for step 5 via /api/steps/progress
+        # Milestone 5 must still be pending — decision alone is NOT enough anymore
+        r_mid = s.get(f"{API}/steps/progress")
+        prog_mid = {p["step_id"]: p for p in r_mid.json()}
+        assert prog_mid[sid5]["status"] == "pending", (
+            f"milestone 5 must stay pending after decision only, got {prog_mid[sid5]}"
+        )
+
+        # 2) Actually complete the upload step → triggers auto-complete on milestone 5
+        r = s.put(f"{API}/steps/progress", json={
+            "step_id": sid3, "status": "completed",
+            "data": {"documents": [
+                {"file_id": "test-file", "document_type": "Diplom",
+                 "filename": "diplom.pdf"}
+            ]}
+        }, timeout=15)
+        assert r.status_code in (200, 201), r.text
+
         r2 = s.get(f"{API}/steps/progress")
         assert r2.status_code == 200
         prog = {p["step_id"]: p for p in r2.json()}

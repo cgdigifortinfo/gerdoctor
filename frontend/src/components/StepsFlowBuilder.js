@@ -7,10 +7,30 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Button } from './ui/button';
-import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight, Play, Stop } from '@phosphor-icons/react';
 import { simulateJourney, SIMULATOR_PROFILES } from '../lib/stepVisibility';
 import { useFlowHistory } from '../hooks/useFlowHistory';
 import FlowSimulatorPanel from './FlowSimulatorPanel';
+
+// ---- Duration helpers (for animated playback ETA) ----
+function durationToDays(value, unit) {
+    const n = Number(value) || 0;
+    switch (unit) {
+        case 'hours': return n / 24;
+        case 'days': return n;
+        case 'weeks': return n * 7;
+        case 'months': return n * 30;
+        case 'years': return n * 365;
+        default: return n;
+    }
+}
+function formatDays(days) {
+    const d = Math.round(days);
+    if (d < 1) return '0d';
+    if (d < 14) return `${d}d`;
+    if (d < 60) return `${Math.round(d / 7)}w`;
+    return `${Math.round(d / 30)}M`;
+}
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
@@ -34,18 +54,21 @@ const ACTION_LABELS = {
 function StepNode({ data }) {
     const style = TYPE_STYLES[data.step_type] || TYPE_STYLES.form;
     const sim = data.simState;
+    const isPlayback = data.isPlayback;
     let overlay = null, ring = '', extraClass = '';
     if (sim === 'hidden') { overlay = 'versteckt'; ring = 'ring-2 ring-slate-400'; extraClass = 'opacity-40 grayscale'; }
     else if (sim === 'blocked') { overlay = 'blockiert'; ring = 'ring-2 ring-red-500'; }
     else if (sim === 'auto_complete') { overlay = 'auto-abgeschlossen'; ring = 'ring-2 ring-emerald-500'; }
     else if (sim === 'visible') { ring = 'ring-2 ring-teal-400'; }
+    if (isPlayback) { ring = 'ring-4 ring-amber-400'; extraClass = `${extraClass} animate-pulse`.trim(); }
 
     return (
         <div
             className={`rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ${ring} ${extraClass}`}
-            style={{ borderColor: style.color }}
+            style={{ borderColor: isPlayback ? '#f59e0b' : style.color }}
             data-testid={`flow-node-${data.id}`}
             data-sim-state={sim || 'none'}
+            data-playback={isPlayback ? 'true' : 'false'}
         >
             {overlay && (
                 <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
@@ -341,6 +364,9 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     const [modalState, setModalState] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [simulatorKey, setSimulatorKey] = useState('none');
+    const [playbackIndex, setPlaybackIndex] = useState(-1);
+    const [playbackStepIds, setPlaybackStepIds] = useState([]);
+    const [playbackEtaDays, setPlaybackEtaDays] = useState(0);
     const history = useFlowHistory();
     const flowWrapper = useRef(null);
     const rootRef = useRef(null);
@@ -393,11 +419,51 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     useEffect(() => {
         const fresh = buildGraph(steps, callbacks);
         const simMap = simStates;
-        setNodes(fresh.nodes.map((n) => simMap
-            ? { ...n, data: { ...n.data, simState: simMap[n.id] } }
-            : n));
+        const currentPlaybackId = playbackIndex >= 0 ? playbackStepIds[playbackIndex] : null;
+        setNodes(fresh.nodes.map((n) => {
+            const data = { ...n.data };
+            if (simMap) data.simState = simMap[n.id];
+            if (currentPlaybackId && n.id === currentPlaybackId) data.isPlayback = true;
+            return { ...n, data };
+        }));
         setEdges(fresh.edges);
-    }, [steps, callbacks, simStates, setNodes, setEdges]);
+    }, [steps, callbacks, simStates, playbackIndex, playbackStepIds, setNodes, setEdges]);
+
+    // Playback timer — advances one step every 1500ms, accumulating ETA
+    useEffect(() => {
+        if (playbackIndex < 0 || playbackIndex >= playbackStepIds.length) return undefined;
+        const stepId = playbackStepIds[playbackIndex];
+        const step = steps.find((s) => (s.id || s.step_id) === stepId);
+        const days = step ? durationToDays(step.duration_value, step.duration_unit) : 0;
+        const t = setTimeout(() => {
+            setPlaybackEtaDays((e) => e + days);
+            if (playbackIndex + 1 >= playbackStepIds.length) {
+                setPlaybackIndex(-1);
+            } else {
+                setPlaybackIndex((i) => i + 1);
+            }
+        }, 1500);
+        return () => clearTimeout(t);
+    }, [playbackIndex, playbackStepIds, steps]);
+
+    const startPlayback = useCallback(() => {
+        const profile = SIMULATOR_PROFILES[simulatorKey]?.profile;
+        const simRes = profile ? simulateJourney(steps, profile) : { hidden: new Set() };
+        const sorted = [...steps].sort((a, b) => a.order - b.order);
+        const visibleIds = sorted
+            .filter((s) => !simRes.hidden.has(s.id || s.step_id))
+            .map((s) => s.id || s.step_id);
+        if (visibleIds.length === 0) return;
+        setPlaybackStepIds(visibleIds);
+        setPlaybackEtaDays(0);
+        setPlaybackIndex(0);
+    }, [steps, simulatorKey]);
+
+    const stopPlayback = useCallback(() => {
+        setPlaybackIndex(-1);
+        setPlaybackStepIds([]);
+        setPlaybackEtaDays(0);
+    }, []);
 
     // Reset undo/redo history whenever the underlying step set changes upstream
     useEffect(() => {
@@ -536,8 +602,41 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         </button>
                     </div>
                     <FlowSimulatorPanel value={simulatorKey} onChange={setSimulatorKey} />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={playbackIndex >= 0 ? stopPlayback : startPlayback}
+                        className={`shadow ${playbackIndex >= 0 ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' : 'bg-card border-border'}`}
+                        data-testid="flow-playback-btn"
+                        title={playbackIndex >= 0 ? 'Abspielen stoppen' : 'Animierten Durchlauf starten'}
+                    >
+                        {playbackIndex >= 0
+                            ? (<><Stop size={14} className="mr-1" weight="fill" /> Stop</>)
+                            : (<><Play size={14} className="mr-1" weight="fill" /> Abspielen</>)}
+                    </Button>
                 </div>
-                <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end">
+                {playbackIndex >= 0 && (
+                    <div
+                        className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 bg-amber-50 dark:bg-amber-900/70 border border-amber-300 dark:border-amber-700 rounded-sm shadow-lg px-4 py-2 text-xs flex items-center gap-4"
+                        data-testid="flow-playback-status"
+                    >
+                        <span className="font-semibold text-amber-900 dark:text-amber-100">
+                            ▶ Step {playbackIndex + 1} / {playbackStepIds.length}
+                        </span>
+                        <span className="text-amber-800 dark:text-amber-200">
+                            ETA: <span className="font-semibold" data-testid="flow-playback-eta">{formatDays(playbackEtaDays)}</span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={stopPlayback}
+                            className="text-[11px] text-amber-900 dark:text-amber-100 underline hover:no-underline"
+                            data-testid="flow-playback-stop-btn"
+                        >
+                            Stoppen
+                        </button>
+                    </div>
+                )}
+                <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none">
                     {Object.entries(ACTION_LABELS).map(([k, v]) => (
                         <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm">
                             <span className="w-3 h-[1.5px]" style={{ background: v.color }} />

@@ -507,6 +507,60 @@ async def run_test():
                 print(f"  ! Case 14: undo_enabled={undo_enabled}, redo_disabled_before={redo_disabled_before}, redo_enabled_after_undo={redo_enabled_after_undo}, redo_click_ok={redo_click_ok}")
                 results.append(("Case 14: undo/redo flow", "FAIL"))
 
+            # --- Case 15: Animierter Durchlauf (Playback) ---
+            play_btn = await page.query_selector('[data-testid="flow-playback-btn"]')
+            if play_btn:
+                # Reset simulator to none to get all 24 visible steps
+                sim_select = await page.query_selector('[data-testid="flow-simulator-select"]')
+                if sim_select:
+                    await sim_select.select_option('none')
+                    await page.wait_for_timeout(400)
+
+                await play_btn.click()
+                await page.wait_for_timeout(1200)
+                # Status overlay present
+                status = await page.query_selector('[data-testid="flow-playback-status"]')
+                status_text = await status.inner_text() if status else ''
+                # Pulsing node present
+                playing_node = await page.query_selector('[data-playback="true"]')
+                # ETA element rendered
+                eta_el = await page.query_selector('[data-testid="flow-playback-eta"]')
+                eta_ok = bool(eta_el)
+
+                # Let playback run for ~7 seconds — index should advance
+                status_texts = [status_text]
+                for _ in range(4):
+                    await page.wait_for_timeout(1600)
+                    s = await page.query_selector('[data-testid="flow-playback-status"]')
+                    if s:
+                        status_texts.append(await s.inner_text())
+
+                # Stop via button
+                stop_btn = await page.query_selector('[data-testid="flow-playback-stop-btn"]')
+                if stop_btn:
+                    await stop_btn.click()
+                else:
+                    await page.click('[data-testid="flow-playback-btn"]')
+                await page.wait_for_timeout(700)
+                status_after = await page.query_selector('[data-testid="flow-playback-status"]')
+                node_after = await page.query_selector('[data-playback="true"]')
+
+                advanced = len({t.split('\n')[0] for t in status_texts if t}) > 1
+
+                if (status is not None
+                        and playing_node is not None
+                        and eta_ok
+                        and advanced
+                        and status_after is None
+                        and node_after is None):
+                    print(f"  ✓ Case 15: playback advances steps ({len(status_texts)} snapshots, {len({t.split(chr(10))[0] for t in status_texts if t})} distinct) and stops cleanly")
+                    results.append(("Case 15: animierter Durchlauf", "PASS"))
+                else:
+                    print(f"  ! Case 15: status={bool(status)} node={bool(playing_node)} eta={eta_ok} advanced={advanced} stopped_status={status_after is None} stopped_node={node_after is None}")
+                    results.append(("Case 15: animierter Durchlauf", "FAIL"))
+            else:
+                results.append(("Case 15: animierter Durchlauf", "SKIP (button not found)"))
+
             await browser.close()
 
     except Exception as exc:
