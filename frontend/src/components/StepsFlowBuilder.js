@@ -7,7 +7,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Button } from './ui/button';
-import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight, Play } from '@phosphor-icons/react';
+import { simulateJourney, SIMULATOR_PROFILES } from '../lib/stepVisibility';
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
@@ -30,33 +31,34 @@ const ACTION_LABELS = {
 // ---- Custom step node ----
 function StepNode({ data }) {
     const style = TYPE_STYLES[data.step_type] || TYPE_STYLES.form;
+    const sim = data.simState;
+    let overlay = null, ring = '', extraClass = '';
+    if (sim === 'hidden') { overlay = 'versteckt'; ring = 'ring-2 ring-slate-400'; extraClass = 'opacity-40 grayscale'; }
+    else if (sim === 'blocked') { overlay = 'blockiert'; ring = 'ring-2 ring-red-500'; }
+    else if (sim === 'auto_complete') { overlay = 'auto-abgeschlossen'; ring = 'ring-2 ring-emerald-500'; }
+    else if (sim === 'visible') { ring = 'ring-2 ring-teal-400'; }
+
     return (
         <div
-            className="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800"
+            className={`rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ${ring} ${extraClass}`}
             style={{ borderColor: style.color }}
             data-testid={`flow-node-${data.id}`}
+            data-sim-state={sim || 'none'}
         >
+            {overlay && (
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+                      data-testid={`sim-badge-${data.id}`}>
+                    {overlay}
+                </span>
+            )}
             <Handle type="target" position={Position.Left} id="in" style={{ background: style.color, width: 10, height: 10 }} />
-            <div
-                className="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
-                style={{ background: style.bg }}
-            >
+            <div className="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white" style={{ background: style.bg }}>
                 <span>#{data.order} · {style.label}</span>
                 <div className="flex gap-1">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); data.onEdit(data.raw); }}
-                        className="hover:bg-white/20 rounded p-0.5"
-                        data-testid={`flow-edit-${data.id}`}
-                        title="Bearbeiten"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); data.onEdit(data.raw); }} className="hover:bg-white/20 rounded p-0.5" data-testid={`flow-edit-${data.id}`} title="Bearbeiten">
                         <Pencil size={12} />
                     </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); data.onDelete(data.raw); }}
-                        className="hover:bg-red-500/40 rounded p-0.5"
-                        data-testid={`flow-delete-${data.id}`}
-                        title="Löschen"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); data.onDelete(data.raw); }} className="hover:bg-red-500/40 rounded p-0.5" data-testid={`flow-delete-${data.id}`} title="Löschen">
                         <Trash size={12} />
                     </button>
                 </div>

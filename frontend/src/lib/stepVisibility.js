@@ -56,3 +56,86 @@ export function filterVisibleSteps(steps, progress) {
     const hidden = getHiddenStepIds(steps, progress);
     return (steps || []).filter(s => !hidden.has(s.id || s.step_id));
 }
+
+// ===== Simulator =====
+// Simulate what the flow would look like for a hypothetical profile.
+// `profile` is a map of step_order -> {data, status} (status defaults to 'pending').
+// Returns sets of step ids per state.
+export function simulateJourney(steps, profile = {}) {
+    const sorted = [...(steps || [])].sort((a, b) => a.order - b.order);
+    // Build synthetic byOrder from profile data; assume steps with data are 'completed'
+    const byOrder = {};
+    sorted.forEach(s => {
+        const entry = profile[s.order] || {};
+        byOrder[s.order] = {
+            data: entry.data || {},
+            status: entry.status || (entry.data ? 'completed' : 'pending'),
+        };
+    });
+
+    const hidden = new Set();
+    const blocked = new Set();
+    const autoComplete = new Set();
+
+    sorted.forEach(s => {
+        const sid = s.id || s.step_id;
+        for (const cond of (s.conditions || [])) {
+            if (evaluateCondition(cond, byOrder)) {
+                if (cond.action === 'hide') hidden.add(sid);
+                else if (cond.action === 'block') blocked.add(sid);
+                else if (cond.action === 'auto_complete') autoComplete.add(sid);
+            }
+        }
+    });
+    return { hidden, blocked, autoComplete };
+}
+
+// Predefined profiles for the simulator
+export const SIMULATOR_PROFILES = {
+    none: {
+        label: 'Keine Simulation',
+        profile: null,
+    },
+    fresh: {
+        label: 'Frischer User',
+        profile: {
+            1: { data: {
+                anerkennungsstatus: 'Die Fachsprachenprüfung Medizin ist geplant',
+                fachrichtung_gewuenscht: 'Allgemeinmedizin',
+                anerkennungsverfahren_bundesland: 'Bayern',
+            }, status: 'completed' },
+        },
+    },
+    upload_path: {
+        label: 'Upload-Pfad (Dokumente)',
+        profile: {
+            1: { data: {
+                anerkennungsstatus: 'Die Fachsprachenprüfung Medizin ist geplant',
+                fachrichtung_gewuenscht: 'Innere Medizin',
+                anerkennungsverfahren_bundesland: 'Berlin',
+            }, status: 'completed' },
+            2: { data: { decision: 'upload' }, status: 'completed' },
+        },
+    },
+    partner_path: {
+        label: 'Partner-Pfad',
+        profile: {
+            1: { data: {
+                anerkennungsstatus: 'Die Fachsprachenprüfung Medizin ist geplant',
+                fachrichtung_gewuenscht: 'Pädiatrie',
+                anerkennungsverfahren_bundesland: 'Hamburg',
+            }, status: 'completed' },
+            2: { data: { decision: 'partner' }, status: 'completed' },
+        },
+    },
+    already_approbated: {
+        label: 'Bereits approbiert',
+        profile: {
+            1: { data: {
+                anerkennungsstatus: 'Ich bin in Deutschland approbiert',
+                fachrichtung_gewuenscht: 'Kardiologie',
+                anerkennungsverfahren_bundesland: 'Berlin',
+            }, status: 'completed' },
+        },
+    },
+};
