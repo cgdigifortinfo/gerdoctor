@@ -183,8 +183,29 @@ def main() -> int:
             failures.append(f"expected partner_work_completed=True after milestone close, "
                             f"got {after.get('partner_work_completed')}")
         else:
-            print(f"  ✓ Step #2: after milestone close → 'Completed Users' "
-                  f"(partner_work_completed=True)")
+            # completed_at should be populated
+            if not after.get("partner_work_completed_at"):
+                failures.append("partner_work_completed_at missing on completed submission")
+            else:
+                print(f"  ✓ Step #2: after milestone close → 'Completed Users' "
+                      f"(pwc=True, completed_at={after.get('partner_work_completed_at')[:10]})")
+
+        # ---- Check #3: partner re-opens milestone → user returns to My Users ----
+        reopen_r = requests.put(f"{API}/partner/users/{user_id}/reopen",
+                                headers=h(ptok), timeout=15)
+        reopen_r.raise_for_status()
+        subs_reopen = requests.get(f"{API}/partner/submissions", headers=h(ptok), timeout=15).json()
+        after_reopen = next((s for s in subs_reopen if s.get("user_email") == email), None)
+        if not after_reopen:
+            failures.append("user vanished after re-open")
+        elif after_reopen.get("partner_work_completed"):
+            failures.append(f"expected partner_work_completed=False after re-open, got True")
+        elif after_reopen.get("partner_work_completed_at"):
+            failures.append(f"expected partner_work_completed_at=None after re-open, "
+                            f"got {after_reopen.get('partner_work_completed_at')}")
+        else:
+            print(f"  ✓ Step #3: after re-open → back to 'My Users' "
+                  f"(pwc=False, completed_at cleared)")
 
     finally:
         # Cleanup throwaway user completely

@@ -14,6 +14,7 @@ import { Progress } from '../components/ui/progress';
 import {
     SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle,
     DownloadSimple, UserSwitch, CaretUp, CaretDown, UsersThree, UserList, Funnel,
+    ArrowsClockwise,
     ChartLine, Plus, X, Star
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -99,7 +100,7 @@ function Timeline({ series, accent = '#114f55' }) {
 }
 
 // ===== Shared sortable/filterable user table =====
-function UserTable({ data, onViewUser, showStatus = false, tableId = 'table', t, partnerTags = [] }) {
+function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCompleted = false, tableId = 'table', t, partnerTags = [] }) {
     const [sortKey, setSortKey] = useState(partnerTags.length > 0 ? 'match_score' : null);
     const [sortDir, setSortDir] = useState(partnerTags.length > 0 ? 'desc' : 'asc');
     const [forecastFrom, setForecastFrom] = useState('');
@@ -218,6 +219,7 @@ function UserTable({ data, onViewUser, showStatus = false, tableId = 'table', t,
                             <SortHeader label={t('admin_progress')} sortField="completion_pct" />
                             {showStatus && <SortHeader label={t('status')} sortField="status" />}
                             <SortHeader label={t('admin_forecast')} sortField="estimated_completion" />
+                            {showCompleted && <SortHeader label="Abgeschlossen am" sortField="partner_work_completed_at" />}
                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('actions')}</th>
                         </tr>
                     </thead>
@@ -261,15 +263,41 @@ function UserTable({ data, onViewUser, showStatus = false, tableId = 'table', t,
                                 <td className="px-4 py-3 text-sm text-muted-foreground">
                                     {item.estimated_completion ? new Date(item.estimated_completion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                                 </td>
+                                {showCompleted && (
+                                    <td className="px-4 py-3 text-sm" data-testid={`completed-at-${item.user_id || item.id}`}>
+                                        {item.partner_work_completed_at ? (
+                                            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+                                                <CheckCircle size={13} weight="fill" />
+                                                {new Date(item.partner_work_completed_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </td>
+                                )}
                                 <td className="px-4 py-3">
-                                    <Button variant="ghost" size="sm" onClick={() => onViewUser(item)} data-testid={`view-user-${item.user_id || item.id}`}>
-                                        <Eye size={18} className="mr-1" /> Details
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        <Button variant="ghost" size="sm" onClick={() => onViewUser(item)} data-testid={`view-user-${item.user_id || item.id}`}>
+                                            <Eye size={18} className="mr-1" /> Details
+                                        </Button>
+                                        {showCompleted && onReopenUser && item.partner_work_completed && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => onReopenUser(item)}
+                                                className="text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                                                data-testid={`reopen-user-${item.user_id || item.id}`}
+                                                title="Meilenstein wieder öffnen – User wandert zurück in 'My Users'"
+                                            >
+                                                <ArrowsClockwise size={16} className="mr-1" /> Re-open
+                                            </Button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}
                         {filtered.length === 0 && (
-                            <tr><td colSpan={(showStatus ? 7 : 6) + (partnerTags.length > 0 ? 1 : 0)} className="px-4 py-8 text-center text-muted-foreground">{t('partner_no_entries')}</td></tr>
+                            <tr><td colSpan={(showStatus ? 7 : 6) + (partnerTags.length > 0 ? 1 : 0) + (showCompleted ? 1 : 0)} className="px-4 py-8 text-center text-muted-foreground">{t('partner_no_entries')}</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -379,6 +407,14 @@ export default function PartnerDashboard() {
             console.error('Failed to load user detail:', error);
             toast.error(formatApiError(error));
         } finally { setUserDetailLoading(false); }
+    };
+
+    const handleReopenMilestone = async (item) => {
+        try {
+            await partnerDashboardAPI.reopenMilestone(item.user_id);
+            toast.success(`Meilenstein für ${item.user_name} wieder geöffnet`);
+            loadData();
+        } catch (error) { toast.error(formatApiError(error)); }
     };
 
     const handleUpdateStepStatus = async (userId, stepId, newStatus, extraData) => {
@@ -507,7 +543,7 @@ export default function PartnerDashboard() {
                                     <h2 className="text-lg font-semibold text-foreground">Completed Users</h2>
                                     <p className="text-sm text-muted-foreground">Users für die Ihr Meilenstein abgeschlossen wurde.</p>
                                 </div>
-                                <UserTable data={completedSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="completed-users" t={t} partnerTags={profile?.tags || []} />
+                                <UserTable data={completedSubmissions} onViewUser={handleViewUser} onReopenUser={handleReopenMilestone} showStatus={true} showCompleted={true} tableId="completed-users" t={t} partnerTags={profile?.tags || []} />
                             </div>
                         </TabsContent>
 

@@ -167,6 +167,7 @@ export const partnerDashboardAPI = {
     getUserDetail: (userId) => api.get(`/partner/users/${userId}`),
     updateUserProgress: (userId, step_id, status, data) =>
         api.put(`/partner/users/${userId}/progress`, { step_id, status, data }),
+    reopenMilestone: (userId) => api.put(`/partner/users/${userId}/reopen`),
 };
 
 export default api;

@@ -922,17 +922,19 @@ async def get_partner_insights(request: Request):
     }
 
 
-async def _partner_work_completed_for_user(user_id: str, partner_id: str, partner_name: str) -> bool:
-    """Return True if every milestone associated with this partner's picks for
-    the user has been completed. The partner's work is considered done when all
-    milestones following a partner_selection (where user picked this partner)
-    are in status 'completed'."""
+async def _partner_work_status_for_user(user_id: str, partner_id: str, partner_name: str) -> dict:
+    """Return { completed: bool, completed_at: str|None, milestone_step_id: str|None }.
+
+    `completed` = every milestone associated with this partner's picks for the user
+    is in status 'completed'. `completed_at` = the latest such milestone's
+    completed_at timestamp (for the Partner Dashboard "Completed On" column).
+    `milestone_step_id` = the most recent managed milestone (used for Re-open).
+    """
     all_steps = await db.steps.find({"is_active": True}, {"_id": 1, "order": 1, "step_type": 1}).sort("order", 1).to_list(200)
-    # Map step_id → progress row for this user
     progs = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
     prog_by_step = {p.get("step_id"): p for p in progs}
 
-    required_milestones: list[str] = []
+    managed_milestone_ids: list[str] = []
     for idx, s in enumerate(all_steps):
         if s.get("step_type") not in ("partner_selection", "partner_multiselection"):
             continue
@@ -947,18 +949,29 @@ async def _partner_work_completed_for_user(user_id: str, partner_id: str, partne
         name_match = bool(partner_name) and d.get("selected_partner_name") == partner_name
         if partner_id not in picks and not name_match:
             continue
-        # Find next milestone after this step in order (stop at next decision)
         for nxt in all_steps[idx + 1:]:
             if nxt.get("step_type") == "decision":
                 break
             if nxt.get("step_type") == "milestone":
-                required_milestones.append(str(nxt["_id"]))
+                managed_milestone_ids.append(str(nxt["_id"]))
                 break
 
-    if not required_milestones:
-        return False
-    return all((prog_by_step.get(mid) or {}).get("status") == "completed"
-               for mid in required_milestones)
+    if not managed_milestone_ids:
+        return {"completed": False, "completed_at": None, "milestone_step_id": None}
+
+    all_done = all((prog_by_step.get(mid) or {}).get("status") == "completed"
+                   for mid in managed_milestone_ids)
+    # Latest completed_at among managed milestones
+    latest = None
+    for mid in managed_milestone_ids:
+        ts = (prog_by_step.get(mid) or {}).get("completed_at")
+        if ts and (latest is None or ts > latest):
+            latest = ts
+    return {
+        "completed": all_done,
+        "completed_at": latest,
+        "milestone_step_id": managed_milestone_ids[-1],
+    }
 
 
 @api_router.get("/partner/submissions")
@@ -979,7 +992,10 @@ async def get_partner_submissions(request: Request):
             seen_user_ids.add(uid)
             sub["estimated_completion"] = await calculate_estimated_completion(uid)
             sub["completion_pct"] = await calculate_completion_pct(uid)
-            sub["partner_work_completed"] = await _partner_work_completed_for_user(uid, partner_id, partner_name)
+            ws = await _partner_work_status_for_user(uid, partner_id, partner_name)
+            sub["partner_work_completed"] = ws["completed"]
+            sub["partner_work_completed_at"] = ws["completed_at"]
+            sub["partner_milestone_step_id"] = ws["milestone_step_id"]
             if step1:
                 prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
                 s1data = (prog or {}).get("data", {}) or {}
@@ -1001,9 +1017,54 @@ async def get_partner_submissions(request: Request):
             s1data = (prog or {}).get("data", {}) or {}
             field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
             bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
-        submissions.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked", "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland, "partner_work_completed": await _partner_work_completed_for_user(uid, partner_id, partner_name)})
+        ws = await _partner_work_status_for_user(uid, partner_id, partner_name)
+        submissions.append({
+            "user_id": uid, "user_name": u["name"], "user_email": u["email"],
+            "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked",
+            "completion_pct": await calculate_completion_pct(uid),
+            "estimated_completion": await calculate_estimated_completion(uid),
+            "field_of_study": field_of_study, "bundesland": bundesland,
+            "partner_work_completed": ws["completed"],
+            "partner_work_completed_at": ws["completed_at"],
+            "partner_milestone_step_id": ws["milestone_step_id"],
+        })
         seen_user_ids.add(uid)
     return submissions
+
+
+@api_router.put("/partner/users/{user_id}/reopen")
+async def partner_reopen_milestone(user_id: str, request: Request):
+    """Re-open the partner's managed milestone for a user: move status back to
+    'in_progress' and clear completed_at, so the user reappears in 'My Users'.
+    """
+    partner_user = await require_role("partner")(request)
+    partner_id = partner_user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    partner_name = (partner or {}).get("name") or ""
+    ws = await _partner_work_status_for_user(user_id, partner_id, partner_name)
+    msid = ws.get("milestone_step_id")
+    if not msid:
+        raise HTTPException(status_code=400, detail="No managed milestone found for this user")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.user_progress.update_one(
+        {"user_id": user_id, "step_id": msid},
+        {"$set": {"status": "in_progress", "updated_at": now},
+         "$unset": {"completed_at": ""}},
+    )
+    # Audit trail: log the re-open action in progress_history if the collection exists
+    try:
+        await db.progress_history.insert_one({
+            "user_id": user_id, "step_id": msid,
+            "action": "reopened_by_partner",
+            "partner_id": partner_id, "partner_name": partner_name,
+            "actor": partner_user["email"],
+            "created_at": now,
+        })
+    except Exception:
+        pass
+    return {"message": "Milestone re-opened", "step_id": msid}
 
 @api_router.get("/partner/other-users")
 async def get_partner_other_users(request: Request):
