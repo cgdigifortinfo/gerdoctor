@@ -922,6 +922,45 @@ async def get_partner_insights(request: Request):
     }
 
 
+async def _partner_work_completed_for_user(user_id: str, partner_id: str, partner_name: str) -> bool:
+    """Return True if every milestone associated with this partner's picks for
+    the user has been completed. The partner's work is considered done when all
+    milestones following a partner_selection (where user picked this partner)
+    are in status 'completed'."""
+    all_steps = await db.steps.find({"is_active": True}, {"_id": 1, "order": 1, "step_type": 1}).sort("order", 1).to_list(200)
+    # Map step_id → progress row for this user
+    progs = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    prog_by_step = {p.get("step_id"): p for p in progs}
+
+    required_milestones: list[str] = []
+    for idx, s in enumerate(all_steps):
+        if s.get("step_type") not in ("partner_selection", "partner_multiselection"):
+            continue
+        sid = str(s["_id"])
+        pr = prog_by_step.get(sid) or {}
+        d = pr.get("data") or {}
+        picks = set()
+        if d.get("selected_partner_id"):
+            picks.add(str(d["selected_partner_id"]))
+        for pid in (d.get("selected_partner_ids") or []):
+            picks.add(str(pid))
+        name_match = bool(partner_name) and d.get("selected_partner_name") == partner_name
+        if partner_id not in picks and not name_match:
+            continue
+        # Find next milestone after this step in order (stop at next decision)
+        for nxt in all_steps[idx + 1:]:
+            if nxt.get("step_type") == "decision":
+                break
+            if nxt.get("step_type") == "milestone":
+                required_milestones.append(str(nxt["_id"]))
+                break
+
+    if not required_milestones:
+        return False
+    return all((prog_by_step.get(mid) or {}).get("status") == "completed"
+               for mid in required_milestones)
+
+
 @api_router.get("/partner/submissions")
 async def get_partner_submissions(request: Request):
     user = await require_role("partner")(request)
@@ -929,6 +968,7 @@ async def get_partner_submissions(request: Request):
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    partner_name = (partner or {}).get("name") or ""
     linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
@@ -939,6 +979,7 @@ async def get_partner_submissions(request: Request):
             seen_user_ids.add(uid)
             sub["estimated_completion"] = await calculate_estimated_completion(uid)
             sub["completion_pct"] = await calculate_completion_pct(uid)
+            sub["partner_work_completed"] = await _partner_work_completed_for_user(uid, partner_id, partner_name)
             if step1:
                 prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
                 s1data = (prog or {}).get("data", {}) or {}
@@ -960,7 +1001,7 @@ async def get_partner_submissions(request: Request):
             s1data = (prog or {}).get("data", {}) or {}
             field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
             bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
-        submissions.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked", "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland})
+        submissions.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked", "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland, "partner_work_completed": await _partner_work_completed_for_user(uid, partner_id, partner_name)})
         seen_user_ids.add(uid)
     return submissions
 

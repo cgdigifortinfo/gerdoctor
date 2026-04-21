@@ -339,6 +339,17 @@ export default function PartnerDashboard() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    // Split submissions into active ("My Users") vs completed ("Completed Users")
+    // based on whether the partner's milestone work for each user is done.
+    const activeSubmissions = useMemo(
+        () => submissions.filter(s => !s.partner_work_completed),
+        [submissions]
+    );
+    const completedSubmissions = useMemo(
+        () => submissions.filter(s => s.partner_work_completed),
+        [submissions]
+    );
+
     const handleLogout = async () => { await logout(); navigate('/'); };
 
     const handleSaveProfile = async () => {
@@ -458,7 +469,11 @@ export default function PartnerDashboard() {
                         <TabsList className="mb-6 bg-card border border-border">
                             <TabsTrigger value="my-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
-                                {t('partner_my_users')} ({submissions.length})
+                                {t('partner_my_users')} ({activeSubmissions.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="completed-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-completed-users">
+                                <CheckCircle size={18} className="mr-2" />
+                                Completed Users ({completedSubmissions.length})
                             </TabsTrigger>
                             <TabsTrigger value="other-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
@@ -474,18 +489,29 @@ export default function PartnerDashboard() {
                             </TabsTrigger>
                         </TabsList>
 
-                        {/* Tab 1: My Users (submitted to this partner) */}
+                        {/* Tab 1: My Users (submitted to this partner — work still ongoing) */}
                         <TabsContent value="my-users">
                             <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
                                     <h2 className="text-lg font-semibold text-foreground">{t('partner_my_users')}</h2>
                                     <p className="text-sm text-muted-foreground">{t('partner_my_users_desc')}</p>
                                 </div>
-                                <UserTable data={submissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} partnerTags={profile?.tags || []} />
+                                <UserTable data={activeSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} partnerTags={profile?.tags || []} />
                             </div>
                         </TabsContent>
 
-                        {/* Tab 2: Other Users (not submitted to this partner) */}
+                        {/* Tab 2: Completed Users (milestone closed by the partner) */}
+                        <TabsContent value="completed-users">
+                            <div className="bg-card border border-border rounded-sm overflow-hidden">
+                                <div className="p-4 border-b border-border">
+                                    <h2 className="text-lg font-semibold text-foreground">Completed Users</h2>
+                                    <p className="text-sm text-muted-foreground">Users für die Ihr Meilenstein abgeschlossen wurde.</p>
+                                </div>
+                                <UserTable data={completedSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="completed-users" t={t} partnerTags={profile?.tags || []} />
+                            </div>
+                        </TabsContent>
+
+                        {/* Tab 3: Other Users (not submitted to this partner) */}
                         <TabsContent value="other-users">
                             <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
