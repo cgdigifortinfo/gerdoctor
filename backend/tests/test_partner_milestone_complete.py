@@ -23,7 +23,7 @@ API = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
 
 ADMIN = ("admin@example.com", "Admin123!")
 PARTNER = ("partner@digifort-experts.de", "Partner123!")
-TARGET_USER_EMAIL = "peter2@chrizz1001.de"
+TARGET_USER_EMAIL = "dr.silva@gerdoctor.de"
 
 
 def login(email, pw):
@@ -58,9 +58,9 @@ def main() -> int:
 
     peter_partners = peter.get("partner_names", [])
     if "digiFORT Experts" not in peter_partners:
-        failures.append(f"expected 'digiFORT Experts' in peter partner_names, got {peter_partners}")
+        failures.append(f"expected 'digiFORT Experts' in silva partner_names, got {peter_partners}")
     else:
-        print(f"  ✓ peter.partner_names = {peter_partners}")
+        print(f"  ✓ silva.partner_names = {peter_partners}")
 
     # --- 2. Partner user-detail returns partner_managed_step_ids ---
     detail = requests.get(f"{API}/partner/users/{peter_id}", headers=headers(ptoken), timeout=15).json()

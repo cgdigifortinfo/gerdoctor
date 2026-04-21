@@ -4,23 +4,42 @@ User-only re-seed for GERdoctor.
 WHAT IT DOES:
   1. DELETES all users with role == 'user' (plus their progress, progress history,
      partner submissions, uploads and audit-log entries).
-  2. RECREATES the 8 canonical demo doctors listed in /app/memory/test_credentials.md
-     (password: Demo123!).
-  3. Creates fresh user_progress for every demo user (all 24 steps pending) and
+  2. RECREATES 13 demo doctors with varied progress levels (fresh → almost done).
+     Password: Demo123!.
+  3. Ensures every partner organization in the `partners` collection has at least
+     one linked partner-role user. Missing ones are auto-created (Partner123!)
+     with email `partner@<slug(partner-name)>.de` and linked back via
+     `users.partner_id` + `partners.linked_user_ids` (idempotent).
+  4. Creates fresh user_progress for every demo user (all 24 steps pending) and
      replays the demo "completed_up_to_order" plan so the Admin/Partner dashboards
-     look alive.
-  4. Preserves: admins, partners, partner users, steps, CMS content, templates,
-     audit logs of admins/partners, etc.
+     look alive — demo users also pick REAL partner IDs for partner_selection
+     steps so the match-score/partner dashboards show live submissions.
+  5. Preserves: admins, existing partner users, partners, steps, CMS content,
+     templates, audit logs.
 
 Run with: cd /app/backend && python seed_users_only.py
 """
 import asyncio
 import os
+import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 import bcrypt
+
+# Load env vars from backend/.env (same pattern as seed_survey_v2 when run via app)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
+
+def slugify(name: str) -> str:
+    """ASCII lower-case, dashes instead of spaces — used for auto partner emails."""
+    # Decompose unicode (e.g. ü → u) and drop non-ascii
+    norm = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    norm = re.sub(r"[^a-zA-Z0-9]+", "-", norm).strip("-").lower()
+    return norm or "partner"
 
 # Load env vars from backend/.env (same pattern as seed_survey_v2 when run via app)
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
@@ -36,7 +55,9 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-# ---- Canonical demo doctors (role=user) - mirrors seed_survey_v2.seed_demo_data ----
+# ---- Canonical demo doctors (role=user) ----
+# `partner_picks` maps decision step order → partner-org name that the user chose.
+# Names must match partners.name exactly — falls back to "Demo Partner" if absent.
 DEMO_USERS = [
     {
         "email": "dr.schmidt@gerdoctor.de",
@@ -52,6 +73,7 @@ DEMO_USERS = [
             "field_of_study": "Innere Medizin",
         },
         "decisions": {2: "upload", 6: "partner"},
+        "partner_picks": {8: "IQB Pruefungszentrum"},
         "completed_up_to_order": 9,
     },
     {
@@ -68,6 +90,7 @@ DEMO_USERS = [
             "field_of_study": "Pädiatrie",
         },
         "decisions": {2: "partner"},
+        "partner_picks": {4: "ILS"},
         "completed_up_to_order": 5,
     },
     {
@@ -84,6 +107,7 @@ DEMO_USERS = [
             "field_of_study": "Chirurgie",
         },
         "decisions": {2: "upload", 6: "upload", 10: "partner"},
+        "partner_picks": {12: "FIA Academy"},
         "completed_up_to_order": 13,
     },
     {
@@ -100,6 +124,7 @@ DEMO_USERS = [
             "field_of_study": "Allgemeinmedizin",
         },
         "decisions": {},
+        "partner_picks": {},
         "completed_up_to_order": 1,
     },
     {
@@ -116,6 +141,7 @@ DEMO_USERS = [
             "field_of_study": "Dermatologie",
         },
         "decisions": {2: "partner", 6: "partner"},
+        "partner_picks": {4: "digiFORT Experts", 8: "MedAkademie Berlin"},
         "completed_up_to_order": 8,
     },
     {
@@ -123,6 +149,7 @@ DEMO_USERS = [
         "name": "Dr. Omar Ahmed",
         "stammdaten": {},
         "decisions": {},
+        "partner_picks": {},
         "completed_up_to_order": 0,
     },
     {
@@ -130,6 +157,7 @@ DEMO_USERS = [
         "name": "Dr. Anna Petrov",
         "stammdaten": {},
         "decisions": {},
+        "partner_picks": {},
         "completed_up_to_order": 0,
     },
     {
@@ -137,9 +165,154 @@ DEMO_USERS = [
         "name": "Dr. Hiro Tanaka",
         "stammdaten": {},
         "decisions": {},
+        "partner_picks": {},
         "completed_up_to_order": 0,
     },
+    # ---- NEW diverse demo doctors ----
+    {
+        "email": "dr.nguyen@gerdoctor.de",
+        "name": "Dr. Linh Nguyen",
+        "stammdaten": {
+            "first_name": "Linh", "name": "Nguyen",
+            "date_of_birth": "1991-03-18", "phone": "+49 175 6789012",
+            "address": "Alexanderplatz 2, Berlin",
+            "anerkennungsstatus": "Die Fachsprachenprüfung Medizin ist geplant",
+            "anerkennungsverfahren_bundesland": "Berlin",
+            "fachrichtung_praktiziert": "Radiologie",
+            "fachrichtung_gewuenscht": "Neuroradiologie",
+            "field_of_study": "Radiologie",
+        },
+        "decisions": {2: "partner"},
+        "partner_picks": {4: "HABS e.V."},
+        "completed_up_to_order": 5,
+    },
+    {
+        "email": "dr.rossi@gerdoctor.de",
+        "name": "Dr. Giulia Rossi",
+        "stammdaten": {
+            "first_name": "Giulia", "name": "Rossi",
+            "date_of_birth": "1989-07-03", "phone": "+49 176 7890123",
+            "address": "Viale 14, Stuttgart",
+            "anerkennungsstatus": "Ich habe die Berufserlaubnis beantragt",
+            "anerkennungsverfahren_bundesland": "Baden-Württemberg",
+            "fachrichtung_praktiziert": "HNO",
+            "fachrichtung_gewuenscht": "HNO",
+            "field_of_study": "HNO",
+        },
+        "decisions": {2: "upload", 6: "partner", 10: "upload"},
+        "partner_picks": {8: "FaMed"},
+        "completed_up_to_order": 13,
+    },
+    {
+        "email": "dr.kowalski@gerdoctor.de",
+        "name": "Dr. Felix Kowalski",
+        "stammdaten": {
+            "first_name": "Felix", "name": "Kowalski",
+            "date_of_birth": "1984-12-09", "phone": "+49 177 8901234",
+            "address": "Königsallee 22, Düsseldorf",
+            "anerkennungsstatus": "Ich habe die Fachsprachenprüfung Medizin bestanden",
+            "anerkennungsverfahren_bundesland": "Nordrhein-Westfalen",
+            "fachrichtung_praktiziert": "Anästhesiologie",
+            "fachrichtung_gewuenscht": "Intensivmedizin",
+            "field_of_study": "Anästhesiologie",
+        },
+        "decisions": {2: "upload", 6: "partner", 10: "upload", 14: "partner", 18: "partner"},
+        "partner_picks": {8: "IQB Pruefungszentrum", 12: "ILS2", 16: "Lingoda", 19: "MedJob24"},
+        "completed_up_to_order": 20,
+    },
+    {
+        "email": "dr.okafor@gerdoctor.de",
+        "name": "Dr. Kemi Okafor",
+        "stammdaten": {
+            "first_name": "Kemi", "name": "Okafor",
+            "date_of_birth": "1993-05-20", "phone": "+49 178 9012345",
+            "address": "Schlossplatz 4, Mainz",
+            "anerkennungsstatus": "Ich habe die Kenntnisprüfung bestanden",
+            "anerkennungsverfahren_bundesland": "Rheinland-Pfalz",
+            "fachrichtung_praktiziert": "Psychiatrie",
+            "fachrichtung_gewuenscht": "Kinder- und Jugendpsychiatrie",
+            "field_of_study": "Psychiatrie",
+        },
+        "decisions": {2: "upload", 6: "upload", 10: "upload", 14: "upload", 18: "selbst"},
+        "partner_picks": {},
+        "completed_up_to_order": 18,
+    },
+    {
+        "email": "dr.popov@gerdoctor.de",
+        "name": "Dr. Nadia Popov",
+        "stammdaten": {
+            "first_name": "Nadia", "name": "Popov",
+            "date_of_birth": "1995-08-08", "phone": "+49 179 0123456",
+            "address": "Hauptbahnhof 1, Leipzig",
+            "anerkennungsstatus": "Die Fachsprachenprüfung Medizin ist geplant",
+            "anerkennungsverfahren_bundesland": "Sachsen",
+            "fachrichtung_praktiziert": "Urologie",
+            "fachrichtung_gewuenscht": "Urologie",
+            "field_of_study": "Urologie",
+        },
+        "decisions": {},
+        "partner_picks": {},
+        "completed_up_to_order": 1,
+    },
 ]
+
+
+async def ensure_partner_users(db) -> tuple:
+    """Idempotently create a partner-role user for every partner org that lacks one.
+
+    Returns (created, existing). Never deletes anything. Emails: partner@<slug>.de
+    with password Partner123!. Also updates partners.linked_user_ids so the
+    partner dashboard recognizes the new user.
+    """
+    created = []
+    existing = []
+    pw_hash = hash_password("Partner123!")
+
+    partners = await db.partners.find({}).to_list(1000)
+    # Build lookup: partner_id → list[user_email]
+    linked = {}
+    async for u in db.users.find({"role": "partner"}):
+        pid = u.get("partner_id")
+        if pid:
+            linked.setdefault(pid, []).append(u["email"])
+
+    for p in partners:
+        pid = str(p["_id"])
+        if linked.get(pid):
+            existing.append({"partner": p["name"], "users": linked[pid]})
+            continue
+
+        # Build deterministic email from the partner name
+        slug = slugify(p["name"])
+        email = f"partner@{slug}.de"
+        # Avoid collisions (e.g. partner appearing twice with near-identical names)
+        suffix = 2
+        while await db.users.find_one({"email": email}):
+            email = f"partner+{suffix}@{slug}.de"
+            suffix += 1
+
+        name = f"Partner: {p['name']}"
+        user_doc = {
+            "email": email,
+            "name": name,
+            "role": "partner",
+            "password_hash": pw_hash,
+            "partner_id": pid,
+            "created_at": now_iso(),
+            "is_active": True,
+            "notification_prefs": {"email": True, "in_app": True},
+        }
+        res = await db.users.insert_one(user_doc)
+        uid = str(res.inserted_id)
+
+        # Add to partners.linked_user_ids (create the array if needed)
+        await db.partners.update_one(
+            {"_id": ObjectId(pid)},
+            {"$addToSet": {"linked_user_ids": uid}},
+        )
+        created.append({"partner": p["name"], "email": email})
+
+    return created, existing
 
 
 async def delete_existing_users(db) -> int:
@@ -165,7 +338,7 @@ async def delete_existing_users(db) -> int:
     return count
 
 
-async def create_demo_users(db, steps_by_order) -> tuple:
+async def create_demo_users(db, steps_by_order, partner_name_to_id) -> tuple:
     """Insert the canonical demo users with fresh progress.
     Skips any demo email that is already occupied by a non-user role (admin/partner).
     Returns (created, skipped).
@@ -209,6 +382,7 @@ async def create_demo_users(db, steps_by_order) -> tuple:
         # Apply demo completion plan
         upto = plan["completed_up_to_order"]
         decisions = plan["decisions"]
+        partner_picks = plan.get("partner_picks") or {}
         if upto >= 1 and plan["stammdaten"]:
             await _set_prog(db, uid, steps_by_order, 1, "completed", plan["stammdaten"])
 
@@ -232,8 +406,35 @@ async def create_demo_users(db, steps_by_order) -> tuple:
                     ]
                 })
             elif stype in ("partner_selection", "partner_multiselection"):
-                await _set_prog(db, uid, steps_by_order, order, "completed",
-                                {"selected_partner_name": "Demo Partner"})
+                partner_name = partner_picks.get(order)
+                data = {}
+                if partner_name and partner_name in partner_name_to_id:
+                    pid = partner_name_to_id[partner_name]
+                    data = {
+                        "selected_partner_id": pid,
+                        "selected_partner_name": partner_name,
+                    }
+                    if stype == "partner_multiselection":
+                        data["selected_partner_ids"] = [pid]
+                    # Also create a partner_submissions row so the partner dashboard sees the user
+                    sub = {
+                        "id": f"seed-{uid}-{pid}-{order}",
+                        "user_id": uid,
+                        "user_email": plan["email"],
+                        "user_name": plan["name"],
+                        "partner_id": pid,
+                        "data": {"step_order": order, **plan.get("stammdaten", {})},
+                        "status": "submitted",
+                        "created_at": now_iso(),
+                    }
+                    await db.partner_submissions.update_one(
+                        {"user_id": uid, "partner_id": pid},
+                        {"$set": sub}, upsert=True,
+                    )
+                else:
+                    # Fallback for demo users that don't specify a real partner
+                    data = {"selected_partner_name": "Demo Partner"}
+                await _set_prog(db, uid, steps_by_order, order, "completed", data)
             elif stype == "milestone":
                 await _set_prog(db, uid, steps_by_order, order, "completed", {})
 
@@ -276,6 +477,22 @@ async def run():
     partners_count = await db.partners.count_documents({})
     print(f"Preserving: {admin_count} admins, {partner_count} partner users, {partners_count} partner orgs")
 
+    # ---- ensure every partner org has a partner-role user (idempotent) ----
+    print("\n=== ENSURING PARTNER USERS ===")
+    new_partners, existing_partners = await ensure_partner_users(db)
+    for p in existing_partners:
+        print(f"  ✓ {p['partner']:45s} already linked → {p['users']}")
+    for p in new_partners:
+        print(f"  ➕ {p['partner']:45s} CREATED user → {p['email']} (pw: Partner123!)")
+    if not new_partners:
+        print("  (all partners already have linked users)")
+
+    # Rebuild partner counts + name→id lookup for demo users
+    partner_users_after = await db.users.count_documents({"role": "partner"})
+    partner_name_to_id = {}
+    async for p in db.partners.find({}, {"name": 1}):
+        partner_name_to_id[p["name"]] = str(p["_id"])
+
     # ---- wipe user-role users ----
     print("\n=== DELETING role='user' USERS ===")
     n = await delete_existing_users(db)
@@ -283,7 +500,7 @@ async def run():
 
     # ---- recreate demo users ----
     print("\n=== CREATING DEMO DOCTORS ===")
-    created, skipped = await create_demo_users(db, steps_by_order)
+    created, skipped = await create_demo_users(db, steps_by_order, partner_name_to_id)
     for u in created:
         print(f"  ✓ {u['email']} (id={u['id']})")
     for s in skipped:
@@ -299,7 +516,7 @@ async def run():
     after_progress = await db.user_progress.count_documents({})
     print(f"  users (role=user): {after_users}  (expected: {len(DEMO_USERS) - len(skipped)})")
     print(f"  users (role=admin): {after_admin}  (unchanged: {admin_count})")
-    print(f"  users (role=partner): {after_partner_users}  (unchanged: {partner_count})")
+    print(f"  users (role=partner): {after_partner_users}  (was: {partner_count}, now includes +{len(new_partners)} auto-created)")
     print(f"  partner orgs:      {after_partners}  (unchanged: {partners_count})")
     print(f"  steps:             {after_steps}  (unchanged: {step_count})")
     print(f"  user_progress:     {after_progress}")
@@ -308,7 +525,7 @@ async def run():
     ok = (
         after_users == (len(DEMO_USERS) - len(skipped))
         and after_admin == admin_count
-        and after_partner_users == partner_count
+        and after_partner_users == partner_users_after
         and after_partners == partners_count
         and after_steps == step_count
     )
