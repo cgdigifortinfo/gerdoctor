@@ -367,6 +367,46 @@ export default function PartnerDashboard() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    // Deep-link support: when the partner lands via an email link like
+    // `/partner/dashboard?openUser=<user_id>`, wait for the submissions to load
+    // and automatically open the details modal for that user. The query param
+    // is removed from the URL afterwards so a refresh doesn't re-trigger the
+    // modal. If the user isn't linked to this partner we fall back to the
+    // detail endpoint which will reject with 403 — handled gracefully.
+    const [deepLinkUserId, setDeepLinkUserId] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        const params = new URLSearchParams(window.location.search);
+        return params.get('openUser') || '';
+    });
+    useEffect(() => {
+        if (!deepLinkUserId || loading) return;
+        // Prefer a match from my submissions (active or completed); otherwise
+        // fall back to otherUsers (users not yet onboarded to me).
+        const match = submissions.find((s) => s.user_id === deepLinkUserId)
+                   || otherUsers.find((s) => s.user_id === deepLinkUserId);
+        if (match) {
+            // Switch to the correct tab based on where the match came from so the
+            // partner sees visual context around the highlighted modal.
+            if (submissions.find((s) => s.user_id === deepLinkUserId && s.partner_work_completed)) {
+                setActiveTab('completed-users');
+            } else if (submissions.find((s) => s.user_id === deepLinkUserId)) {
+                setActiveTab('my-users');
+            } else {
+                setActiveTab('other-users');
+            }
+            handleViewUser(match);
+            toast.success(`${match.user_name || match.user_email} geöffnet`);
+        } else {
+            toast.error('User nicht in Ihrem Dashboard gefunden');
+        }
+        // Clear the query param from the URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.delete('openUser');
+        window.history.replaceState({}, '', url.toString());
+        setDeepLinkUserId('');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deepLinkUserId, loading, submissions, otherUsers]);
+
     // Split submissions into active ("My Users") vs completed ("Completed Users")
     // based on whether the partner's milestone work for each user is done.
     const activeSubmissions = useMemo(

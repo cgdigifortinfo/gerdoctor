@@ -101,28 +101,111 @@ async def send_email_notification(to_email: str, subject: str, html_content: str
     return await asyncio.to_thread(send_email_sync, to_email, subject, html_content)
 
 
+# ========================
+# TEMPLATE RENDERING
+# ========================
+def _replace_vars(text: str, variables: dict) -> str:
+    """Replace {{var_name}} tokens. Missing tokens fall back to empty string
+    so partner emails don't leak raw {{user_email}} markers."""
+    if not text:
+        return ""
+    import re as _re
+    def _sub(match: "_re.Match[str]") -> str:
+        key = match.group(1).strip()
+        val = variables.get(key)
+        return "" if val is None else str(val)
+    return _re.sub(r"{{\s*([\w.]+)\s*}}", _sub, text)
+
+
+async def render_email(
+    template_key: str,
+    variables: dict,
+    override_subject: str = "",
+    override_body: str = "",
+) -> dict:
+    """Fetch header + template + footer from email_templates collection, render
+    variables and return {subject, html}. If override_subject/body is given and
+    non-empty, they replace the DB template body/subject (step-level overrides
+    still supported, but wrapped with header/footer).
+
+    Returns {} when the collection hasn't been seeded — callers should treat
+    that as "skip send" gracefully."""
+    variables = dict(variables or {})
+    variables.setdefault("app_url", os.environ.get("FRONTEND_URL", ""))
+
+    header_doc = await db.email_templates.find_one({"key": "header"})
+    footer_doc = await db.email_templates.find_one({"key": "footer"})
+    tpl_doc = await db.email_templates.find_one({"key": template_key})
+    if not tpl_doc and not override_body:
+        logger.warning(f"render_email: template '{template_key}' not found in email_templates collection")
+        return {}
+
+    header_html = (header_doc or {}).get("body_html", "") if header_doc else ""
+    footer_html = (footer_doc or {}).get("body_html", "") if footer_doc else ""
+    subject_raw = override_subject or (tpl_doc or {}).get("subject", "")
+    body_raw = override_body or (tpl_doc or {}).get("body_html", "")
+
+    subject = _replace_vars(subject_raw, variables)
+    body = _replace_vars(body_raw, variables)
+    header = _replace_vars(header_html, variables)
+    footer = _replace_vars(footer_html, variables)
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#f8fafc;">
+  <div style="max-width:640px;margin:0 auto;background:#ffffff;">
+    {header}
+    {body}
+    {footer}
+  </div>
+</body>
+</html>"""
+    return {"subject": subject, "html": html}
+
+
+async def send_rendered_email(
+    to_email: str,
+    template_key: str,
+    variables: dict,
+    override_subject: str = "",
+    override_body: str = "",
+) -> dict:
+    """Convenience: render + send. Returns the send_email result dict.
+    Safe when the template is missing — logs & returns {'status': 'skipped'}."""
+    rendered = await render_email(template_key, variables, override_subject, override_body)
+    if not rendered:
+        return {"status": "skipped", "reason": f"template '{template_key}' missing"}
+    return await send_email_notification(to_email, rendered["subject"], rendered["html"])
+
+
+def _partner_deep_link(user_id: str) -> str:
+    base = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    return f"{base}/partner/dashboard?openUser={user_id}" if base else f"/partner/dashboard?openUser={user_id}"
+
+
 async def notify_partner_of_new_submission(partner: dict, user: dict, submission_data: dict) -> int:
     """Send a "neue Anmeldung"-Mail to every partner-role user linked to the
     partner org + the public contact_email (deduplicated). Returns the number of
-    recipients contacted. Safe to call even when SMTP is unconfigured (returns 0)."""
+    recipients contacted. Safe to call even when SMTP is unconfigured (returns 0).
+
+    Uses the DB-driven `partner_new_submission` template (wrapped with header/
+    footer) so admins can edit copy in the Admin E-Mail-Vorlagen Tab."""
     if not partner:
         return 0
     partner_id = str(partner.get("_id")) if partner.get("_id") else partner.get("id")
     partner_name = partner.get("name", "")
 
     recipients: set[str] = set()
-    # 1) partner.contact_email (public)
     if partner.get("contact_email"):
         recipients.add(partner["contact_email"])
-    # 2) all role=partner users linked to this partner org
     async for pu in db.users.find({"role": "partner", "partner_id": partner_id},
                                   {"email": 1, "notification_prefs": 1}):
         prefs = pu.get("notification_prefs") or {}
         if prefs.get("email") is False:
-            continue  # user opted out
+            continue
         if pu.get("email"):
             recipients.add(pu["email"])
-    # 3) users referenced in linked_user_ids (defensive)
     for uid in partner.get("linked_user_ids") or []:
         try:
             pu = await db.users.find_one({"_id": ObjectId(uid)},
@@ -139,38 +222,73 @@ async def notify_partner_of_new_submission(partner: dict, user: dict, submission
     if not recipients:
         return 0
 
-    user_name = user.get("name") or user.get("email", "")
-    user_email = user.get("email", "")
     data = submission_data or {}
     field = data.get("fachrichtung_gewuenscht") or data.get("fachrichtung_praktiziert") \
             or data.get("field_of_study", "")
     bundesland = data.get("anerkennungsverfahren_bundesland", "")
     step_order = data.get("step_order")
 
-    subject = f"Neue Anmeldung bei {partner_name}" if partner_name else "Neue Anmeldung"
-    html = f"""<p>Hallo,</p>
-<p>Sie haben eine neue Anmeldung auf <strong>GERdoctor</strong>
-{f"für <strong>{partner_name}</strong>" if partner_name else ""} erhalten:</p>
-<table cellpadding="6" style="border-collapse:collapse;">
-  <tr><td><strong>User</strong></td><td>{user_name}</td></tr>
-  <tr><td><strong>E-Mail</strong></td><td>{user_email}</td></tr>
-  {f"<tr><td><strong>Fachrichtung</strong></td><td>{field}</td></tr>" if field else ""}
-  {f"<tr><td><strong>Bundesland</strong></td><td>{bundesland}</td></tr>" if bundesland else ""}
-  {f"<tr><td><strong>Bei Step</strong></td><td>#{step_order}</td></tr>" if step_order else ""}
-</table>
-<p>Bitte loggen Sie sich in Ihrem Partner-Dashboard ein, um den Meilenstein zu
-bearbeiten und den Nachweis für den User hochzuladen.</p>
-<p>Beste Grüße<br/>Ihr GERdoctor-Team</p>"""
+    user_id = str(user.get("_id") or user.get("id", ""))
+    variables = {
+        "partner_name": partner_name,
+        "user_name": user.get("name") or user.get("email", ""),
+        "user_email": user.get("email", ""),
+        "field_of_study": field or "—",
+        "bundesland": bundesland or "—",
+        "step_order": step_order or "",
+        "open_user_link": _partner_deep_link(user_id),
+    }
 
     sent = 0
     for recipient in recipients:
         try:
-            result = await send_email_notification(recipient, subject, html)
+            result = await send_rendered_email(recipient, "partner_new_submission", variables)
             if result.get("status") == "success":
                 sent += 1
         except Exception as exc:
             logger.warning(f"notify_partner failed for {recipient}: {exc}")
     return sent
+
+
+async def notify_user_awaiting_partner(user: dict, partner: dict) -> dict:
+    """Send a confirmation email to the user that their submission has been
+    forwarded and they are awaiting the partner's response."""
+    if not user or not user.get("email"):
+        return {"status": "skipped"}
+    prefs = user.get("notification_preferences") or {}
+    if prefs.get("email_on_step_enter") is False:
+        return {"status": "skipped", "reason": "opt-out"}
+    variables = {
+        "user_name": user.get("name") or user.get("email", ""),
+        "partner_name": (partner or {}).get("name", "Partner"),
+    }
+    try:
+        return await send_rendered_email(user["email"], "user_awaiting_partner", variables)
+    except Exception as exc:
+        logger.warning(f"notify_user_awaiting_partner failed for {user.get('email')}: {exc}")
+        return {"status": "failed", "error": str(exc)}
+
+
+async def notify_user_milestone_completed(user: dict, partner: dict, step: dict) -> dict:
+    """Inform the user that the partner has completed their milestone."""
+    if not user or not user.get("email"):
+        return {"status": "skipped"}
+    prefs = user.get("notification_preferences") or {}
+    if prefs.get("email_on_step_leave") is False:
+        return {"status": "skipped", "reason": "opt-out"}
+    variables = {
+        "user_name": user.get("name") or user.get("email", ""),
+        "partner_name": (partner or {}).get("name", "Partner"),
+        "milestone_title": (step or {}).get("title", ""),
+        "step_title": (step or {}).get("title", ""),
+        "step_order": (step or {}).get("order", ""),
+        "step_description": (step or {}).get("description", ""),
+    }
+    try:
+        return await send_rendered_email(user["email"], "user_milestone_completed", variables)
+    except Exception as exc:
+        logger.warning(f"notify_user_milestone_completed failed for {user.get('email')}: {exc}")
+        return {"status": "failed", "error": str(exc)}
 
 # ========================
 # AUDIT LOG

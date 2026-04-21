@@ -28,7 +28,13 @@ def now_iso() -> str:
 
 
 DEFAULT_TEMPLATES = {
+    # ------------------------------------------------------------------ categories
+    # category drives the "which variables show up in the preview picker" behavior
+    # on the frontend. Values: 'layout' (header/footer), 'partner', 'user',
+    # 'step' (generic step enter/update/leave).
+    # ------------------------------------------------------------------
     "header": {
+        "category": "layout",
         "subject": "",  # unused for global blocks
         "body_html": """<div style="background:#114f55;padding:20px 24px;">
   <a href="{{app_url}}" style="color:#ffffff;font-size:22px;font-weight:700;text-decoration:none;letter-spacing:0.5px;">
@@ -40,6 +46,7 @@ DEFAULT_TEMPLATES = {
         "description": "Kopfzeile (Logo & Branding) — wird vor jeder Mail eingefügt",
     },
     "footer": {
+        "category": "layout",
         "subject": "",
         "body_html": """</div>
 <div style="background:#f1f5f9;padding:18px 24px;font-family:Arial,sans-serif;font-size:12px;color:#64748b;border-top:1px solid #cbd5e1;">
@@ -53,6 +60,7 @@ DEFAULT_TEMPLATES = {
         "description": "Fußzeile (Grußformel, Rechtslinks) — wird nach jeder Mail eingefügt",
     },
     "partner_new_submission": {
+        "category": "partner",
         "subject": "Neue Anmeldung von {{user_name}} für {{partner_name}}",
         "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Neue Anmeldung</h2>
 <p>Hallo,</p>
@@ -75,6 +83,7 @@ DEFAULT_TEMPLATES = {
         "description": "An Partner bei neuer User-Anmeldung (partner_select / partner_multiselect)",
     },
     "user_awaiting_partner": {
+        "category": "user",
         "subject": "Ihre Anmeldung bei {{partner_name}} wurde versendet",
         "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Vielen Dank, {{user_name}}!</h2>
 <p>Ihre Anmeldung bei <strong>{{partner_name}}</strong> wurde erfolgreich übermittelt.</p>
@@ -94,6 +103,7 @@ DEFAULT_TEMPLATES = {
         "description": "An User nach Partner-Anmeldung (Wartezeit-Info)",
     },
     "user_milestone_completed": {
+        "category": "user",
         "subject": "{{partner_name}} hat Ihren Meilenstein abgeschlossen",
         "body_html": """<h2 style="color:#059669;margin:0 0 16px 0;">Gute Nachrichten, {{user_name}}!</h2>
 <p><strong>{{partner_name}}</strong> hat Ihren Meilenstein <em>"{{milestone_title}}"</em> für Sie abgeschlossen.</p>
@@ -111,6 +121,95 @@ DEFAULT_TEMPLATES = {
 </p>""",
         "description": "An User wenn Partner den Meilenstein freischaltet",
     },
+    "user_step_entered": {
+        "category": "step",
+        "subject": "Schritt gestartet: {{step_title}}",
+        "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Hallo {{user_name}},</h2>
+<p>Sie haben den Schritt <strong>{{step_title}}</strong> auf Ihrer Reise zur deutschen Approbation begonnen.</p>
+
+<div style="background:#e0f2fe;border-left:4px solid #0284c7;padding:14px 18px;margin:18px 0;border-radius:2px;">
+  <strong style="color:#075985;">Schritt {{step_order}} von {{total_steps}}</strong><br/>
+  <span style="color:#0c4a6e;">{{step_description}}</span>
+</div>
+
+<p style="margin:20px 0;">
+  <a href="{{app_url}}/dashboard"
+     style="background:#114f55;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:600;display:inline-block;">
+    Schritt im Dashboard öffnen
+  </a>
+</p>""",
+        "description": "An User wenn ein Schritt neu gestartet wird (email_on_enter)",
+    },
+    "user_step_updated": {
+        "category": "step",
+        "subject": "Schritt aktualisiert: {{step_title}}",
+        "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Hallo {{user_name}},</h2>
+<p>Ihr Fortschritt im Schritt <strong>{{step_title}}</strong> wurde aktualisiert.</p>
+<p style="color:#64748b;font-size:14px;">Sie können jederzeit in Ihrem Dashboard weiter­machen oder bereits eingetragene Daten anpassen.</p>
+
+<p style="margin:20px 0;">
+  <a href="{{app_url}}/dashboard"
+     style="background:#114f55;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:600;display:inline-block;">
+    Zum Dashboard
+  </a>
+</p>""",
+        "description": "An User wenn ein Schritt bearbeitet wird (email_on_edit)",
+    },
+    "user_step_completed": {
+        "category": "step",
+        "subject": "Schritt abgeschlossen: {{step_title}}",
+        "body_html": """<h2 style="color:#059669;margin:0 0 16px 0;">Glückwunsch, {{user_name}}!</h2>
+<p>Sie haben den Schritt <strong>{{step_title}}</strong> erfolgreich abgeschlossen.</p>
+
+<div style="background:#d1fae5;border-left:4px solid #059669;padding:14px 18px;margin:18px 0;border-radius:2px;">
+  <strong style="color:#065f46;">Weiter geht's!</strong><br/>
+  <span style="color:#064e3b;">Schauen Sie in Ihrem Dashboard nach, welcher Schritt als Nächstes auf Sie wartet.</span>
+</div>
+
+<p style="margin:20px 0;">
+  <a href="{{app_url}}/dashboard"
+     style="background:#114f55;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:600;display:inline-block;">
+    Nächsten Schritt ansehen
+  </a>
+</p>""",
+        "description": "An User wenn ein Schritt abgeschlossen wird (email_on_leave)",
+    },
+    "user_next_step_unlocked": {
+        "category": "step",
+        "subject": "Nächster Schritt freigeschaltet: {{step_title}}",
+        "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Weiter geht's, {{user_name}}!</h2>
+<p>{{partner_name}} hat Ihren vorherigen Meilenstein abgeschlossen — Ihr nächster Schritt <strong>{{step_title}}</strong> ist jetzt für Sie freigeschaltet.</p>
+
+<div style="background:#e0f2fe;border-left:4px solid #0284c7;padding:14px 18px;margin:18px 0;border-radius:2px;">
+  <strong style="color:#075985;">Was kommt jetzt?</strong><br/>
+  <span style="color:#0c4a6e;">{{step_description}}</span>
+</div>
+
+<p style="margin:20px 0;">
+  <a href="{{app_url}}/dashboard"
+     style="background:#114f55;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:600;display:inline-block;">
+    Zum Dashboard
+  </a>
+</p>""",
+        "description": "An User wenn Partner einen Meilenstein abschließt und dadurch der nächste Schritt freigegeben wird",
+    },
+    "user_password_reset": {
+        "category": "user",
+        "subject": "Passwort zurücksetzen — GERdoctor",
+        "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Passwort zurücksetzen</h2>
+<p>Hallo,</p>
+<p>Sie (oder jemand in Ihrem Namen) hat angefordert, das Passwort Ihres GERdoctor-Kontos zurückzusetzen.</p>
+
+<p style="margin:24px 0;">
+  <a href="{{reset_link}}"
+     style="background:#114f55;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:4px;font-weight:600;display:inline-block;">
+    Passwort jetzt zurücksetzen
+  </a>
+</p>
+
+<p style="color:#64748b;font-size:13px;">Dieser Link ist <strong>1 Stunde</strong> gültig. Sollten Sie keine Zurücksetzung angefordert haben, können Sie diese E-Mail einfach ignorieren.</p>""",
+        "description": "Passwort-Reset-Link per E-Mail",
+    },
 }
 
 
@@ -122,6 +221,7 @@ async def run() -> int:
         existing = await db.email_templates.find_one({"key": key})
         doc = {
             "key": key,
+            "category": tpl.get("category", "user"),
             "subject": tpl["subject"],
             "body_html": tpl["body_html"],
             "description": tpl["description"],

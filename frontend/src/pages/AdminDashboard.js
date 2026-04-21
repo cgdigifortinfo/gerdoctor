@@ -15,7 +15,8 @@ import {
     SignOut, Users, ListChecks, Buildings, Plus, Pencil, Trash, 
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
     LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise,
-    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix, UserSwitch
+    ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix, UserSwitch,
+    Envelope
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
@@ -23,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 import StepsFlowBuilder from '../components/StepsFlowBuilder';
+import EmailTemplateEditor from '../components/admin/EmailTemplateEditor';
 
 export default function AdminDashboard() {
     const { user, logout, impersonate } = useAuth();
@@ -498,6 +500,10 @@ export default function AdminDashboard() {
                         <TabsTrigger value="cms" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
                             {t('admin_cms')}
+                        </TabsTrigger>
+                        <TabsTrigger value="email-templates" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
+                            <Envelope size={18} className="mr-2" />
+                            E-Mail-Vorlagen
                         </TabsTrigger>
                         <TabsTrigger value="audit" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
                             <ClockCounterClockwise size={18} className="mr-2" />
@@ -1101,6 +1107,11 @@ export default function AdminDashboard() {
                                 saving={cmsSaving}
                             />
                         </div>
+                    </TabsContent>
+
+                    {/* ============ EMAIL TEMPLATES TAB ============ */}
+                    <TabsContent value="email-templates">
+                        <EmailTemplateEditor />
                     </TabsContent>
 
                     {/* ============ AUDIT LOG TAB ============ */}

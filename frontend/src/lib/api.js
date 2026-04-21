@@ -142,6 +142,13 @@ export const adminAPI = {
         api.post(`/admin/step-templates/from-step/${stepId}?name=${encodeURIComponent(name)}&description=${encodeURIComponent(description)}`),
     applyStepTemplate: (templateId, order) =>
         api.post(`/admin/step-templates/${templateId}/apply?order=${order}`),
+
+    // Email Templates
+    listEmailTemplates: () => api.get('/admin/email-templates'),
+    getEmailTemplate: (key) => api.get(`/admin/email-templates/${key}`),
+    updateEmailTemplate: (key, data) => api.put(`/admin/email-templates/${key}`, data),
+    resetEmailTemplate: (key) => api.post(`/admin/email-templates/${key}/reset`),
+    previewEmailTemplate: (key, payload) => api.post(`/admin/email-templates/${key}/preview`, payload),
 };
 
 // Notification Preferences APIs

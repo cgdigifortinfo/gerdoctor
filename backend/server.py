@@ -14,7 +14,8 @@ import asyncio
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, APIRouter, Query
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
@@ -35,6 +36,8 @@ from auth import (
 from helpers import (
     init_storage, put_object, get_object, APP_NAME,
     send_email_notification, create_audit_log, notify_partner_of_new_submission,
+    notify_user_awaiting_partner, notify_user_milestone_completed,
+    render_email, send_rendered_email, _partner_deep_link,
     calculate_completion_pct, calculate_estimated_completion,
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
@@ -160,7 +163,7 @@ async def forgot_password(data: ForgotPassword):
     })
     reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={token}"
     logger.info(f"Password reset link for {email}: {reset_link}")
-    await send_email_notification(email, "Password Reset Request", f"<p>Click <a href='{reset_link}'>here</a> to reset your password. This link expires in 1 hour.</p>")
+    await send_rendered_email(email, "user_password_reset", {"reset_link": reset_link, "user_name": user.get("name", "")})
     return {"message": "If an account exists, a reset link has been sent"}
 
 @auth_router.post("/reset-password")
@@ -285,18 +288,25 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
                     raise HTTPException(status_code=400, detail=f"Mindestens ein Dokument für '{label}' ist erforderlich.")
 
     user_prefs = user.get("notification_preferences", {"email_on_step_enter": True, "email_on_step_edit": False, "email_on_step_leave": True})
-    def render_template(template, variables):
-        result = template
-        for key, val in variables.items():
-            result = result.replace(f'{{{{{key}}}}}', str(val))
-        return result
-    email_vars = {"user_name": user["name"], "user_email": user["email"], "step_title": step["title"], "step_order": step["order"], "step_description": step["description"]}
+    total_steps = await db.steps.count_documents({"is_active": True})
+    email_vars = {
+        "user_name": user["name"], "user_email": user["email"],
+        "step_title": step["title"], "step_order": step["order"],
+        "step_description": step.get("description", ""),
+        "total_steps": total_steps,
+    }
     if existing and step.get("email_on_edit") and data.data and user_prefs.get("email_on_step_edit", False):
-        await send_email_notification(user["email"], render_template(step.get("email_subject_edit") or "Schritt aktualisiert: {{step_title}}", email_vars), render_template(step.get("email_body_edit") or "<p>Hallo {{user_name}},</p><p>Sie haben Ihren Fortschritt im Schritt <strong>{{step_title}}</strong> aktualisiert.</p>", email_vars))
+        await send_rendered_email(user["email"], "user_step_updated", email_vars,
+                                   override_subject=step.get("email_subject_edit") or "",
+                                   override_body=step.get("email_body_edit") or "")
     if not existing and step.get("email_on_enter") and user_prefs.get("email_on_step_enter", True):
-        await send_email_notification(user["email"], render_template(step.get("email_subject_enter") or "Schritt gestartet: {{step_title}}", email_vars), render_template(step.get("email_body_enter") or "<p>Hallo {{user_name}},</p><p>Sie haben den Schritt <strong>{{step_title}}</strong> begonnen.</p>", email_vars))
+        await send_rendered_email(user["email"], "user_step_entered", email_vars,
+                                   override_subject=step.get("email_subject_enter") or "",
+                                   override_body=step.get("email_body_enter") or "")
     if data.status == "completed" and step.get("email_on_leave") and user_prefs.get("email_on_step_leave", True):
-        await send_email_notification(user["email"], render_template(step.get("email_subject_leave") or "Schritt abgeschlossen: {{step_title}}", email_vars), render_template(step.get("email_body_leave") or "<p>Hallo {{user_name}},</p><p>Herzlichen Glueckwunsch! Sie haben den Schritt <strong>{{step_title}}</strong> abgeschlossen.</p>", email_vars))
+        await send_rendered_email(user["email"], "user_step_completed", email_vars,
+                                   override_subject=step.get("email_subject_leave") or "",
+                                   override_body=step.get("email_body_leave") or "")
 
     now_iso = datetime.now(timezone.utc).isoformat()
     update_fields = {"status": data.status, "data": data.data or {}, "updated_at": now_iso}
@@ -362,11 +372,15 @@ async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
         return {"message": "Submission updated", "submission_id": existing["id"]}
     submission = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": data.partner_id, "data": data.data, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
     await db.partner_submissions.insert_one(submission)
-    # Fire-and-forget notification to the partner (don't fail the request on mail errors)
+    # Fire-and-forget notifications (don't fail the request on mail errors)
     try:
         await notify_partner_of_new_submission(partner, user, data.data)
     except Exception as exc:
         logger.warning(f"notify_partner failed for {data.partner_id}: {exc}")
+    try:
+        await notify_user_awaiting_partner(user, partner)
+    except Exception as exc:
+        logger.warning(f"notify_user_awaiting_partner failed for {user.get('email')}: {exc}")
     return {"message": "Submission successful", "submission_id": submission["id"]}
 
 @api_router.post("/partners/submit-multi")
@@ -389,6 +403,10 @@ async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Req
                 await notify_partner_of_new_submission(partner, user, data.data or {})
             except Exception as exc:
                 logger.warning(f"notify_partner (multi) failed for {pid}: {exc}")
+            try:
+                await notify_user_awaiting_partner(user, partner)
+            except Exception as exc:
+                logger.warning(f"notify_user_awaiting_partner (multi) failed for {pid}: {exc}")
     return {"message": f"Submitted to {len(results)} partners", "submission_ids": results}
 
 # ========================
@@ -1281,15 +1299,27 @@ async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, r
     if data.status == "completed":
         user_prefs = target_user.get("notification_preferences", {"email_on_step_enter": True, "email_on_step_edit": False, "email_on_step_leave": True})
         partner_name = partner_doc.get("name", "") if partner_doc else ""
-        def render_template(template, variables):
-            result = template
-            for key, val in variables.items():
-                result = result.replace(f'{{{{{key}}}}}', str(val))
-            return result
-        email_vars = {"user_name": target_user["name"], "user_email": target_user["email"], "step_title": step["title"], "step_order": step["order"], "step_description": step.get("description", ""), "partner_name": partner_name}
+        total_steps = await db.steps.count_documents({"is_active": True})
+        email_vars = {
+            "user_name": target_user["name"], "user_email": target_user["email"],
+            "step_title": step["title"], "step_order": step["order"],
+            "step_description": step.get("description", ""),
+            "partner_name": partner_name,
+            "milestone_title": step["title"],
+            "total_steps": total_steps,
+        }
+        # 1) Milestone-completed notification to the user (partner closed their milestone)
+        if user_prefs.get("email_on_step_leave", True):
+            try:
+                await notify_user_milestone_completed(target_user, partner_doc or {}, step)
+                logger.info(f"Milestone completion email sent to {target_user['email']} for step '{step['title']}' by partner {partner_name}")
+            except Exception as exc:
+                logger.warning(f"notify_user_milestone_completed failed: {exc}")
+        # Legacy: fire generic step-completed if the step itself has email_on_leave set
         if step.get("email_on_leave") and user_prefs.get("email_on_step_leave", True):
-            await send_email_notification(target_user["email"], render_template(step.get("email_subject_leave") or "Schritt abgeschlossen: {{step_title}}", email_vars), render_template(step.get("email_body_leave") or "<p>Hallo {{user_name}},</p><p>Ihr Schritt <strong>{{step_title}}</strong> wurde von {{partner_name}} abgeschlossen.</p>", email_vars))
-            logger.info(f"Step completion email sent to {target_user['email']} for step '{step['title']}' by partner {partner_name}")
+            await send_rendered_email(target_user["email"], "user_step_completed", email_vars,
+                                       override_subject=step.get("email_subject_leave") or "",
+                                       override_body=step.get("email_body_leave") or "")
         all_steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
         next_step = None
         for s in all_steps:
@@ -1301,9 +1331,16 @@ async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, r
             next_prog = await db.user_progress.find_one({"user_id": user_id, "step_id": next_sid})
             if not next_prog or next_prog.get("status") == "pending":
                 await db.user_progress.update_one({"user_id": user_id, "step_id": next_sid}, {"$set": {"status": "in_progress", "started_at": now_iso, "updated_at": now_iso}}, upsert=True)
-                if next_step.get("email_on_enter") and user_prefs.get("email_on_step_enter", True):
-                    next_vars = {**email_vars, "step_title": next_step["title"], "step_order": next_step["order"]}
-                    await send_email_notification(target_user["email"], render_template(next_step.get("email_subject_enter") or "Naechster Schritt: {{step_title}}", next_vars), render_template(next_step.get("email_body_enter") or "<p>Hallo {{user_name}},</p><p>Ihr naechster Schritt <strong>{{step_title}}</strong> ist jetzt freigeschaltet.</p>", next_vars))
+                if user_prefs.get("email_on_step_enter", True):
+                    next_vars = {
+                        **email_vars,
+                        "step_title": next_step["title"],
+                        "step_order": next_step["order"],
+                        "step_description": next_step.get("description", ""),
+                    }
+                    await send_rendered_email(target_user["email"], "user_next_step_unlocked", next_vars,
+                                               override_subject=next_step.get("email_subject_enter") or "",
+                                               override_body=next_step.get("email_body_enter") or "")
     return {"message": "User progress updated"}
 
 @api_router.get("/users/{user_id}/estimated-completion")
@@ -1478,6 +1515,103 @@ async def get_public_settings():
     return settings or {}
 
 # ========================
+# EMAIL TEMPLATES (Admin)
+# ========================
+# Curated set of variables per category — exposed to the Admin UI as a
+# reference panel. Categories mirror the `category` field on seeded templates.
+_EMAIL_TEMPLATE_VARIABLES = {
+    "layout":  ["app_url"],
+    "partner": ["partner_name", "user_name", "user_email", "field_of_study",
+                "bundesland", "step_order", "open_user_link", "app_url"],
+    "user":    ["user_name", "partner_name", "milestone_title", "reset_link", "app_url"],
+    "step":    ["user_name", "step_title", "step_order", "step_description",
+                "total_steps", "partner_name", "app_url"],
+}
+
+
+@admin_router.get("/email-templates")
+async def admin_list_email_templates(request: Request):
+    await require_role("admin")(request)
+    docs = await db.email_templates.find({}, {"_id": 0}).to_list(200)
+    # Stable order: layout first, then grouped by category
+    order = {"layout": 0, "partner": 1, "user": 2, "step": 3}
+    docs.sort(key=lambda d: (order.get(d.get("category", "user"), 99), d.get("key", "")))
+    return {"templates": docs, "variables": _EMAIL_TEMPLATE_VARIABLES}
+
+
+@admin_router.get("/email-templates/{key}")
+async def admin_get_email_template(key: str, request: Request):
+    await require_role("admin")(request)
+    doc = await db.email_templates.find_one({"key": key}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return doc
+
+
+@admin_router.put("/email-templates/{key}")
+async def admin_update_email_template(key: str, payload: dict, request: Request):
+    admin_user = await require_role("admin")(request)
+    existing = await db.email_templates.find_one({"key": key})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Template not found")
+    allowed = {k: v for k, v in (payload or {}).items() if k in ("subject", "body_html", "description")}
+    if not allowed:
+        raise HTTPException(status_code=400, detail="No editable fields provided")
+    allowed["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.email_templates.update_one({"key": key}, {"$set": allowed})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "email_template_update",
+                           "email_template", key, {"fields": list(allowed.keys())})
+    updated = await db.email_templates.find_one({"key": key}, {"_id": 0})
+    return updated
+
+
+@admin_router.post("/email-templates/{key}/reset")
+async def admin_reset_email_template(key: str, request: Request):
+    """Reset a single template back to the seeded default. Re-runs the seed
+    logic for this specific key only."""
+    admin_user = await require_role("admin")(request)
+    from seed_email_templates import DEFAULT_TEMPLATES
+    if key not in DEFAULT_TEMPLATES:
+        raise HTTPException(status_code=404, detail="No default for this template key")
+    tpl = DEFAULT_TEMPLATES[key]
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "key": key,
+        "category": tpl.get("category", "user"),
+        "subject": tpl["subject"],
+        "body_html": tpl["body_html"],
+        "description": tpl["description"],
+        "updated_at": now,
+    }
+    await db.email_templates.update_one({"key": key}, {"$set": doc}, upsert=True)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "email_template_reset",
+                           "email_template", key, {})
+    return await db.email_templates.find_one({"key": key}, {"_id": 0})
+
+
+class _EmailPreviewPayload(BaseModel):
+    subject: Optional[str] = ""
+    body_html: Optional[str] = ""
+    variables: Optional[Dict[str, Any]] = None
+
+
+@admin_router.post("/email-templates/{key}/preview")
+async def admin_preview_email_template(key: str, payload: _EmailPreviewPayload, request: Request):
+    """Render header + body + footer with the supplied variables. The admin UI
+    can send edited (unsaved) HTML/subject via `subject`/`body_html` overrides
+    to see the live preview without persisting."""
+    await require_role("admin")(request)
+    rendered = await render_email(
+        key,
+        payload.variables or {},
+        override_subject=payload.subject or "",
+        override_body=payload.body_html or "",
+    )
+    if not rendered:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return rendered
+
+# ========================
 # ROUTER ASSEMBLY
 # ========================
 
@@ -1611,6 +1745,30 @@ async def startup():
     # Seed site settings
     if not await db.site_settings.find_one({"_key": "global"}):
         await db.site_settings.insert_one({"_key": "global", "site_title": "GERdoctor", "logo_text": "GERdoctor", "logo_bold_part": "GER", "logo_light_part": "doctor", "contact_email": "", "footer_text": "", "primary_color": "#114f55", "meta_description": "Praktizieren in Deutschland", "created_at": datetime.now(timezone.utc).isoformat()})
+    # Seed email templates (idempotent — won't overwrite admin edits)
+    try:
+        from seed_email_templates import DEFAULT_TEMPLATES as _EMAIL_DEFAULTS
+        _now = datetime.now(timezone.utc).isoformat()
+        for _key, _tpl in _EMAIL_DEFAULTS.items():
+            _existing = await db.email_templates.find_one({"key": _key})
+            _doc = {
+                "key": _key,
+                "category": _tpl.get("category", "user"),
+                "subject": _tpl["subject"],
+                "body_html": _tpl["body_html"],
+                "description": _tpl["description"],
+                "updated_at": _now,
+            }
+            if _existing:
+                _add = {k: v for k, v in _doc.items()
+                        if k != "key" and (k not in _existing or _existing.get(k) in (None, ""))}
+                if _add:
+                    await db.email_templates.update_one({"key": _key}, {"$set": _add})
+            else:
+                _doc["created_at"] = _now
+                await db.email_templates.insert_one(_doc)
+    except Exception as _e:
+        logger.warning(f"email_templates seed failed: {_e}")
     logger.info("Startup seeding complete")
 
 @app.on_event("shutdown")
