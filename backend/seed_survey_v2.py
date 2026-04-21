@@ -136,17 +136,36 @@ def partner_step(order, title, description, decision_order, filter_tag,
 def milestone_step(order, title, description, decision_order, dur_value, dur_unit,
                    upload_order=None, translations=None,
                    pending_msg=None, complete_msg=None):
-    """Milestone; auto-completes when the upload-step was really completed by the user.
+    """Milestone; auto-completes when the upload step has a real file uploaded.
 
-    If upload_order is provided → condition: upload-step status == completed
-    (meaning: user chose upload AND actually finished uploading the documents).
-    If upload_order is None (Jobangebote case) → condition: decision-step data.decision == 'selbst'
-    (user decided to search themselves — no upload needed)."""
+    If upload_order is provided → two conditions:
+      1. auto_complete when upload step's `documents` array contains at least one file_id
+      2. block (compound all_of): user chose `decision=upload` AND upload step has no file
+         → prevents the milestone from skipping ahead when no file was uploaded.
+
+    If upload_order is None (Jobangebote) → auto_complete when decision=selbst."""
     if upload_order is not None:
-        conditions = [{
-            "action": "auto_complete", "source_step_order": upload_order,
-            "field": "", "operator": "status_is", "value": "completed",
-        }]
+        conditions = [
+            {
+                "action": "auto_complete",
+                "source_step_order": upload_order,
+                "field": "documents", "operator": "has_upload", "value": "",
+            },
+            {
+                "action": "block",
+                "all_of": [
+                    {
+                        "source_step_order": decision_order,
+                        "field": "decision", "operator": "equals", "value": "upload",
+                    },
+                    {
+                        "source_step_order": upload_order,
+                        "field": "documents", "operator": "missing_upload", "value": "",
+                    },
+                ],
+                "message": "Bitte laden Sie Ihre Dokumente im vorigen Schritt hoch.",
+            },
+        ]
     else:
         conditions = [{
             "action": "auto_complete", "source_step_order": decision_order,

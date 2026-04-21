@@ -104,15 +104,23 @@ class TestStepsStructure:
         # Partner step 4 hidden when 2 != partner
         c4 = by_order[4]["conditions"]
         assert any(c["action"] == "hide" and c["source_step_order"] == 2 for c in c4)
-        # Milestone 5 auto_complete on upload step (#3) status=completed
+        # Milestone 5 auto_complete when upload step (#3) has a real file uploaded
         c5 = by_order[5]["conditions"]
         assert any(
             c["action"] == "auto_complete"
             and c["source_step_order"] == 3
-            and c.get("operator") == "status_is"
-            and c.get("value") == "completed"
+            and c.get("operator") == "has_upload"
+            and c.get("field") == "documents"
             for c in c5
-        ), f"milestone 5 should auto_complete on upload step #3 status=completed, got {c5}"
+        ), f"milestone 5 should auto_complete on upload step #3 has_upload(documents), got {c5}"
+        # Milestone 5 must also block when user picked upload but uploaded nothing
+        assert any(
+            c.get("action") == "block"
+            and isinstance(c.get("all_of"), list)
+            and any(sub.get("source_step_order") == 3
+                    and sub.get("operator") == "missing_upload" for sub in c["all_of"])
+            for c in c5
+        ), f"milestone 5 should block when upload=chosen+no file, got {c5}"
         # Fachsprachen decision step 6 blocked on milestone 5 status_not completed
         c6 = by_order[6]["conditions"]
         assert any(c["action"] == "block" and c["source_step_order"] == 5 for c in c6)
@@ -186,8 +194,7 @@ class TestAutoComplete:
             }, timeout=15)
 
     def test_upload_triggers_milestone_auto_complete(self, steps):
-        """After the milestone-bugfix, milestone 5 only auto-completes once the
-        upload step (#3) itself is marked completed — not just the decision."""
+        """Milestone 5 only auto-completes once the upload step (#3) has a real file."""
         s = self._login_kumar()
         self._reset_kumar(s, steps)
         by_order = {st["order"]: st for st in steps}
@@ -201,14 +208,24 @@ class TestAutoComplete:
         }, timeout=15)
         assert r.status_code in (200, 201), r.text
 
-        # Milestone 5 must still be pending — decision alone is NOT enough anymore
+        # 2) Complete upload step WITHOUT any files → milestone must stay pending AND be blocked
+        r = s.put(f"{API}/steps/progress", json={
+            "step_id": sid3, "status": "completed", "data": {}
+        }, timeout=15)
+        assert r.status_code in (200, 201), r.text
+
         r_mid = s.get(f"{API}/steps/progress")
         prog_mid = {p["step_id"]: p for p in r_mid.json()}
-        assert prog_mid[sid5]["status"] == "pending", (
-            f"milestone 5 must stay pending after decision only, got {prog_mid[sid5]}"
+        assert prog_mid[sid5]["status"] != "completed", (
+            f"milestone 5 must NOT auto-complete without a real file, got {prog_mid[sid5]}"
+        )
+        # Verify visibility reports milestone 5 as blocked
+        vis = s.get(f"{API}/steps/visibility").json()
+        assert sid5 in (vis.get("blocked_step_ids") or []), (
+            f"milestone 5 must be blocked when upload path chosen but no file, got {vis}"
         )
 
-        # 2) Actually complete the upload step → triggers auto-complete on milestone 5
+        # 3) Upload a real file → milestone auto-completes
         r = s.put(f"{API}/steps/progress", json={
             "step_id": sid3, "status": "completed",
             "data": {"documents": [
@@ -219,12 +236,10 @@ class TestAutoComplete:
         assert r.status_code in (200, 201), r.text
 
         r2 = s.get(f"{API}/steps/progress")
-        assert r2.status_code == 200
         prog = {p["step_id"]: p for p in r2.json()}
         assert sid5 in prog, "milestone 5 progress missing"
         assert prog[sid5]["status"] == "completed", f"milestone 5 not auto-completed: {prog[sid5]}"
 
-        # progress_history should contain auto_completed entry
         hist = s.get(f"{API}/steps/history").json()
         assert any(h.get("step_id") == sid5 and h.get("action") == "auto_completed" for h in hist), (
             "progress_history missing auto_completed entry for milestone 5"

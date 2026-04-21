@@ -1,5 +1,12 @@
 // Shared condition evaluator (mirrors backend helpers._evaluate_condition)
 export function evaluateCondition(cond, stepDataByOrder) {
+    // Compound conditions
+    if (Array.isArray(cond?.all_of)) {
+        return cond.all_of.every(c => evaluateCondition(c, stepDataByOrder));
+    }
+    if (Array.isArray(cond?.any_of)) {
+        return cond.any_of.some(c => evaluateCondition(c, stepDataByOrder));
+    }
     const source = stepDataByOrder[cond.source_step_order];
     if (!source) return false;
     const data = source.data || {};
@@ -16,11 +23,20 @@ export function evaluateCondition(cond, stepDataByOrder) {
         case 'status_not': return source.status !== expected;
         case 'has_upload': {
             const uploads = data[field] || [];
-            return Array.isArray(uploads) && uploads.some(u => u.document_type === expected && u.file_id);
+            if (!Array.isArray(uploads)) return false;
+            // Empty expected → any upload with a file_id qualifies
+            if (expected === undefined || expected === null || expected === '') {
+                return uploads.some(u => u && u.file_id);
+            }
+            return uploads.some(u => u.document_type === expected && u.file_id);
         }
         case 'missing_upload': {
             const uploads = data[field] || [];
-            return !Array.isArray(uploads) || !uploads.some(u => u.document_type === expected && u.file_id);
+            if (!Array.isArray(uploads)) return true;
+            if (expected === undefined || expected === null || expected === '') {
+                return !uploads.some(u => u && u.file_id);
+            }
+            return !uploads.some(u => u.document_type === expected && u.file_id);
         }
         default: return false;
     }
@@ -115,6 +131,7 @@ export const SIMULATOR_PROFILES = {
                 anerkennungsverfahren_bundesland: 'Berlin',
             }, status: 'completed' },
             2: { data: { decision: 'upload' }, status: 'completed' },
+            3: { data: { documents: [{ file_id: 'sim-doc', document_type: 'Diplom', filename: 'diplom.pdf' }] }, status: 'completed' },
         },
     },
     partner_path: {

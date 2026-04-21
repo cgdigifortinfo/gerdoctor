@@ -132,7 +132,12 @@ def add_duration(start_date, value, unit):
 # CONDITION EVALUATION (server-side, mirrors frontend)
 # ========================
 def _evaluate_condition(cond: dict, order_map: dict) -> bool:
-    """Evaluate a single condition against a map {order: {data, status}}."""
+    """Evaluate a single condition against a map {order: {data, status}}.
+    Supports compound conditions via `all_of` / `any_of` (list of sub-conditions)."""
+    if isinstance(cond.get("all_of"), list):
+        return all(_evaluate_condition(c, order_map) for c in cond["all_of"])
+    if isinstance(cond.get("any_of"), list):
+        return any(_evaluate_condition(c, order_map) for c in cond["any_of"])
     source = order_map.get(cond.get("source_step_order"))
     if not source:
         return False
@@ -157,13 +162,25 @@ def _evaluate_condition(cond: dict, order_map: dict) -> bool:
         return source.get("status") != expected
     if op == "has_upload":
         uploads = data.get(field) or []
-        return isinstance(uploads, list) and any(
-            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id") for u in uploads
+        if not isinstance(uploads, list):
+            return False
+        # Empty expected → any non-empty upload entry with a file_id qualifies
+        if expected in (None, ""):
+            return any(isinstance(u, dict) and u.get("file_id") for u in uploads)
+        return any(
+            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id")
+            for u in uploads
         )
     if op == "missing_upload":
         uploads = data.get(field) or []
-        return not isinstance(uploads, list) or not any(
-            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id") for u in uploads
+        if not isinstance(uploads, list):
+            return True
+        if expected in (None, ""):
+            # Missing when NO entry has a file_id
+            return not any(isinstance(u, dict) and u.get("file_id") for u in uploads)
+        return not any(
+            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id")
+            for u in uploads
         )
     return False
 
