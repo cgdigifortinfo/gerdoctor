@@ -333,7 +333,14 @@ def _evaluate_condition(cond: dict, order_map: dict) -> bool:
         return False
     field = cond.get("field")
     data = source.get("data") or {}
-    field_value = data.get(field) if field in data else source.get("status")
+    # When a specific `field` is requested but not in data, treat it as empty
+    # (don't fall back to status — that leaks the step status into data-level
+    # comparisons like `empty`/`not_empty` and leads to wrong hide decisions).
+    # Only fall back to status when no field is specified at all.
+    if field:
+        field_value = data.get(field)
+    else:
+        field_value = source.get("status")
     expected = cond.get("value")
     op = cond.get("operator", "equals")
     if op == "equals":

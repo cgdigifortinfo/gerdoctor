@@ -165,12 +165,29 @@ def milestone_step(order, title, description, decision_order, dur_value, dur_uni
                 ],
                 "message": "Bitte laden Sie Ihre Dokumente im vorigen Schritt hoch.",
             },
+            # Hide the milestone while the decision hasn't been made yet. Without
+            # this, the visible-timeline jumps from the decision-step straight to
+            # the milestone (skipping the upload/partner work), which confuses
+            # users into thinking the work was auto-done by the partner.
+            {
+                "action": "hide",
+                "source_step_order": decision_order,
+                "field": "decision", "operator": "empty", "value": "",
+            },
         ]
     else:
-        conditions = [{
-            "action": "auto_complete", "source_step_order": decision_order,
-            "field": "decision", "operator": "equals", "value": "selbst",
-        }]
+        conditions = [
+            {
+                "action": "auto_complete", "source_step_order": decision_order,
+                "field": "decision", "operator": "equals", "value": "selbst",
+            },
+            # Same pattern for Jobangebote-style milestones (no upload step).
+            {
+                "action": "hide",
+                "source_step_order": decision_order,
+                "field": "decision", "operator": "empty", "value": "",
+            },
+        ]
     return {
         "title": title, "description": description, "order": order,
         "step_type": "milestone", "fields": [],

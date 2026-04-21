@@ -11,7 +11,10 @@ export function evaluateCondition(cond, stepDataByOrder) {
     if (!source) return false;
     const data = source.data || {};
     const field = cond.field;
-    const fieldValue = (field && field in data) ? data[field] : source.status;
+    // If a specific `field` is requested, use ONLY the data value — don't fall
+    // back to status (that would make empty/not_empty mis-evaluate since
+    // status is never blank). Only fall back to status when no field is set.
+    const fieldValue = field ? data[field] : source.status;
     const expected = cond.value;
     switch (cond.operator) {
         case 'equals': return String(fieldValue) === String(expected);
