@@ -10,9 +10,23 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { adminAPI } from '../../lib/api';
 import { toast } from 'sonner';
-import { FloppyDisk, ArrowClockwise, Eye, CopySimple, Code } from '@phosphor-icons/react';
+import { FloppyDisk, ArrowClockwise, Eye, CopySimple, Code, PaperPlaneTilt } from '@phosphor-icons/react';
+
+// Cookie helpers — 1-year persistence, scoped to the app path.
+const COOKIE_NAME = 'email_tpl_test_recipients';
+const readCookie = (name) => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.split('=')[1] || '') : '';
+};
+const writeCookie = (name, value) => {
+    if (typeof document === 'undefined') return;
+    const maxAge = 60 * 60 * 24 * 365; // 1 year
+    document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+};
 
 const CATEGORY_LABELS = {
     layout: 'Layout (Header & Footer)',
@@ -61,6 +75,11 @@ export function EmailTemplateEditor() {
     const [allSteps, setAllSteps] = useState([]);
     const [previewUserId, setPreviewUserId] = useState('');
     const [previewStepId, setPreviewStepId] = useState('');
+
+    // Test-email dialog state
+    const [testDialogOpen, setTestDialogOpen] = useState(false);
+    const [testRecipients, setTestRecipients] = useState('');
+    const [testSending, setTestSending] = useState(false);
 
     const selected = useMemo(() => templates.find((t) => t.key === selectedKey), [templates, selectedKey]);
     const category = selected?.category || 'user';
@@ -180,6 +199,46 @@ export function EmailTemplateEditor() {
         } finally { setSaving(false); }
     };
 
+    const openTestDialog = () => {
+        // Pre-fill from cookie so the admin doesn't have to re-type recipients
+        setTestRecipients(readCookie(COOKIE_NAME));
+        setTestDialogOpen(true);
+    };
+
+    const handleSendTest = async () => {
+        if (!selectedKey) return;
+        // Persist the current textbox value in the cookie for next time
+        writeCookie(COOKIE_NAME, testRecipients || '');
+        // Split comma/semicolon/whitespace-separated list, strip, filter empties.
+        const list = (testRecipients || '')
+            .split(/[,;\n]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+        const invalid = list.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        if (invalid.length) {
+            toast.error(`Ungültige Adressen: ${invalid.join(', ')}`);
+            return;
+        }
+        setTestSending(true);
+        try {
+            const res = await adminAPI.sendTestEmail(selectedKey, {
+                subject, body_html: bodyHtml, variables: previewVariables,
+                recipients: list,
+            });
+            const { sent, failed, skipped, recipients } = res.data || {};
+            if (sent > 0) {
+                toast.success(`Test-Mail an ${sent} Empfänger versendet: ${recipients.join(', ')}`);
+            } else if (skipped > 0) {
+                toast.warning('SMTP nicht konfiguriert — Mail wurde übersprungen (Preview-Umgebung).');
+            } else if (failed?.length) {
+                toast.error(`Versand fehlgeschlagen: ${failed.map((f) => f.email).join(', ')}`);
+            }
+            setTestDialogOpen(false);
+        } catch (e) {
+            toast.error(e.response?.data?.detail || 'Versand fehlgeschlagen');
+        } finally { setTestSending(false); }
+    };
+
     const insertVariable = (v) => {
         const token = `{{${v}}}`;
         // navigator.clipboard can reject in insecure/headless contexts; swallow the
@@ -250,6 +309,9 @@ export function EmailTemplateEditor() {
                             <div className="flex items-start justify-between gap-3 mb-3">
                                 <p className="text-sm text-muted-foreground flex-1">{selected.description}</p>
                                 <div className="flex gap-2 shrink-0">
+                                    <Button variant="outline" size="sm" onClick={openTestDialog} disabled={saving} data-testid="email-template-test-btn">
+                                        <PaperPlaneTilt size={14} className="mr-1" /> Test-Mail senden
+                                    </Button>
                                     <Button variant="outline" size="sm" onClick={handleReset} disabled={saving} data-testid="email-template-reset-btn">
                                         <ArrowClockwise size={14} className="mr-1" /> Zurücksetzen
                                     </Button>
@@ -395,6 +457,48 @@ export function EmailTemplateEditor() {
                     </>
                 )}
             </div>
+
+            {/* Test-Mail Dialog */}
+            <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+                <DialogContent data-testid="email-test-dialog">
+                    <DialogHeader>
+                        <DialogTitle>Test-Mail senden</DialogTitle>
+                        <DialogDescription>
+                            Die aktuelle Vorlage wird an deine eigene E-Mail-Adresse und
+                            optional an weitere Empfänger verschickt — inklusive aller
+                            ungespeicherten Änderungen (Subject + Body).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div>
+                            <Label htmlFor="test-recipients-input">
+                                Weitere Empfänger <span className="text-xs text-muted-foreground">(Komma-getrennt, optional)</span>
+                            </Label>
+                            <Textarea
+                                id="test-recipients-input"
+                                data-testid="email-test-recipients-input"
+                                value={testRecipients}
+                                onChange={(e) => setTestRecipients(e.target.value)}
+                                placeholder="qa@gerdoctor.de, test@example.com"
+                                rows={3}
+                                className="font-mono text-sm"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Deine Eingabe wird in einem Cookie gespeichert und beim nächsten Öffnen automatisch vorausgefüllt.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setTestDialogOpen(false)} disabled={testSending} data-testid="email-test-cancel-btn">
+                            Abbrechen
+                        </Button>
+                        <Button onClick={handleSendTest} disabled={testSending} className="bg-[#114f55] hover:bg-[#0e4248]" data-testid="email-test-send-btn">
+                            <PaperPlaneTilt size={14} className="mr-1" />
+                            {testSending ? 'Sende…' : 'Jetzt senden'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

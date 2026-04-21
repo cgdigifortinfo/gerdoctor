@@ -149,6 +149,7 @@ export const adminAPI = {
     updateEmailTemplate: (key, data) => api.put(`/admin/email-templates/${key}`, data),
     resetEmailTemplate: (key) => api.post(`/admin/email-templates/${key}/reset`),
     previewEmailTemplate: (key, payload) => api.post(`/admin/email-templates/${key}/preview`, payload),
+    sendTestEmail: (key, payload) => api.post(`/admin/email-templates/${key}/send-test`, payload),
 };
 
 // Notification Preferences APIs

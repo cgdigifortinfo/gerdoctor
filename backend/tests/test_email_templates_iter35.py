@@ -434,6 +434,73 @@ class TestAuditLog:
         admin_session.post(f"{API}/admin/email-templates/{tpl_key}/reset", timeout=10)
 
 
+# ---------- send-test endpoint ----------
+class TestSendTest:
+    def test_requires_admin(self, anon_session):
+        r = anon_session.post(f"{API}/admin/email-templates/user_awaiting_partner/send-test",
+                              json={"recipients": []}, timeout=10)
+        assert r.status_code in (401, 403)
+
+    def test_sends_to_admin_plus_extras_dedup(self, admin_session):
+        """Admin email always included; extras deduped case-insensitively."""
+        r = admin_session.post(
+            f"{API}/admin/email-templates/user_awaiting_partner/send-test",
+            json={
+                "subject": "",
+                "body_html": "",
+                "variables": {"user_name": "Test", "partner_name": "ILS"},
+                "recipients": [
+                    "qa@example.com",
+                    ADMIN_EMAIL,          # duplicate of admin's own
+                    "qa@example.com",     # exact duplicate
+                    "QA@example.com",     # case duplicate
+                    "not-an-email",       # invalid, dropped
+                    "",                   # empty, dropped
+                ],
+            },
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        recipients = data.get("recipients", [])
+        assert ADMIN_EMAIL in recipients
+        assert sum(1 for e in recipients if e.lower() == "qa@example.com") == 1
+        assert "not-an-email" not in recipients
+        assert len(recipients) == 2, f"expected 2 unique recipients, got {recipients}"
+        # When SMTP is unconfigured skipped>=1; otherwise sent>=1.
+        assert (data.get("sent", 0) + data.get("skipped", 0)) >= len(recipients)
+
+    def test_empty_recipients_still_sends_to_admin(self, admin_session):
+        r = admin_session.post(
+            f"{API}/admin/email-templates/user_awaiting_partner/send-test",
+            json={"recipients": [], "variables": {}},
+            timeout=10,
+        )
+        assert r.status_code == 200
+        assert ADMIN_EMAIL in r.json().get("recipients", [])
+
+    def test_unknown_template_404(self, admin_session):
+        r = admin_session.post(
+            f"{API}/admin/email-templates/nope_unknown/send-test",
+            json={"recipients": ["x@y.de"]},
+            timeout=10,
+        )
+        assert r.status_code == 404
+
+    def test_audit_log_created(self, admin_session):
+        admin_session.post(
+            f"{API}/admin/email-templates/user_awaiting_partner/send-test",
+            json={"recipients": ["audit-trail@example.com"], "variables": {}},
+            timeout=10,
+        )
+        r = admin_session.get(f"{API}/admin/audit-log?limit=20", timeout=10)
+        body = r.json()
+        entries = body if isinstance(body, list) else body.get("entries", body.get("logs", []))
+        matches = [e for e in entries
+                   if e.get("action") == "email_template_test_send"
+                   and e.get("target_id") == "user_awaiting_partner"]
+        assert matches, "no audit log for email_template_test_send"
+
 
 @pytest.fixture(scope="module", autouse=True)
 def _cleanup(admin_session):

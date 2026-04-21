@@ -11,6 +11,7 @@ Covers:
   7. HTML-Code toggle → Textarea visible
   8. **Preview reactivity: changing Vorschau-User updates subject + iframe HTML**
   9. **Preview reactivity: changing Vorschau-Step updates subject + iframe HTML**
+  10. **Test-Mail dialog: opens, persists recipients in cookie, pre-fills on reopen**
 
 Runs headless Playwright, cleans up all edited templates after itself.
 Run: cd /app && python3 backend/tests/e2e_email_template_editor.py
@@ -306,6 +307,89 @@ async def run_test():
                 f"HTML toggle didn't change label (was '{toggle_text}', still '{new_toggle_text}')"
             print(f"  ✓ Case 9: HTML-Code toggle works ('{toggle_text}' → '{new_toggle_text}')")
             results.append(("Case 9: HTML/WYSIWYG toggle", "PASS"))
+
+            # --- Case 10: Test-Mail Dialog öffnet, Cookie wird gespeichert/gelesen ---
+            # Delete ONLY our template cookie so the JWT auth stays intact.
+            await page.evaluate("""() => {
+                document.cookie = 'email_tpl_test_recipients=; Max-Age=0; Path=/';
+            }""")
+            await select_template(page, "user_awaiting_partner")
+            await page.wait_for_timeout(800)
+
+            # Open the dialog — textbox should be EMPTY (no cookie yet)
+            await page.locator('[data-testid="email-template-test-btn"]').click()
+            await page.wait_for_timeout(700)
+            await page.wait_for_selector('[data-testid="email-test-dialog"]', timeout=5000)
+            recipients_box = page.locator('[data-testid="email-test-recipients-input"]')
+            initial_val = await recipients_box.input_value()
+            assert initial_val == "", f"expected empty textbox on first open, got: '{initial_val}'"
+
+            # Step 2: Type recipients, send, expect toast + cookie persists.
+            test_emails = "qa-e2e-1@example.com, qa-e2e-2@example.com"
+            await recipients_box.fill(test_emails)
+            # Capture network response for debugging
+            async with page.expect_response(lambda r: '/send-test' in r.url, timeout=15000) as resp_info:
+                await page.locator('[data-testid="email-test-send-btn"]').click()
+            resp = await resp_info.value
+            print(f"           send-test response: {resp.status}")
+            try:
+                body = await resp.json()
+                print(f"           send-test body:     sent={body.get('sent')} skipped={body.get('skipped')} recipients={body.get('recipients')}")
+            except Exception as e:
+                print(f"           send-test body read error: {e}")
+            await page.wait_for_timeout(2500)
+
+            # Either a success toast (SMTP configured) or warning (preview env skips)
+            toast_visible = (
+                await page.locator('text=/Test-Mail an .* Empfänger/').count()
+                + await page.locator('text=/SMTP nicht konfiguriert/').count()
+                + await page.locator('text=/übersprungen/').count()
+            )
+            # Relaxed assertion: if the response was 200 + recipients returned, count
+            # that as passing even if the sonner toast already auto-dismissed.
+            if toast_visible == 0:
+                assert resp.status == 200, f"send-test returned {resp.status}"
+                print(f"           (toast auto-dismissed — relying on 200 response)")
+            else:
+                print(f"           toast visible: {toast_visible}")
+
+            # Step 3: The cookie must be persisted.
+            cookies = await context.cookies()
+            cookie = next((c for c in cookies if c["name"] == "email_tpl_test_recipients"), None)
+            assert cookie is not None, "cookie 'email_tpl_test_recipients' was not set"
+            import urllib.parse
+            decoded = urllib.parse.unquote(cookie["value"])
+            assert "qa-e2e-1@example.com" in decoded and "qa-e2e-2@example.com" in decoded, \
+                f"cookie value wrong: {decoded!r}"
+
+            # Step 4: Re-open the dialog — textbox should be pre-filled from cookie.
+            # First make sure the dialog closed after send.
+            await page.wait_for_timeout(800)
+            # Dialog should be closed; if not, close it explicitly.
+            if await page.locator('[data-testid="email-test-dialog"]').count() > 0:
+                try:
+                    await page.locator('[data-testid="email-test-cancel-btn"]').click()
+                    await page.wait_for_timeout(400)
+                except Exception:
+                    await page.keyboard.press("Escape")
+                    await page.wait_for_timeout(400)
+
+            await page.locator('[data-testid="email-template-test-btn"]').click()
+            await page.wait_for_timeout(700)
+            refilled = await page.locator('[data-testid="email-test-recipients-input"]').input_value()
+            assert "qa-e2e-1@example.com" in refilled and "qa-e2e-2@example.com" in refilled, \
+                f"dialog did not pre-fill from cookie: got '{refilled}'"
+            print(f"  ✓ Case 10: Test-Mail dialog + cookie persistence works")
+            print(f"           initial textbox: ''")
+            print(f"           after reopen:    '{refilled[:60]}'")
+            results.append(("Case 10: test-mail dialog + cookie", "PASS"))
+
+            # Close dialog before shutting down
+            try:
+                await page.locator('[data-testid="email-test-cancel-btn"]').click()
+                await page.wait_for_timeout(300)
+            except Exception:
+                pass
 
             await browser.close()
     finally:

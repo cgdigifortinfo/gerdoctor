@@ -1595,6 +1595,13 @@ class _EmailPreviewPayload(BaseModel):
     variables: Optional[Dict[str, Any]] = None
 
 
+class _EmailTestSendPayload(BaseModel):
+    subject: Optional[str] = ""
+    body_html: Optional[str] = ""
+    variables: Optional[Dict[str, Any]] = None
+    recipients: List[str] = []
+
+
 @admin_router.post("/email-templates/{key}/preview")
 async def admin_preview_email_template(key: str, payload: _EmailPreviewPayload, request: Request):
     """Render header + body + footer with the supplied variables. The admin UI
@@ -1610,6 +1617,71 @@ async def admin_preview_email_template(key: str, payload: _EmailPreviewPayload, 
     if not rendered:
         raise HTTPException(status_code=404, detail="Template not found")
     return rendered
+
+
+@admin_router.post("/email-templates/{key}/send-test")
+async def admin_send_test_email(key: str, payload: _EmailTestSendPayload, request: Request):
+    """Render the template (with unsaved subject/body_html overrides + vars) and
+    send to the admin's own email + any additional recipients supplied. Returns
+    {sent:int, failed:list[{email,error}], recipients:list[str]}.
+
+    SMTP may be unconfigured in preview envs — in that case send_email_sync
+    returns {'status':'skipped'} and we count those as NOT sent so the admin
+    sees a clear 'Mailgun not configured' toast."""
+    admin_user = await require_role("admin")(request)
+    rendered = await render_email(
+        key,
+        payload.variables or {},
+        override_subject=payload.subject or "",
+        override_body=payload.body_html or "",
+    )
+    if not rendered:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    # Build recipient list: admin's own email + comma-separated extras.
+    recipients: list[str] = []
+    seen: set[str] = set()
+    admin_email = (admin_user.get("email") or "").strip()
+    if admin_email:
+        recipients.append(admin_email)
+        seen.add(admin_email.lower())
+    for r in payload.recipients or []:
+        email = (r or "").strip()
+        if not email or "@" not in email:
+            continue
+        if email.lower() in seen:
+            continue
+        seen.add(email.lower())
+        recipients.append(email)
+
+    if not recipients:
+        raise HTTPException(status_code=400, detail="No valid recipients")
+
+    sent, failed, skipped = 0, [], 0
+    for r in recipients:
+        try:
+            result = await send_email_notification(r, rendered["subject"], rendered["html"])
+            status = (result or {}).get("status")
+            if status == "success":
+                sent += 1
+            elif status == "skipped":
+                skipped += 1
+            else:
+                failed.append({"email": r, "error": (result or {}).get("error", "unknown")})
+        except Exception as exc:
+            failed.append({"email": r, "error": str(exc)})
+
+    await create_audit_log(admin_user["_id"], admin_user["email"], "email_template_test_send",
+                           "email_template", key,
+                           {"recipients": recipients, "sent": sent, "failed": len(failed),
+                            "skipped": skipped})
+    return {
+        "sent": sent,
+        "failed": failed,
+        "skipped": skipped,
+        "recipients": recipients,
+        "smtp_configured": skipped == 0 or sent > 0 or len(failed) > 0,
+    }
 
 # ========================
 # ROUTER ASSEMBLY
