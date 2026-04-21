@@ -44,7 +44,8 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
-- [x] 2026-04-21: **Re-open-Button + Abgeschlossen-am Spalte** — "Completed Users"-Tab hat jetzt neue Spalte "Abgeschlossen am" (grün + Check-Icon + Datum aus latest milestone.completed_at). Pro Completed-Row: amber "Re-open"-Button → Backend `PUT /api/partner/users/{id}/reopen` setzt den managed Milestone auf `in_progress`, clears completed_at, logged in progress_history als `reopened_by_partner`. User wandert sofort zurück in "My Users". Audit-Trail erhalten. `test_partner_completed_users_split.py` erweitert: 3 Stages (My Users → Completed → Re-open → My Users). PASS.
+- [x] 2026-04-21: **Admin User-Liste: Spalte "Anmeldungen"** — neue Spalte zwischen Name und Email. Für partner-role Users: amber Badge mit der Anzahl der User die im Partner-Dashboard in "My Users" stehen (= `partner_work_completed=false`). Nutzt dieselbe Logik wie `/api/partner/submissions`. Backend Endpoint `/api/admin/users` liefert neuen Field `pending_registrations` (precomputed pro partner_id für Performance). Für non-partner-Users: "-". Regression-Test `test_admin_anmeldungen_column.py`: submit → +1, milestone close → -1. PASS.
+- [x] 2026-04-21: **Re-open-Button + Abgeschlossen-am Spalte** in Partner Completed-Users-Tab.
 - [x] 2026-04-21: **Feature: "Completed Users" Tab im PartnerDashboard** — automatisches Split basierend auf `partner_work_completed` Boolean pro Submission.
 - [x] 2026-04-21: **Bugfix: Partner sieht User nicht nach Partner-Wahl** — Duplikate IQB-Partner-Orgs (Umlaut vs no-Umlaut) gemergt via `merge_duplicate_iqb_partners.py`.
 - [x] 2026-04-21: **Partner-User Seeding + mehr Demo-Ärzte** — 9 Partner-User nachgelegt, 12 Demo-Ärzte mit breiterem Progress-Spektrum, Partner-Dashboards sehen Live-Submissions.

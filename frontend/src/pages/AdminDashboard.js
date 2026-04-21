@@ -641,6 +641,7 @@ export default function AdminDashboard() {
                                                 />
                                             </th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Anmeldungen</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Partner</th>
@@ -661,6 +662,22 @@ export default function AdminDashboard() {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-foreground font-medium">{u.name}</td>
+                                                <td className="px-4 py-3" data-testid={`user-pending-registrations-${u.id}`}>
+                                                    {u.role === 'partner' ? (
+                                                        (u.pending_registrations || 0) > 0 ? (
+                                                            <span
+                                                                className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded-full"
+                                                                title={`${u.pending_registrations} offene Anmeldung${u.pending_registrations === 1 ? '' : 'en'} im Partner-Dashboard`}
+                                                            >
+                                                                {u.pending_registrations}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">0</span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-4 py-3 text-sm text-muted-foreground">{u.email}</td>
                                                 <td className="px-4 py-3">
                                                     <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
@@ -721,7 +738,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
+                                                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>

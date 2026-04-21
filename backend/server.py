@@ -440,6 +440,31 @@ async def admin_get_users(request: Request):
     ):
         partner_step_ids.add(str(s["_id"]))
 
+    # Precompute "Anmeldungen" count per partner_id: number of users that would
+    # appear in the partner's "My Users" tab (partner_work_completed == False).
+    # Mirrors the logic of /api/partner/submissions exactly.
+    pending_by_partner: dict[str, int] = {}
+    for p in partner_docs:
+        pid = str(p["_id"])
+        pname = p.get("name", "")
+        submissions = await db.partner_submissions.find(
+            {"partner_id": pid}, {"user_id": 1}).to_list(5000)
+        candidate_ids = {s["user_id"] for s in submissions if s.get("user_id")}
+        candidate_ids.update(p.get("linked_user_ids") or [])
+        count = 0
+        for candidate_uid in candidate_ids:
+            u_row = await db.users.find_one(
+                {"_id": ObjectId(candidate_uid)}, {"role": 1})
+            if not u_row or u_row.get("role") != "user":
+                # Still count non-user submissions if they don't have a role=user row
+                # (defensive — matches the submissions endpoint's tolerance)
+                if candidate_uid not in {s["user_id"] for s in submissions}:
+                    continue
+            ws = await _partner_work_status_for_user(candidate_uid, pid, pname)
+            if not ws["completed"]:
+                count += 1
+        pending_by_partner[pid] = count
+
     result = []
     for u in users:
         uid = str(u["_id"])
@@ -475,12 +500,19 @@ async def admin_get_users(request: Request):
                 if pname and pname not in partner_names:
                     partner_names.append(pname)
 
+        # For partner-role users: count of pending user registrations in their
+        # "My Users" tab (= partner_work_completed == False).
+        pending_registrations = None
+        if u.get("role") == "partner" and u.get("partner_id"):
+            pending_registrations = pending_by_partner.get(u["partner_id"], 0)
+
         result.append({
             "id": uid, "email": u["email"], "name": u["name"], "role": u["role"],
             "created_at": u.get("created_at"),
             "completion_pct": await calculate_completion_pct(uid),
             "estimated_completion": await calculate_estimated_completion(uid),
             "partner_names": partner_names,
+            "pending_registrations": pending_registrations,
         })
     return result
 
