@@ -274,6 +274,15 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
             missing_uploads = [u for u in required_uploads if u not in uploaded_types]
             if missing_uploads:
                 raise HTTPException(status_code=400, detail=f"Erforderliche Dokumente fehlen: {', '.join(missing_uploads)}")
+        # Safety net: any multiupload field with required=True must have at least one file entry
+        for field in step.get("fields", []):
+            if field.get("field_type") == "multiupload" and field.get("required"):
+                entries = submission_data.get(field["name"]) or []
+                if not (isinstance(entries, list) and any(
+                    isinstance(e, dict) and e.get("file_id") for e in entries
+                )):
+                    label = field.get("label") or field.get("name")
+                    raise HTTPException(status_code=400, detail=f"Mindestens ein Dokument für '{label}' ist erforderlich.")
 
     user_prefs = user.get("notification_preferences", {"email_on_step_enter": True, "email_on_step_edit": False, "email_on_step_leave": True})
     def render_template(template, variables):

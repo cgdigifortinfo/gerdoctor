@@ -194,7 +194,9 @@ class TestAutoComplete:
             }, timeout=15)
 
     def test_upload_triggers_milestone_auto_complete(self, steps):
-        """Milestone 5 only auto-completes once the upload step (#3) has a real file."""
+        """Milestone 5 only auto-completes once the upload step (#3) has a real file.
+        The backend now rejects empty upload submissions outright, and the milestone
+        stays blocked until a real file is uploaded."""
         s = self._login_kumar()
         self._reset_kumar(s, steps)
         by_order = {st["order"]: st for st in steps}
@@ -208,24 +210,25 @@ class TestAutoComplete:
         }, timeout=15)
         assert r.status_code in (200, 201), r.text
 
-        # 2) Complete upload step WITHOUT any files → milestone must stay pending AND be blocked
-        r = s.put(f"{API}/steps/progress", json={
+        # 2) Try to complete upload step WITHOUT any files → backend must reject (400)
+        r_bad = s.put(f"{API}/steps/progress", json={
             "step_id": sid3, "status": "completed", "data": {}
         }, timeout=15)
-        assert r.status_code in (200, 201), r.text
+        assert r_bad.status_code == 400, f"expected 400 for empty upload, got {r_bad.status_code}: {r_bad.text}"
+        assert "Dokument" in r_bad.text, f"expected German 'Dokument' error, got {r_bad.text}"
 
+        # 3) Milestone 5 must still be pending AND blocked (visibility endpoint)
         r_mid = s.get(f"{API}/steps/progress")
         prog_mid = {p["step_id"]: p for p in r_mid.json()}
         assert prog_mid[sid5]["status"] != "completed", (
             f"milestone 5 must NOT auto-complete without a real file, got {prog_mid[sid5]}"
         )
-        # Verify visibility reports milestone 5 as blocked
         vis = s.get(f"{API}/steps/visibility").json()
         assert sid5 in (vis.get("blocked_step_ids") or []), (
             f"milestone 5 must be blocked when upload path chosen but no file, got {vis}"
         )
 
-        # 3) Upload a real file → milestone auto-completes
+        # 4) Upload a real file → milestone auto-completes
         r = s.put(f"{API}/steps/progress", json={
             "step_id": sid3, "status": "completed",
             "data": {"documents": [

@@ -548,7 +548,14 @@ export default function UserDashboard() {
                     </div>
                 );
             }
-            case 'form':
+            case 'form': {
+                // Upload step guard: if this form has a required multiupload field,
+                // the Complete button must stay disabled until at least one file is present.
+                const missingRequiredUpload = (currentStep.fields || []).some((f) =>
+                    f.field_type === 'multiupload' && f.required
+                    && !(Array.isArray(formData[f.name])
+                         && formData[f.name].some((e) => e && e.file_id))
+                );
                 return (
                     <div className="space-y-6">
                         {currentStep.fields?.map(renderFormField)}
@@ -562,10 +569,24 @@ export default function UserDashboard() {
                         )}
                         <div className="flex flex-wrap gap-3 pt-4">
                             <Button variant="outline" onClick={() => handleStepSubmit(false)} disabled={submitting} className="border-border" data-testid="save-progress-btn">{t('dash_save_progress')}</Button>
-                            <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="complete-step-btn">{submitting ? t('dash_saving') : t('dash_complete_continue')} <ArrowRight className="ml-2" size={16} /></Button>
+                            <Button
+                                onClick={() => handleStepSubmit(true)}
+                                disabled={submitting || missingRequiredUpload}
+                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                data-testid="complete-step-btn"
+                                title={missingRequiredUpload ? 'Bitte laden Sie mindestens ein Dokument hoch' : undefined}
+                            >
+                                {submitting
+                                    ? t('dash_saving')
+                                    : missingRequiredUpload
+                                        ? 'Upload erforderlich'
+                                        : t('dash_complete_continue')}
+                                {!missingRequiredUpload && !submitting && <ArrowRight className="ml-2" size={16} />}
+                            </Button>
                         </div>
                     </div>
                 );
+            }
             case 'partner_selection': {
                 const profile = allStepData.find(s => s.order === 1)?.data || {};
                 const sortedPartners = sortPartnersByRecommendation(partners, profile);
@@ -742,13 +763,26 @@ export default function UserDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <Logo />
                         <div className="flex items-center gap-3">
-                            {/* Estimated completion in header */}
+                            {/* Completion % + estimated completion in header */}
                             {estimatedCompletion && (
-                                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
-                                    <CalendarCheck size={16} weight="bold" />
-                                    <span className="text-sm font-bold" data-testid="estimated-completion-date">
-                                        {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    </span>
+                                <div className="hidden sm:flex items-center gap-2" data-testid="header-progress-wrapper">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
+                                        <CalendarCheck size={16} weight="bold" />
+                                        <span className="text-sm font-bold" data-testid="estimated-completion-date">
+                                            {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55]/10 text-[#114f55] rounded-full cursor-default" data-testid="header-completion-pct-wrapper" title={t('progress_title') || 'Fortschritt'}>
+                                        <div className="w-14 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-[#114f55] rounded-full transition-all"
+                                                style={{ width: `${getProgressPercentage()}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-sm font-bold tabular-nums" data-testid="header-completion-pct">
+                                            {getProgressPercentage()}%
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                             <span className="text-sm text-muted-foreground hidden lg:block">{t('dash_welcome')}, {user?.name}</span>
@@ -763,13 +797,23 @@ export default function UserDashboard() {
                             {!impersonating && <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground" data-testid="logout-btn"><SignOut size={20} /></Button>}
                         </div>
                     </div>
-                    {/* Mobile estimated completion */}
+                    {/* Mobile estimated completion + progress */}
                     {estimatedCompletion && (
-                        <div className="sm:hidden flex items-center gap-2 pb-3 -mt-1" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
-                            <CalendarCheck size={14} className="text-[#114f55]" />
-                            <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
-                                {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                            </span>
+                        <div className="sm:hidden flex items-center gap-3 pb-3 -mt-1">
+                            <div className="flex items-center gap-2" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
+                                <CalendarCheck size={14} className="text-[#114f55]" />
+                                <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
+                                    {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2" data-testid="header-completion-pct-mobile-wrapper">
+                                <div className="w-10 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${getProgressPercentage()}%` }} />
+                                </div>
+                                <span className="text-xs font-bold text-[#114f55] tabular-nums" data-testid="header-completion-pct-mobile">
+                                    {getProgressPercentage()}%
+                                </span>
+                            </div>
                         </div>
                     )}
                 </div>
