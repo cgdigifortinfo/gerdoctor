@@ -113,7 +113,9 @@ export function EmailTemplateEditor() {
         if (u) {
             vars.user_name = u.name || u.email;
             vars.user_email = u.email;
-            const partnerName = u.selected_partner_names?.[0] || u.partner_name || vars.partner_name;
+            // Backend returns `partner_names` (array) from /admin/users — use the
+            // first entry so the preview reflects the user's actual partner.
+            const partnerName = u.partner_names?.[0] || u.partner_name || vars.partner_name;
             if (partnerName) vars.partner_name = partnerName;
             vars.open_user_link = `${window.location.origin}/partner-dashboard?openUser=${u.id}`;
         }
