@@ -200,57 +200,58 @@ export function EmailTemplateEditor() {
     const categoryOrder = ['layout', 'partner', 'user', 'step'];
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6" data-testid="email-template-editor">
-            {/* Sidebar — template list grouped by category */}
-            <aside className="bg-card border border-border rounded-lg p-3 h-fit sticky top-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3 px-1">E-Mail-Vorlagen</h3>
-                {categoryOrder.map((cat) => (grouped[cat] || []).length > 0 && (
-                    <div key={cat} className="mb-4">
-                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground px-1 mb-1.5">
-                            {CATEGORY_LABELS[cat]}
-                        </div>
-                        <div className="space-y-0.5">
-                            {grouped[cat].map((t) => (
-                                <button
-                                    key={t.key}
-                                    onClick={() => setSelectedKey(t.key)}
-                                    data-testid={`email-template-item-${t.key}`}
-                                    className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                                        t.key === selectedKey
-                                            ? 'bg-[#114f55] text-white'
-                                            : 'hover:bg-muted text-foreground'
-                                    }`}
-                                >
-                                    {t.key}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </aside>
+        <div className="space-y-4" data-testid="email-template-editor">
+            {/* Compact selector — replaces the old 300px sidebar so the editor
+                 and preview get the full width. Templates grouped by category
+                 via <SelectGroup>. */}
+            <div className="bg-card border border-border rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                <Label className="text-sm font-medium text-foreground shrink-0">Vorlage</Label>
+                <Select value={selectedKey} onValueChange={setSelectedKey}>
+                    <SelectTrigger className="flex-1" data-testid="email-template-select">
+                        <SelectValue placeholder={loading ? 'Lade Vorlagen...' : 'Vorlage auswählen'} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[70vh]">
+                        {categoryOrder.map((cat) => (grouped[cat] || []).length > 0 && (
+                            <div key={cat}>
+                                <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/50 sticky top-0">
+                                    {CATEGORY_LABELS[cat]}
+                                </div>
+                                {grouped[cat].map((t) => (
+                                    <SelectItem
+                                        key={t.key}
+                                        value={t.key}
+                                        data-testid={`email-template-item-${t.key}`}
+                                    >
+                                        <span className="font-mono text-xs">{t.key}</span>
+                                    </SelectItem>
+                                ))}
+                            </div>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {selected && (
+                    <Badge variant="outline" className={`${CATEGORY_COLOR[category]} shrink-0`}>
+                        {CATEGORY_LABELS[category]}
+                    </Badge>
+                )}
+            </div>
 
-            {/* Editor + Preview split */}
+            {/* Editor + Preview */}
             <div className="space-y-4">
                 {!selected ? (
                     <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
-                        {loading ? 'Lade Vorlagen...' : 'Wählen Sie links eine Vorlage aus.'}
+                        {loading ? 'Lade Vorlagen...' : 'Wählen Sie oben eine Vorlage aus.'}
                     </div>
                 ) : (
                     <>
                         <div className="bg-card border border-border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-semibold text-foreground">{selected.key}</h3>
-                                        <Badge variant="outline" className={CATEGORY_COLOR[category]}>{CATEGORY_LABELS[category]}</Badge>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground mt-1">{selected.description}</p>
-                                </div>
-                                <div className="flex gap-2">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                                <p className="text-sm text-muted-foreground flex-1">{selected.description}</p>
+                                <div className="flex gap-2 shrink-0">
                                     <Button variant="outline" size="sm" onClick={handleReset} disabled={saving} data-testid="email-template-reset-btn">
                                         <ArrowClockwise size={14} className="mr-1" /> Zurücksetzen
                                     </Button>
-                                    <Button onClick={handleSave} disabled={saving} className="bg-[#114f55] hover:bg-[#0e4248]" data-testid="email-template-save-btn">
+                                    <Button onClick={handleSave} disabled={saving} size="sm" className="bg-[#114f55] hover:bg-[#0e4248]" data-testid="email-template-save-btn">
                                         <FloppyDisk size={14} className="mr-1" /> Speichern
                                     </Button>
                                 </div>
