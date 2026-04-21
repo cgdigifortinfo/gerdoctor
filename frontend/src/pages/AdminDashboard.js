@@ -643,6 +643,7 @@ export default function AdminDashboard() {
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Name</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Partner</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Progress</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('admin_forecast')}</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
@@ -672,6 +673,23 @@ export default function AdminDashboard() {
                                                             <SelectItem value="partner">Partner</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                </td>
+                                                <td className="px-4 py-3" data-testid={`user-partners-${u.id}`}>
+                                                    {(u.partner_names && u.partner_names.length > 0) ? (
+                                                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                                            {u.partner_names.map((pn, idx) => (
+                                                                <span
+                                                                    key={`${pn}-${idx}`}
+                                                                    title={pn}
+                                                                    className="px-1.5 py-0.5 text-[11px] font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm truncate max-w-[120px]"
+                                                                >
+                                                                    {pn}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
@@ -703,7 +721,7 @@ export default function AdminDashboard() {
                                         ))}
                                         {filteredUsers.length === 0 && (
                                             <tr>
-                                                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
+                                                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No users found</td>
                                             </tr>
                                         )}
                                     </tbody>

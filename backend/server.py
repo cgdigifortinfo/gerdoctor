@@ -412,10 +412,67 @@ async def get_file(file_id: str, request: Request, auth: str = Query(None)):
 async def admin_get_users(request: Request):
     user = await require_role("admin")(request)
     users = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+
+    # Preload partners into a lookup {id_str: name}
+    partner_docs = await db.partners.find({}, {"name": 1, "linked_user_ids": 1}).to_list(1000)
+    partner_name_by_id = {str(p["_id"]): p.get("name", "") for p in partner_docs}
+    # linked_user_id -> list[partner_name]
+    partners_by_linked_user: dict[str, list[str]] = {}
+    for p in partner_docs:
+        pname = p.get("name", "")
+        for uid in (p.get("linked_user_ids") or []):
+            partners_by_linked_user.setdefault(uid, []).append(pname)
+
+    # Preload partner_selection steps so we know which step_ids carry a partner choice
+    partner_step_ids = set()
+    async for s in db.steps.find(
+        {"step_type": {"$in": ["partner_selection", "partner_multiselection"]}},
+        {"_id": 1},
+    ):
+        partner_step_ids.add(str(s["_id"]))
+
     result = []
     for u in users:
         uid = str(u["_id"])
-        result.append({"id": uid, "email": u["email"], "name": u["name"], "role": u["role"], "created_at": u.get("created_at"), "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid)})
+        partner_names: list[str] = []
+        # 1) Partner-role users: resolve their own partner_id → org name
+        if u.get("role") == "partner" and u.get("partner_id"):
+            pname = partner_name_by_id.get(u["partner_id"])
+            if pname:
+                partner_names.append(pname)
+        # 2) Any user: partners that explicitly linked this user
+        for pname in partners_by_linked_user.get(uid, []):
+            if pname and pname not in partner_names:
+                partner_names.append(pname)
+        # 3) role=user: partners chosen via partner_selection progress data
+        if u.get("role") == "user" and partner_step_ids:
+            async for pr in db.user_progress.find({
+                "user_id": uid,
+                "step_id": {"$in": list(partner_step_ids)},
+            }):
+                data = pr.get("data") or {}
+                pid = data.get("selected_partner_id")
+                if pid and partner_name_by_id.get(pid):
+                    name = partner_name_by_id[pid]
+                    if name not in partner_names:
+                        partner_names.append(name)
+                for pid in (data.get("selected_partner_ids") or []):
+                    if partner_name_by_id.get(pid):
+                        name = partner_name_by_id[pid]
+                        if name not in partner_names:
+                            partner_names.append(name)
+                # Fallback: some legacy/demo rows store only selected_partner_name
+                pname = data.get("selected_partner_name")
+                if pname and pname not in partner_names:
+                    partner_names.append(pname)
+
+        result.append({
+            "id": uid, "email": u["email"], "name": u["name"], "role": u["role"],
+            "created_at": u.get("created_at"),
+            "completion_pct": await calculate_completion_pct(uid),
+            "estimated_completion": await calculate_estimated_completion(uid),
+            "partner_names": partner_names,
+        })
     return result
 
 @admin_router.get("/users/search")
@@ -945,6 +1002,39 @@ async def get_partner_user_detail(user_id: str, request: Request):
         if s.get("step_type") in ("partner_selection", "partner_multiselection") and s.get("filter_tag") in partner_tags:
             partner_step_id = s["id"]
             break
+
+    # ---- Compute partner_managed_step_ids ----
+    # All partner_selection/partner_multiselection steps where this user picked THIS partner,
+    # PLUS the next milestone step in the same block (by order).
+    partner_name = (partner_doc or {}).get("name") or ""
+    progress_by_step_id = {p.get("step_id"): p for p in progress}
+    managed: list[str] = []
+
+    for s in all_steps:
+        if s.get("step_type") not in ("partner_selection", "partner_multiselection"):
+            continue
+        pr = progress_by_step_id.get(s["id"]) or {}
+        d = pr.get("data") or {}
+        picks = set()
+        if d.get("selected_partner_id"):
+            picks.add(str(d["selected_partner_id"]))
+        for pid in (d.get("selected_partner_ids") or []):
+            picks.add(str(pid))
+        name_match = (d.get("selected_partner_name") == partner_name) and bool(partner_name)
+        # For multi-partner, match against partner tag on the step (only this partner's tag steps)
+        if str(partner_id) in picks or name_match:
+            managed.append(s["id"])
+            # Walk forward in order to find the next milestone step in the same block
+            for nxt in all_steps:
+                if nxt["order"] <= s["order"]:
+                    continue
+                if nxt.get("step_type") == "milestone":
+                    managed.append(nxt["id"])
+                    break
+                # stop at the next decision → means we left this block
+                if nxt.get("step_type") == "decision":
+                    break
+
     sanitized_progress = []
     for p in progress:
         step = next((s for s in all_steps if s["id"] == p.get("step_id")), None)
@@ -954,7 +1044,14 @@ async def get_partner_user_detail(user_id: str, request: Request):
                 sanitized_progress.append({**p, "data": {}})
                 continue
         sanitized_progress.append(p)
-    return {"id": str(target_user["_id"]), "email": target_user["email"], "name": target_user["name"], "progress": sanitized_progress, "steps": all_steps, "completion_pct": await calculate_completion_pct(user_id), "partner_step_id": partner_step_id}
+    return {
+        "id": str(target_user["_id"]), "email": target_user["email"],
+        "name": target_user["name"], "progress": sanitized_progress,
+        "steps": all_steps,
+        "completion_pct": await calculate_completion_pct(user_id),
+        "partner_step_id": partner_step_id,
+        "partner_managed_step_ids": managed,
+    }
 
 @api_router.put("/partner/users/{user_id}/progress")
 async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):

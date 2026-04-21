@@ -291,6 +291,8 @@ export default function PartnerDashboard() {
     const [selectedSubmission, setSelectedSubmission] = useState(null);
     const [userDetail, setUserDetail] = useState(null);
     const [userDetailLoading, setUserDetailLoading] = useState(false);
+    // Per-step upload state: {stepId: {file, uploading}}
+    const [uploadState, setUploadState] = useState({});
     const [editingProfile, setEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({});
     const [insights, setInsights] = useState(null);
@@ -368,14 +370,54 @@ export default function PartnerDashboard() {
         } finally { setUserDetailLoading(false); }
     };
 
-    const handleUpdateStepStatus = async (userId, stepId, newStatus) => {
+    const handleUpdateStepStatus = async (userId, stepId, newStatus, extraData) => {
         try {
-            await partnerDashboardAPI.updateUserProgress(userId, stepId, newStatus, {});
-            toast.success('Step status updated');
+            // Merge existing step.data with any new entries (so we don't lose history)
+            const current = userDetail?.progress?.find(p => p.step_id === stepId);
+            const merged = { ...(current?.data || {}), ...(extraData || {}) };
+            await partnerDashboardAPI.updateUserProgress(userId, stepId, newStatus, merged);
+            toast.success('Step-Status aktualisiert');
             const res = await partnerDashboardAPI.getUserDetail(userId);
             setUserDetail(res.data);
             loadData();
         } catch (error) { toast.error(formatApiError(error)); }
+    };
+
+    const handleMilestoneFileChange = (stepId, file) => {
+        setUploadState(prev => ({ ...prev, [stepId]: { file, uploading: false } }));
+    };
+
+    const handleCompleteMilestoneWithUpload = async (userId, stepId) => {
+        const entry = uploadState[stepId];
+        const file = entry?.file;
+        try {
+            let extraData = {};
+            if (file) {
+                setUploadState(prev => ({ ...prev, [stepId]: { ...entry, uploading: true } }));
+                const up = await filesAPI.upload(file);
+                const newUpload = {
+                    file_id: up.data.id,
+                    filename: up.data.filename || file.name,
+                    document_type: 'Partner-Nachweis',
+                    uploaded_by: 'partner',
+                    uploaded_at: new Date().toISOString(),
+                };
+                // Append to existing partner_uploads array (preserves prior partner uploads)
+                const current = userDetail?.progress?.find(p => p.step_id === stepId);
+                const prev = current?.data?.partner_uploads;
+                const partnerUploads = Array.isArray(prev) ? [...prev, newUpload] : [newUpload];
+                extraData = { partner_uploads: partnerUploads };
+            }
+            await handleUpdateStepStatus(userId, stepId, 'completed', extraData);
+            setUploadState(prev => {
+                const copy = { ...prev };
+                delete copy[stepId];
+                return copy;
+            });
+        } catch (error) {
+            toast.error(formatApiError(error));
+            setUploadState(prev => ({ ...prev, [stepId]: { ...entry, uploading: false } }));
+        }
     };
 
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
@@ -624,8 +666,11 @@ export default function PartnerDashboard() {
                                             const prog = userDetail.progress?.find(p => p.step_id === step.id);
                                             const status = prog?.status || 'pending';
                                             const stepData = prog?.data || {};
-                                            const isPartnerStep = step.id === userDetail.partner_step_id;
+                                            const managedIds = userDetail.partner_managed_step_ids || (userDetail.partner_step_id ? [userDetail.partner_step_id] : []);
+                                            const isPartnerStep = managedIds.includes(step.id);
+                                            const isPartnerMilestone = isPartnerStep && step.step_type === 'milestone';
                                             const canComplete = status !== 'completed' && (isPartnerStep || status === 'in_progress');
+                                            const upload = uploadState[step.id] || {};
                                             return (
                                                 <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[#114f55] ring-1 ring-[#114f55]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
                                                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
@@ -642,7 +687,7 @@ export default function PartnerDashboard() {
                                                             <span className={`px-2 py-0.5 text-xs font-medium rounded-sm ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? t('completed') : status === 'in_progress' ? t('in_progress') : t('pending')}
                                                             </span>
-                                                            {canComplete && (
+                                                            {canComplete && !isPartnerMilestone && (
                                                                 <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className={`text-white text-xs h-7 px-2 ${isPartnerStep ? 'bg-[#114f55] hover:bg-[#0d3d42]' : 'bg-green-600 hover:bg-green-700'}`} data-testid={`complete-step-${step.order}`}>
                                                                     <CheckCircle size={14} className="mr-1" /> {isPartnerStep ? t('partner_approve_step') : t('partner_complete_step')}
                                                                 </Button>
@@ -701,6 +746,49 @@ export default function PartnerDashboard() {
                                                     {(!stepData || Object.keys(stepData).length === 0) && status !== 'pending' && (
                                                         <div className="px-4 py-2 border-t border-border bg-background/50">
                                                             <p className="text-xs text-muted-foreground italic">{t('dash_no_data')}</p>
+                                                        </div>
+                                                    )}
+                                                    {isPartnerMilestone && Array.isArray(stepData.partner_uploads) && stepData.partner_uploads.length > 0 && (
+                                                        <div className="px-4 py-3 border-t border-border bg-background/50" data-testid={`partner-uploads-${step.order}`}>
+                                                            <span className="text-xs text-muted-foreground">Partner-Nachweise</span>
+                                                            <div className="mt-1 space-y-1.5">
+                                                                {stepData.partner_uploads.map((entry, i) => (
+                                                                    <div key={i} className="flex items-center gap-2 text-sm">
+                                                                        <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-sm">{entry.document_type || 'Nachweis'}</span>
+                                                                        {entry.file_id && (
+                                                                            <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium" data-testid={`partner-upload-dl-${step.order}-${i}`}>
+                                                                                <DownloadSimple size={14} />{entry.filename || 'Download'}
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {isPartnerMilestone && status !== 'completed' && (
+                                                        <div className="px-4 py-3 border-t border-border bg-[#114f55]/5" data-testid={`milestone-partner-action-${step.order}`}>
+                                                            <p className="text-xs font-semibold text-foreground mb-2">Meilenstein abschließen</p>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Input
+                                                                    type="file"
+                                                                    onChange={(e) => handleMilestoneFileChange(step.id, e.target.files?.[0] || null)}
+                                                                    className="text-xs h-8 max-w-xs"
+                                                                    data-testid={`milestone-file-input-${step.order}`}
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => handleCompleteMilestoneWithUpload(userDetail.id, step.id)}
+                                                                    disabled={upload.uploading}
+                                                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white text-xs h-8 px-3"
+                                                                    data-testid={`milestone-complete-btn-${step.order}`}
+                                                                >
+                                                                    <CheckCircle size={14} className="mr-1" />
+                                                                    {upload.file ? (upload.uploading ? 'Lädt hoch …' : 'Hochladen & Abschließen') : 'Meilenstein abschließen'}
+                                                                </Button>
+                                                            </div>
+                                                            {upload.file && !upload.uploading && (
+                                                                <p className="text-[11px] text-muted-foreground mt-1" data-testid={`milestone-file-name-${step.order}`}>Ausgewählt: {upload.file.name}</p>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
