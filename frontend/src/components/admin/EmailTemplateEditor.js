@@ -40,7 +40,7 @@ const DEFAULT_DUMMY = {
     step_description: 'Laden Sie die benötigten Nachweise für die Approbation hoch.',
     total_steps: 24,
     milestone_title: 'Antragstellung Approbation',
-    open_user_link: 'https://gerdoctor.de/partner/dashboard?openUser=DEMO-USER-ID',
+    open_user_link: 'https://gerdoctor.de/partner-dashboard?openUser=DEMO-USER-ID',
     reset_link: 'https://gerdoctor.de/reset-password?token=DEMO-TOKEN',
     app_url: 'https://gerdoctor.de',
 };
@@ -115,7 +115,7 @@ export function EmailTemplateEditor() {
             vars.user_email = u.email;
             const partnerName = u.selected_partner_names?.[0] || u.partner_name || vars.partner_name;
             if (partnerName) vars.partner_name = partnerName;
-            vars.open_user_link = `${window.location.origin}/partner/dashboard?openUser=${u.id}`;
+            vars.open_user_link = `${window.location.origin}/partner-dashboard?openUser=${u.id}`;
         }
         const s = allSteps.find((x) => x.id === previewStepId);
         if (s) {
@@ -180,7 +180,13 @@ export function EmailTemplateEditor() {
 
     const insertVariable = (v) => {
         const token = `{{${v}}}`;
-        navigator.clipboard?.writeText(token);
+        // navigator.clipboard can reject in insecure/headless contexts; swallow the
+        // rejection so it doesn't surface as a React error overlay that blocks
+        // interaction elsewhere in the editor.
+        try {
+            const p = navigator.clipboard?.writeText(token);
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_e) { /* clipboard unavailable — silently ignore */ }
         toast.success(`${token} in die Zwischenablage kopiert`);
     };
 

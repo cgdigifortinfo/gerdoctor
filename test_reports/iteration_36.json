@@ -1,0 +1,23 @@
+{
+  "summary": "Iter-36 re-test of Iter-35 fixes. BOTH fixes verified. (1) CRITICAL backend deep-link now correctly emits '/partner-dashboard?openUser=<id>' (hyphen) — direct helper call, full render_email wrap, and live partner E2E all confirm. (2) MEDIUM clipboard.writeText is now wrapped in try/catch + .catch() — clicking variable chips in Admin E-Mail-Vorlagen shows the success toast with zero React error overlay and Reset button stays interactive. All 13 pytest cases from test_email_templates_iter35.py still pass. End-to-end partner deep-link E2E that Iter-35 couldn't complete deterministically is now green: valid user id → modal auto-opens, URL cleaned, green 'Dr. Elif Yılmaz geöffnet' toast; invalid user id (24-zero ObjectId) → red 'User nicht in Ihrem Dashboard gefunden' toast, URL cleaned.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_email_templates_iter35.py",
+    "/app/test_reports/pytest/email_templates_iter36.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_partner_deep_link now single-source-of-truth; good. Still, consider exporting PARTNER_DASHBOARD_PATH as a constant shared with any other place that might build partner URLs (audit other helpers/templates for hardcoded '/partner' strings).",
+    "EmailTemplateEditor insertVariable try/catch is correct (handles both sync throw and rejected promise). Consider a tiny UX fallback: if clipboard.writeText rejects, still toast 'Variable markiert — bitte manuell einfügen' so the user knows why nothing was copied.",
+    "Preview endpoint passes variables through verbatim — it does NOT auto-fill open_user_link server-side. That is fine because the admin editor's previewVariables already inserts a correct `${window.location.origin}/partner-dashboard?openUser=<userId>` fallback. Document this split-of-concerns."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (13/13 pytest + 1 unit helper + 1 integration render)", "frontend": "100% (deep-link valid/invalid + clipboard + editor tab)"},
+  "test_credentials": "admin@example.com/Admin123!, partner@example.com/Partner123!, dr.yilmaz@gerdoctor.de/Demo123! — all confirmed working",
+  "seed_data_creation": "none — used existing seeded submission (user_id=69e778e88cd17cafc506b995, partner=ILS). Templates auto-reset by pytest teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both Iter-35 bugs are resolved. Regression pytest file /app/backend/tests/test_email_templates_iter35.py is still the authoritative email-template suite (13/13). Valid deep-link user_id for partner@example.com: 69e778e88cd17cafc506b995. Invalid sentinel: 000000000000000000000000. If you need to run just the deep-link + clipboard smoke again, the two E2E scripts are small and already in this iteration's log.",
+  "rca of the issue": "Already fixed in Iter-35 handoff. RCA recap: (a) helpers.py _partner_deep_link hardcoded '/partner/dashboard' (slash) but App.js route was '/partner-dashboard' (hyphen); re-routing dropped the ?openUser query. Fix: change to '/partner-dashboard?openUser=<id>'. (b) EmailTemplateEditor.insertVariable called navigator.clipboard.writeText without a .catch(), so in headless/insecure contexts the rejected promise surfaced as a React error overlay blocking Reset. Fix: wrap in try/catch + promise.catch(()=>{})."
+}

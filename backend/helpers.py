@@ -181,7 +181,7 @@ async def send_rendered_email(
 
 def _partner_deep_link(user_id: str) -> str:
     base = os.environ.get("FRONTEND_URL", "").rstrip("/")
-    return f"{base}/partner/dashboard?openUser={user_id}" if base else f"/partner/dashboard?openUser={user_id}"
+    return f"{base}/partner-dashboard?openUser={user_id}" if base else f"/partner-dashboard?openUser={user_id}"
 
 
 async def notify_partner_of_new_submission(partner: dict, user: dict, submission_data: dict) -> int:
