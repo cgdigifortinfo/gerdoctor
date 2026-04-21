@@ -663,19 +663,19 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-foreground font-medium">{u.name}</td>
                                                 <td className="px-4 py-3" data-testid={`user-pending-registrations-${u.id}`}>
-                                                    {u.role === 'partner' ? (
-                                                        (u.pending_registrations || 0) > 0 ? (
-                                                            <span
-                                                                className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded-full"
-                                                                title={`${u.pending_registrations} offene Anmeldung${u.pending_registrations === 1 ? '' : 'en'} im Partner-Dashboard`}
-                                                            >
-                                                                {u.pending_registrations}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-xs text-muted-foreground">0</span>
-                                                        )
-                                                    ) : (
+                                                    {u.role === 'admin' ? (
                                                         <span className="text-xs text-muted-foreground">-</span>
+                                                    ) : (u.pending_registrations || 0) > 0 ? (
+                                                        <span
+                                                            className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded-full"
+                                                            title={u.role === 'partner'
+                                                                ? `${u.pending_registrations} offene Anmeldung${u.pending_registrations === 1 ? '' : 'en'} im Partner-Dashboard`
+                                                                : `Gesamtzahl offener Anmeldungen bei allen gewählten Partnern: ${u.pending_registrations}`}
+                                                        >
+                                                            {u.pending_registrations}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">0</span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-muted-foreground">{u.email}</td>
@@ -964,6 +964,7 @@ export default function AdminDashboard() {
                                     <thead className="bg-background">
                                         <tr>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Partner</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Anmeldungen</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Tags</th>
                                             <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Linked User</th>
@@ -984,6 +985,18 @@ export default function AdminDashboard() {
                                                                 <p className="text-xs text-muted-foreground">{partner.contact_email}</p>
                                                             </div>
                                                         </div>
+                                                    </td>
+                                                    <td className="px-4 py-3" data-testid={`partner-pending-registrations-${partner.id}`}>
+                                                        {(partner.pending_registrations || 0) > 0 ? (
+                                                            <span
+                                                                className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded-full"
+                                                                title={`${partner.pending_registrations} offene Anmeldung${partner.pending_registrations === 1 ? '' : 'en'} im Partner-Dashboard`}
+                                                            >
+                                                                {partner.pending_registrations}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">0</span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3 text-sm text-muted-foreground">{partner.category || '-'}</td>
                                                     <td className="px-4 py-3">

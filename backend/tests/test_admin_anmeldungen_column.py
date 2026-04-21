@@ -64,16 +64,16 @@ def main() -> int:
     utok = r.json()["access_token"]
     atok = login(*ADMIN)
 
-    # ---- sanity: `pending_registrations` field exists on partner rows ----
+    # ---- sanity: `pending_registrations` field exists on partner AND user rows ----
     before = admin_users_snapshot(atok)
     partner_rows = [u for u in before if u.get("role") == "partner"]
     if not any("pending_registrations" in u for u in partner_rows):
         failures.append("pending_registrations field missing on partner-role users")
 
-    non_partner = [u for u in before if u.get("role") != "partner"]
-    for u in non_partner:
+    admin_rows = [u for u in before if u.get("role") == "admin"]
+    for u in admin_rows:
         if u.get("pending_registrations") is not None:
-            failures.append(f"non-partner user has pending_registrations={u['pending_registrations']} "
+            failures.append(f"admin user has pending_registrations={u['pending_registrations']} "
                             f"(expected None) — {u['email']}")
             break
 

@@ -100,6 +100,78 @@ def send_email_sync(to_email: str, subject: str, html_content: str) -> dict:
 async def send_email_notification(to_email: str, subject: str, html_content: str):
     return await asyncio.to_thread(send_email_sync, to_email, subject, html_content)
 
+
+async def notify_partner_of_new_submission(partner: dict, user: dict, submission_data: dict) -> int:
+    """Send a "neue Anmeldung"-Mail to every partner-role user linked to the
+    partner org + the public contact_email (deduplicated). Returns the number of
+    recipients contacted. Safe to call even when SMTP is unconfigured (returns 0)."""
+    if not partner:
+        return 0
+    partner_id = str(partner.get("_id")) if partner.get("_id") else partner.get("id")
+    partner_name = partner.get("name", "")
+
+    recipients: set[str] = set()
+    # 1) partner.contact_email (public)
+    if partner.get("contact_email"):
+        recipients.add(partner["contact_email"])
+    # 2) all role=partner users linked to this partner org
+    async for pu in db.users.find({"role": "partner", "partner_id": partner_id},
+                                  {"email": 1, "notification_prefs": 1}):
+        prefs = pu.get("notification_prefs") or {}
+        if prefs.get("email") is False:
+            continue  # user opted out
+        if pu.get("email"):
+            recipients.add(pu["email"])
+    # 3) users referenced in linked_user_ids (defensive)
+    for uid in partner.get("linked_user_ids") or []:
+        try:
+            pu = await db.users.find_one({"_id": ObjectId(uid)},
+                                          {"email": 1, "role": 1, "notification_prefs": 1})
+        except Exception:
+            continue
+        if pu and pu.get("role") == "partner":
+            prefs = pu.get("notification_prefs") or {}
+            if prefs.get("email") is False:
+                continue
+            if pu.get("email"):
+                recipients.add(pu["email"])
+
+    if not recipients:
+        return 0
+
+    user_name = user.get("name") or user.get("email", "")
+    user_email = user.get("email", "")
+    data = submission_data or {}
+    field = data.get("fachrichtung_gewuenscht") or data.get("fachrichtung_praktiziert") \
+            or data.get("field_of_study", "")
+    bundesland = data.get("anerkennungsverfahren_bundesland", "")
+    step_order = data.get("step_order")
+
+    subject = f"Neue Anmeldung bei {partner_name}" if partner_name else "Neue Anmeldung"
+    html = f"""<p>Hallo,</p>
+<p>Sie haben eine neue Anmeldung auf <strong>GERdoctor</strong>
+{f"für <strong>{partner_name}</strong>" if partner_name else ""} erhalten:</p>
+<table cellpadding="6" style="border-collapse:collapse;">
+  <tr><td><strong>User</strong></td><td>{user_name}</td></tr>
+  <tr><td><strong>E-Mail</strong></td><td>{user_email}</td></tr>
+  {f"<tr><td><strong>Fachrichtung</strong></td><td>{field}</td></tr>" if field else ""}
+  {f"<tr><td><strong>Bundesland</strong></td><td>{bundesland}</td></tr>" if bundesland else ""}
+  {f"<tr><td><strong>Bei Step</strong></td><td>#{step_order}</td></tr>" if step_order else ""}
+</table>
+<p>Bitte loggen Sie sich in Ihrem Partner-Dashboard ein, um den Meilenstein zu
+bearbeiten und den Nachweis für den User hochzuladen.</p>
+<p>Beste Grüße<br/>Ihr GERdoctor-Team</p>"""
+
+    sent = 0
+    for recipient in recipients:
+        try:
+            result = await send_email_notification(recipient, subject, html)
+            if result.get("status") == "success":
+                sent += 1
+        except Exception as exc:
+            logger.warning(f"notify_partner failed for {recipient}: {exc}")
+    return sent
+
 # ========================
 # AUDIT LOG
 # ========================

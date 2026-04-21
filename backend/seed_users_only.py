@@ -73,7 +73,7 @@ DEMO_USERS = [
             "field_of_study": "Innere Medizin",
         },
         "decisions": {2: "upload", 6: "partner"},
-        "partner_picks": {8: "IQB Pruefungszentrum"},
+        "partner_picks": {8: "IQB Prüfungszentrum"},
         "completed_up_to_order": 9,
     },
     {
@@ -217,7 +217,8 @@ DEMO_USERS = [
             "field_of_study": "Anästhesiologie",
         },
         "decisions": {2: "upload", 6: "partner", 10: "upload", 14: "partner", 18: "partner"},
-        "partner_picks": {8: "IQB Pruefungszentrum", 12: "ILS2", 16: "Lingoda", 19: "MedJob24"},
+        "partner_picks": {8: "IQB Prüfungszentrum", 12: "ILS2", 16: "Lingoda",
+                          19: ["MedJob24", "InterPers Jobs"]},
         "completed_up_to_order": 20,
     },
     {
@@ -379,13 +380,19 @@ async def create_demo_users(db, steps_by_order, partner_name_to_id) -> tuple:
         if pending:
             await db.user_progress.insert_many(pending)
 
-        # Apply demo completion plan
+        # Apply demo completion plan.
+        # We track the last decision so upload/partner/selbst paths are seeded correctly:
+        #  - "upload" path: form steps are completed with demo docs → milestone auto-completes
+        #  - "partner" path: partner_selection gets a real partner_id → milestone STAYS PENDING
+        #    (partner has real work to do in the dashboard)
+        #  - "selbst" path (Jobangebote only): milestone auto-completes via decision=selbst
         upto = plan["completed_up_to_order"]
         decisions = plan["decisions"]
         partner_picks = plan.get("partner_picks") or {}
         if upto >= 1 and plan["stammdaten"]:
             await _set_prog(db, uid, steps_by_order, 1, "completed", plan["stammdaten"])
 
+        last_decision = None
         for order in range(2, upto + 1):
             s = steps_by_order.get(order)
             if not s:
@@ -394,49 +401,66 @@ async def create_demo_users(db, steps_by_order, partner_name_to_id) -> tuple:
             if stype == "decision":
                 dec = decisions.get(order)
                 if dec:
+                    last_decision = dec
                     await _set_prog(db, uid, steps_by_order, order, "completed",
                                     {"decision": dec})
             elif stype == "form":
-                await _set_prog(db, uid, steps_by_order, order, "completed", {
-                    "documents": [
-                        {"file_id": "demo-file", "document_type": "Diplom",
-                         "filename": "diplom.pdf"},
-                        {"file_id": "demo-file-2", "document_type": "Lebenslauf",
-                         "filename": "cv.pdf"},
-                    ]
-                })
+                # Only seed upload documents when the user is on the upload path
+                if last_decision == "upload":
+                    await _set_prog(db, uid, steps_by_order, order, "completed", {
+                        "documents": [
+                            {"file_id": "demo-file", "document_type": "Diplom",
+                             "filename": "diplom.pdf"},
+                            {"file_id": "demo-file-2", "document_type": "Lebenslauf",
+                             "filename": "cv.pdf"},
+                        ]
+                    })
+                # partner/selbst path → form step stays pending (it's hidden for them anyway)
             elif stype in ("partner_selection", "partner_multiselection"):
-                partner_name = partner_picks.get(order)
-                data = {}
-                if partner_name and partner_name in partner_name_to_id:
-                    pid = partner_name_to_id[partner_name]
+                if last_decision != "partner":
+                    continue  # not on partner path → hidden / skip
+                raw_pick = partner_picks.get(order)
+                # `raw_pick` may be a str (single) or list[str] (multi for partner_multiselection)
+                pick_names = raw_pick if isinstance(raw_pick, list) else ([raw_pick] if raw_pick else [])
+                resolved_ids = [partner_name_to_id[n] for n in pick_names if n in partner_name_to_id]
+                data: dict = {}
+                if resolved_ids:
+                    # Canonical single-pick fields (keep for backward compat with all UIs/endpoints)
+                    first = resolved_ids[0]
+                    first_name = next((n for n in pick_names if partner_name_to_id.get(n) == first), "")
                     data = {
-                        "selected_partner_id": pid,
-                        "selected_partner_name": partner_name,
+                        "selected_partner_id": first,
+                        "selected_partner_name": first_name,
                     }
                     if stype == "partner_multiselection":
-                        data["selected_partner_ids"] = [pid]
-                    # Also create a partner_submissions row so the partner dashboard sees the user
-                    sub = {
-                        "id": f"seed-{uid}-{pid}-{order}",
-                        "user_id": uid,
-                        "user_email": plan["email"],
-                        "user_name": plan["name"],
-                        "partner_id": pid,
-                        "data": {"step_order": order, **plan.get("stammdaten", {})},
-                        "status": "submitted",
-                        "created_at": now_iso(),
-                    }
-                    await db.partner_submissions.update_one(
-                        {"user_id": uid, "partner_id": pid},
-                        {"$set": sub}, upsert=True,
-                    )
+                        data["selected_partner_ids"] = resolved_ids
+                    # Create a partner_submissions row PER picked partner
+                    for pid in resolved_ids:
+                        sub = {
+                            "id": f"seed-{uid}-{pid}-{order}",
+                            "user_id": uid,
+                            "user_email": plan["email"],
+                            "user_name": plan["name"],
+                            "partner_id": pid,
+                            "data": {"step_order": order, **plan.get("stammdaten", {})},
+                            "status": "submitted",
+                            "created_at": now_iso(),
+                        }
+                        await db.partner_submissions.update_one(
+                            {"user_id": uid, "partner_id": pid},
+                            {"$set": sub}, upsert=True,
+                        )
                 else:
-                    # Fallback for demo users that don't specify a real partner
                     data = {"selected_partner_name": "Demo Partner"}
                 await _set_prog(db, uid, steps_by_order, order, "completed", data)
             elif stype == "milestone":
-                await _set_prog(db, uid, steps_by_order, order, "completed", {})
+                # Upload path: seed force-completes the milestone (mimics what
+                # apply_auto_completes would do after a real upload submission).
+                # Selbst path (Jobangebote): auto-completed via decision=selbst.
+                # Partner path: STAYS PENDING → real backlog for partner dashboards.
+                if last_decision in ("upload", "selbst"):
+                    await _set_prog(db, uid, steps_by_order, order, "completed", {})
+                # else: partner path → leave pending
 
     return created, skipped
 

@@ -34,7 +34,7 @@ from auth import (
 )
 from helpers import (
     init_storage, put_object, get_object, APP_NAME,
-    send_email_notification, create_audit_log,
+    send_email_notification, create_audit_log, notify_partner_of_new_submission,
     calculate_completion_pct, calculate_estimated_completion,
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
@@ -362,6 +362,11 @@ async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
         return {"message": "Submission updated", "submission_id": existing["id"]}
     submission = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": data.partner_id, "data": data.data, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
     await db.partner_submissions.insert_one(submission)
+    # Fire-and-forget notification to the partner (don't fail the request on mail errors)
+    try:
+        await notify_partner_of_new_submission(partner, user, data.data)
+    except Exception as exc:
+        logger.warning(f"notify_partner failed for {data.partner_id}: {exc}")
     return {"message": "Submission successful", "submission_id": submission["id"]}
 
 @api_router.post("/partners/submit-multi")
@@ -380,6 +385,10 @@ async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Req
             sub = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": pid, "data": data.data or {}, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
             await db.partner_submissions.insert_one(sub)
             results.append(sub["id"])
+            try:
+                await notify_partner_of_new_submission(partner, user, data.data or {})
+            except Exception as exc:
+                logger.warning(f"notify_partner (multi) failed for {pid}: {exc}")
     return {"message": f"Submitted to {len(results)} partners", "submission_ids": results}
 
 # ========================
@@ -500,11 +509,24 @@ async def admin_get_users(request: Request):
                 if pname and pname not in partner_names:
                     partner_names.append(pname)
 
-        # For partner-role users: count of pending user registrations in their
-        # "My Users" tab (= partner_work_completed == False).
+        # "Anmeldungen" count:
+        #  - partner role: pending count for their own partner org
+        #  - user role: sum of pending counts across all partners the user is linked with
+        #               (their partner-submissions that are still open)
+        #  - admin: None
         pending_registrations = None
         if u.get("role") == "partner" and u.get("partner_id"):
             pending_registrations = pending_by_partner.get(u["partner_id"], 0)
+        elif u.get("role") == "user":
+            # Collect all partner IDs this user submitted to via partner_submissions
+            user_partner_ids = set()
+            async for s in db.partner_submissions.find({"user_id": uid}, {"partner_id": 1}):
+                if s.get("partner_id"):
+                    user_partner_ids.add(s["partner_id"])
+            if user_partner_ids:
+                pending_registrations = sum(
+                    pending_by_partner.get(pid, 0) for pid in user_partner_ids
+                )
 
         result.append({
             "id": uid, "email": u["email"], "name": u["name"], "role": u["role"],
@@ -707,6 +729,28 @@ async def admin_delete_step(step_id: str, request: Request):
 async def admin_get_partners(request: Request):
     await require_role("admin")(request)
     partners = await db.partners.find().to_list(100)
+
+    # Precompute pending_registrations per partner org (matches /partner/submissions logic)
+    pending_by_partner: dict[str, int] = {}
+    for p in partners:
+        pid = str(p["_id"])
+        pname = p.get("name", "")
+        submissions = await db.partner_submissions.find(
+            {"partner_id": pid}, {"user_id": 1}).to_list(5000)
+        candidate_ids = {s["user_id"] for s in submissions if s.get("user_id")}
+        candidate_ids.update(p.get("linked_user_ids") or [])
+        count = 0
+        for candidate_uid in candidate_ids:
+            u_row = await db.users.find_one(
+                {"_id": ObjectId(candidate_uid)}, {"role": 1})
+            if (not u_row or u_row.get("role") != "user") \
+                    and candidate_uid not in {s["user_id"] for s in submissions}:
+                continue
+            ws = await _partner_work_status_for_user(candidate_uid, pid, pname)
+            if not ws["completed"]:
+                count += 1
+        pending_by_partner[pid] = count
+
     result = []
     for p in partners:
         pid = str(p["_id"])
@@ -724,7 +768,15 @@ async def admin_get_partners(request: Request):
             du_id = str(dashboard_user["_id"])
             if du_id not in linked_ids:
                 linked_users.insert(0, {"id": du_id, "name": dashboard_user["name"], "email": dashboard_user["email"]})
-        result.append({"id": pid, "name": p["name"], "description": p.get("description", ""), "logo_url": p.get("logo_url"), "website": p.get("website"), "contact_email": p.get("contact_email"), "category": p.get("category"), "tags": p.get("tags", []), "is_active": p.get("is_active", True), "user_id": p.get("user_id"), "linked_users": linked_users, "linked_user_ids": linked_ids})
+        result.append({
+            "id": pid, "name": p["name"], "description": p.get("description", ""),
+            "logo_url": p.get("logo_url"), "website": p.get("website"),
+            "contact_email": p.get("contact_email"), "category": p.get("category"),
+            "tags": p.get("tags", []), "is_active": p.get("is_active", True),
+            "user_id": p.get("user_id"), "linked_users": linked_users,
+            "linked_user_ids": linked_ids,
+            "pending_registrations": pending_by_partner.get(pid, 0),
+        })
     return result
 
 @admin_router.post("/partners")
