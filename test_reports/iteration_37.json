@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only verification of the new JourneyProgressIndicator component on the User Dashboard. Tested all three variants (decision / non-decision / milestone) across 4 demo doctor accounts at 1920x900. All required data-testids render with correct German copy, correct counter, correct titles, and correct branch/upcoming step previews. Regression for dr.yilmaz step-visibility fix (active step = #6 Fachsprachenprüfung decision, NOT #9 milestone) is confirmed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "JourneyProgressIndicator.js (~250 lines) is well-scoped, stateless, and self-contained — no concerns.",
+    "computeDecisionBranches duplicates a slim subset of the hide-condition evaluator that lives in stepVisibility.js. If a new operator/action is added to stepVisibility, this branch-preview will silently diverge. Suggest exposing a small shared helper from stepVisibility.js (e.g. simulateVisibilityIfDecision) so both render paths stay in sync.",
+    "Two indicator instances exist in the DOM (mobile + desktop scopes inside renderStepContent). Both have identical data-testid='journey-progress-indicator' and identical IDs from useMemo. CSS hides one per viewport so it works visually, but it doubles the React render cost on every state change and inflates the DOM. Consider rendering once outside the responsive scopes, or guarding with the same media-query wrappers used for the cards.",
+    "Phosphor-icons import 'ClipboardText' is used but is not the conventional name in newer @phosphor-icons/react versions (sometimes Clipboard, ClipboardCheck). Verified it loads at runtime — keep an eye on version bumps."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "dr.yilmaz@gerdoctor.de / Demo123! (decision step), dr.popov@gerdoctor.de / Demo123! (early decision), dr.silva@gerdoctor.de / Demo123! (milestone+upcoming), dr.kowalski@gerdoctor.de / Demo123! (late-flow milestone+upcoming)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Per the agent-to-agent note, the indicator renders TWICE (mobile + desktop scopes). Always use Playwright .first when querying [data-testid='journey-progress-indicator'] / [data-testid='journey-step-counter'] / [data-testid='journey-current-title'] / [data-testid='journey-upcoming'] / [data-testid='journey-milestone-hint'] / [data-testid='journey-decision-branches'] — otherwise wait_for_selector strict-mode will fail. Verified test users:\n  • dr.yilmaz → decision (step #6 visible-position 5 of 14, 2 branches: upload + partner, each with 2 next steps)\n  • dr.popov → decision early (Schritt 2 von 13)\n  • dr.silva → milestone + upcoming preview (Schritt 4 von 15, 'Als Nächstes Fachsprachenprüfung')\n  • dr.kowalski → milestone + upcoming preview (Schritt 7 von 17, 'Als Nächstes Gleichwertigkeitsprüfung → Dokumente Gleichwertigkeitsprüfung')\nAccessibility / responsive: at 1920x900 the counter, title, type label, both branch cards, upcoming pills, and milestone hint all fit horizontally without overflow.",
+  "rca of the issue": "No bugs found — pure additive UI feature works exactly as specified."
+}

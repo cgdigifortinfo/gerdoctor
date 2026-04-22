@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
+import { JourneyProgressIndicator } from '../components/JourneyProgressIndicator';
 
 // Evaluate a single condition against all step data
 function evaluateCondition(cond, allStepData) {
@@ -498,8 +499,21 @@ export default function UserDashboard() {
         if (!currentStep) return null;
         const stepStatus = getStepStatus(currentStep.id);
         const condResult = allStepData.length > 0 ? evaluateStepConditions(currentStep, allStepData) : { allowed: true, blocked: false, message: '' };
+
+        // Journey progress banner — shown above every active step card so the
+        // user always knows "where am I + what's next". Rendered once and
+        // composed with the step-specific content at the end.
+        const indicator = (
+            <JourneyProgressIndicator
+                visibleSteps={visibleSteps}
+                currentIndex={currentStepIndex}
+                allSteps={steps}
+            />
+        );
+        const withIndicator = (content) => (<>{indicator}{content}</>);
+
         if (condResult.blocked) {
-            return (
+            return withIndicator(
                 <div className="p-8 bg-muted border border-border rounded-sm text-center">
                     <Lock size={48} className="mx-auto text-muted-foreground mb-4" />
                     <p className="text-lg font-semibold text-foreground">{condResult.message}</p>
@@ -507,7 +521,8 @@ export default function UserDashboard() {
             );
         }
 
-        switch (currentStep.step_type) {
+        const stepContent = (() => {
+            switch (currentStep.step_type) {
             case 'decision': {
                 const decField = (currentStep.fields || []).find(f => f.field_type === 'decision') || (currentStep.fields || [])[0];
                 const options = decField?.options || [];
@@ -748,7 +763,10 @@ export default function UserDashboard() {
                 );
             default:
                 return <p>Unbekannter Schritttyp</p>;
-        }
+            }
+        })();
+
+        return withIndicator(stepContent);
     };
 
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
