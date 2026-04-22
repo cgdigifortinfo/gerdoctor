@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { ArrowRight, Cloud, Users, CheckCircle, ListChecks, Hourglass, ClipboardText } from '@phosphor-icons/react';
 
 /**
@@ -115,7 +115,7 @@ function nextVisibleSteps(visibleSteps, currentIndex, n = 2) {
 }
 
 // ---- Component -----------------------------------------------------------
-export function JourneyProgressIndicator({ visibleSteps, currentIndex, allSteps }) {
+function JourneyProgressIndicatorImpl({ visibleSteps, currentIndex, allSteps }) {
     const currentStep = visibleSteps?.[currentIndex];
     const total = visibleSteps?.length || 0;
     const position = (currentIndex ?? 0) + 1;
@@ -247,4 +247,5 @@ export function JourneyProgressIndicator({ visibleSteps, currentIndex, allSteps 
     );
 }
 
+export const JourneyProgressIndicator = memo(JourneyProgressIndicatorImpl);
 export default JourneyProgressIndicator;
