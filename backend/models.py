@@ -194,6 +194,11 @@ class SiteSettingsUpdate(BaseModel):
     footer_text: Optional[str] = None
     primary_color: Optional[str] = None
     meta_description: Optional[str] = None
+    # UI element feature-flags — phase-1 of the upcoming rights system.
+    # Default `True` in the frontend when the key is absent.
+    ui_show_journey_indicator: Optional[bool] = None
+    ui_show_eta_header: Optional[bool] = None
+    ui_show_progress_percentage: Optional[bool] = None
 
 class StepTemplateCreate(BaseModel):
     name: str

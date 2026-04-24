@@ -1253,6 +1253,39 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
+                            {/* ============ UI-ELEMENTE (Feature Toggles) ============ */}
+                            <div className="bg-card border border-border rounded-lg p-6" data-testid="settings-elements-section">
+                                <h3 className="text-lg font-semibold text-foreground mb-1">UI-Elemente</h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Ein-/Ausschalten globaler UI-Komponenten im User-Dashboard. Spätere
+                                    Version: Diese Toggles werden Teil eines umfassenden Rechtesystems
+                                    (Benutzergruppen + individuelle Rechte).
+                                </p>
+                                <div className="space-y-3">
+                                    <ElementToggle
+                                        id="ui_show_journey_indicator"
+                                        label="Journey-Progress-Indikator"
+                                        description={'Zeigt den Banner „Schritt X von Y" mit Pfad-Vorschau (Decision) bzw. nächsten Schritten über dem aktiven Step-Card.'}
+                                        checked={siteSettings.ui_show_journey_indicator !== false}
+                                        onChange={(val) => setSiteSettings(s => ({ ...s, ui_show_journey_indicator: val }))}
+                                    />
+                                    <ElementToggle
+                                        id="ui_show_eta_header"
+                                        label="Voraussichtliches Abschluss-Datum"
+                                        description="Zeigt das errechnete ETA-Datum in der Kopfzeile neben dem Logo."
+                                        checked={siteSettings.ui_show_eta_header !== false}
+                                        onChange={(val) => setSiteSettings(s => ({ ...s, ui_show_eta_header: val }))}
+                                    />
+                                    <ElementToggle
+                                        id="ui_show_progress_percentage"
+                                        label="Fortschritts-Prozent-Badge"
+                                        description={'Zeigt den Prozent-Badge (z.B. „17 %") in der Kopfzeile.'}
+                                        checked={siteSettings.ui_show_progress_percentage !== false}
+                                        onChange={(val) => setSiteSettings(s => ({ ...s, ui_show_progress_percentage: val }))}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="flex justify-end">
                                 <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-settings-btn">
                                     {settingsSaving ? t('admin_saving') : t('admin_save_settings')}
@@ -2343,3 +2376,31 @@ function AuditActionBadge({ action }) {
         </span>
     );
 }
+
+// ---------------------------------------------------------------------------
+// ElementToggle — compact row with a name, description and right-side Switch.
+// Used in Settings → UI-Elemente. Intentionally styled to fit later into a
+// larger "Rechte­system" screen (user-group matrix rows will reuse this).
+// ---------------------------------------------------------------------------
+function ElementToggle({ id, label, description, checked, onChange }) {
+    return (
+        <div className="flex items-start justify-between gap-4 border border-border rounded-md p-3 bg-background/50">
+            <div className="flex-1 min-w-0">
+                <label htmlFor={id} className="font-medium text-foreground cursor-pointer block">
+                    {label}
+                </label>
+                {description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                )}
+            </div>
+            <Switch
+                id={id}
+                checked={checked}
+                onCheckedChange={onChange}
+                data-testid={`element-toggle-${id}`}
+                className="shrink-0"
+            />
+        </div>
+    );
+}
+

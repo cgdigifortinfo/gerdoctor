@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { stepsAPI, partnersAPI, filesAPI, notificationAPI, formatApiError } from '../lib/api';
+import { stepsAPI, partnersAPI, filesAPI, notificationAPI, settingsAPI, formatApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -129,6 +129,13 @@ export default function UserDashboard() {
     const [animateProgress, setAnimateProgress] = useState(false);
     const [expandedStep, setExpandedStep] = useState(null);
     const [estimatedCompletion, setEstimatedCompletion] = useState(null);
+    // UI feature flags from site settings (admin-controlled). Defaults to true
+    // so the app works unchanged if the settings have never been saved.
+    const [uiFlags, setUiFlags] = useState({
+        ui_show_journey_indicator: true,
+        ui_show_eta_header: true,
+        ui_show_progress_percentage: true,
+    });
     const stepRefs = useRef({});
     const containerRef = useRef(null);
     const desktopStepRefs = useRef({});
@@ -142,11 +149,12 @@ export default function UserDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [stepsRes, progressRes, allDataRes, notifRes, historyRes, estRes] = await Promise.all([
+            const [stepsRes, progressRes, allDataRes, notifRes, historyRes, estRes, settingsRes] = await Promise.all([
                 stepsAPI.getAll(), stepsAPI.getProgress(), stepsAPI.getAllData(),
                 notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } })),
                 stepsAPI.getHistory().catch(() => ({ data: [] })),
-                stepsAPI.getEstimatedCompletion().catch(() => ({ data: { estimated_completion: null } }))
+                stepsAPI.getEstimatedCompletion().catch(() => ({ data: { estimated_completion: null } })),
+                settingsAPI.get().catch(() => ({ data: {} })),
             ]);
             setSteps(stepsRes.data);
             setProgress(progressRes.data);
@@ -154,6 +162,13 @@ export default function UserDashboard() {
             setNotifPrefs(notifRes.data);
             setHistory(historyRes.data);
             setEstimatedCompletion(estRes.data?.estimated_completion || null);
+            // UI feature-flags — only explicit `false` disables; unset/null keeps default ON
+            const s = settingsRes.data || {};
+            setUiFlags({
+                ui_show_journey_indicator: s.ui_show_journey_indicator !== false,
+                ui_show_eta_header: s.ui_show_eta_header !== false,
+                ui_show_progress_percentage: s.ui_show_progress_percentage !== false,
+            });
 
             const progressMap = {};
             progressRes.data.forEach(p => { progressMap[p.step_id] = p; });
@@ -502,14 +517,15 @@ export default function UserDashboard() {
 
         // Journey progress banner — shown above every active step card so the
         // user always knows "where am I + what's next". Rendered once and
-        // composed with the step-specific content at the end.
-        const indicator = (
+        // composed with the step-specific content at the end. Can be toggled
+        // off globally via Admin → Settings → UI-Elemente.
+        const indicator = uiFlags.ui_show_journey_indicator ? (
             <JourneyProgressIndicator
                 visibleSteps={visibleSteps}
                 currentIndex={currentStepIndex}
                 allSteps={steps}
             />
-        );
+        ) : null;
         const withIndicator = (content) => (<>{indicator}{content}</>);
 
         if (condResult.blocked) {
@@ -782,25 +798,29 @@ export default function UserDashboard() {
                         <Logo />
                         <div className="flex items-center gap-3">
                             {/* Completion % + estimated completion in header */}
-                            {estimatedCompletion && (
+                            {(estimatedCompletion && (uiFlags.ui_show_eta_header || uiFlags.ui_show_progress_percentage)) && (
                                 <div className="hidden sm:flex items-center gap-2" data-testid="header-progress-wrapper">
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
-                                        <CalendarCheck size={16} weight="bold" />
-                                        <span className="text-sm font-bold" data-testid="estimated-completion-date">
-                                            {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55]/10 text-[#114f55] rounded-full cursor-default" data-testid="header-completion-pct-wrapper" title={t('progress_title') || 'Fortschritt'}>
-                                        <div className="w-14 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-[#114f55] rounded-full transition-all"
-                                                style={{ width: `${getProgressPercentage()}%` }}
-                                            />
+                                    {uiFlags.ui_show_eta_header && (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
+                                            <CalendarCheck size={16} weight="bold" />
+                                            <span className="text-sm font-bold" data-testid="estimated-completion-date">
+                                                {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </span>
                                         </div>
-                                        <span className="text-sm font-bold tabular-nums" data-testid="header-completion-pct">
-                                            {getProgressPercentage()}%
-                                        </span>
-                                    </div>
+                                    )}
+                                    {uiFlags.ui_show_progress_percentage && (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55]/10 text-[#114f55] rounded-full cursor-default" data-testid="header-completion-pct-wrapper" title={t('progress_title') || 'Fortschritt'}>
+                                            <div className="w-14 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-[#114f55] rounded-full transition-all"
+                                                    style={{ width: `${getProgressPercentage()}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-bold tabular-nums" data-testid="header-completion-pct">
+                                                {getProgressPercentage()}%
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             <span className="text-sm text-muted-foreground hidden lg:block">{t('dash_welcome')}, {user?.name}</span>
@@ -816,22 +836,26 @@ export default function UserDashboard() {
                         </div>
                     </div>
                     {/* Mobile estimated completion + progress */}
-                    {estimatedCompletion && (
+                    {(estimatedCompletion && (uiFlags.ui_show_eta_header || uiFlags.ui_show_progress_percentage)) && (
                         <div className="sm:hidden flex items-center gap-3 pb-3 -mt-1">
-                            <div className="flex items-center gap-2" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
-                                <CalendarCheck size={14} className="text-[#114f55]" />
-                                <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
-                                    {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2" data-testid="header-completion-pct-mobile-wrapper">
-                                <div className="w-10 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${getProgressPercentage()}%` }} />
+                            {uiFlags.ui_show_eta_header && (
+                                <div className="flex items-center gap-2" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
+                                    <CalendarCheck size={14} className="text-[#114f55]" />
+                                    <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
+                                        {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </span>
                                 </div>
-                                <span className="text-xs font-bold text-[#114f55] tabular-nums" data-testid="header-completion-pct-mobile">
-                                    {getProgressPercentage()}%
-                                </span>
-                            </div>
+                            )}
+                            {uiFlags.ui_show_progress_percentage && (
+                                <div className="flex items-center gap-2" data-testid="header-completion-pct-mobile-wrapper">
+                                    <div className="w-10 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${getProgressPercentage()}%` }} />
+                                    </div>
+                                    <span className="text-xs font-bold text-[#114f55] tabular-nums" data-testid="header-completion-pct-mobile">
+                                        {getProgressPercentage()}%
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
