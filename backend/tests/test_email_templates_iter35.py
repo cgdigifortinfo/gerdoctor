@@ -358,14 +358,14 @@ class TestPreviewReactivity:
         )
         assert r.status_code == 200
         html = r.json()["html"]
-        # Header block contains the GERdoctor logo
-        assert "GERdoctor" in html
-        # Footer block contains the copyright/regards line
-        assert "GERdoctor-Team" in html
+        # Header block contains the IHCA branding
+        assert "IHCA" in html
+        # Footer block contains the regards line
+        assert "IHCA-Team" in html
         # Body appears between header and footer
-        header_idx = html.find("GERdoctor")
+        header_idx = html.find("IHCA")
         body_idx = html.find("MIDDLE_BODY_MARK")
-        footer_idx = html.rfind("GERdoctor-Team")
+        footer_idx = html.rfind("IHCA-Team")
         assert header_idx < body_idx < footer_idx, \
             f"expected header < body < footer, got {header_idx},{body_idx},{footer_idx}"
 

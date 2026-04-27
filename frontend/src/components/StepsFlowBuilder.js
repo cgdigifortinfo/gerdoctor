@@ -258,7 +258,7 @@ function buildGraph(steps, callbacks) {
 // ===== Palette sidebar =====
 function Palette() {
     const onDragStart = (event, stepType) => {
-        event.dataTransfer.setData('application/gerdoctor-step-type', stepType);
+        event.dataTransfer.setData('application/ihca-step-type', stepType);
         event.dataTransfer.effectAllowed = 'copy';
     };
     return (
@@ -500,7 +500,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
 
     const handleDrop = useCallback((event) => {
         event.preventDefault();
-        const stepType = event.dataTransfer.getData('application/gerdoctor-step-type');
+        const stepType = event.dataTransfer.getData('application/ihca-step-type');
         if (!stepType) return;
         const bounds = flowWrapper.current.getBoundingClientRect();
         const pos = project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });

@@ -38,9 +38,9 @@ DEFAULT_TEMPLATES = {
         "subject": "",  # unused for global blocks
         "body_html": """<div style="background:#114f55;padding:20px 24px;">
   <a href="{{app_url}}" style="color:#ffffff;font-size:22px;font-weight:700;text-decoration:none;letter-spacing:0.5px;">
-    GERdoctor
+    IHCA
   </a>
-  <div style="color:#b8dfe3;font-size:13px;margin-top:4px;">Praktizieren in Deutschland</div>
+  <div style="color:#b8dfe3;font-size:13px;margin-top:4px;">international health connect association</div>
 </div>
 <div style="padding:24px;font-family:Arial,sans-serif;color:#0f172a;line-height:1.55;">""",
         "description": "Kopfzeile (Logo & Branding) — wird vor jeder Mail eingefügt",
@@ -50,9 +50,9 @@ DEFAULT_TEMPLATES = {
         "subject": "",
         "body_html": """</div>
 <div style="background:#f1f5f9;padding:18px 24px;font-family:Arial,sans-serif;font-size:12px;color:#64748b;border-top:1px solid #cbd5e1;">
-  <p style="margin:0 0 8px 0;">Mit freundlichen Grüßen,<br/><strong style="color:#114f55;">Ihr GERdoctor-Team</strong></p>
+  <p style="margin:0 0 8px 0;">Mit freundlichen Grüßen,<br/><strong style="color:#114f55;">Ihr IHCA-Team</strong></p>
   <p style="margin:0;">
-    <a href="{{app_url}}" style="color:#114f55;text-decoration:none;">gerdoctor.de</a>
+    <a href="{{app_url}}" style="color:#114f55;text-decoration:none;">ihca.de</a>
     · <a href="{{app_url}}/impressum" style="color:#64748b;">Impressum</a>
     · <a href="{{app_url}}/datenschutz" style="color:#64748b;">Datenschutz</a>
   </p>
@@ -195,10 +195,10 @@ DEFAULT_TEMPLATES = {
     },
     "user_password_reset": {
         "category": "user",
-        "subject": "Passwort zurücksetzen — GERdoctor",
+        "subject": "Passwort zurücksetzen — IHCA",
         "body_html": """<h2 style="color:#114f55;margin:0 0 16px 0;">Passwort zurücksetzen</h2>
 <p>Hallo,</p>
-<p>Sie (oder jemand in Ihrem Namen) hat angefordert, das Passwort Ihres GERdoctor-Kontos zurückzusetzen.</p>
+<p>Sie (oder jemand in Ihrem Namen) hat angefordert, das Passwort Ihres IHCA-Kontos zurückzusetzen.</p>
 
 <p style="margin:24px 0;">
   <a href="{{reset_link}}"

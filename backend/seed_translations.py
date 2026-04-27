@@ -44,7 +44,7 @@ STEP_TRANSLATIONS = {
 CMS_TRANSLATIONS = {
     "home": {
         "en": {
-            "hero_title": "GERdoctor - Your Personal Path to Becoming a Medical Specialist in Germany",
+            "hero_title": "IHCA - Your Personal Path to Becoming a Medical Specialist in Germany",
             "hero_subtitle": "From preparation to starting your career, we provide comprehensive support",
             "hero_cta": "Get Started"
         }

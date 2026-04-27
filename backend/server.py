@@ -1,5 +1,5 @@
 """
-GERdoctor API - Main application entry point.
+IHCA API - Main application entry point.
 Shared utilities are imported from database.py, models.py, auth.py, helpers.py.
 Routes are organized by domain in this file.
 """
@@ -1696,7 +1696,7 @@ api_router.include_router(cms_router)
 
 @api_router.get("/")
 async def root():
-    return {"message": "GERdoctor API"}
+    return {"message": "IHCA API"}
 
 app.include_router(api_router)
 
@@ -1759,7 +1759,7 @@ async def startup():
     # Seed CMS
     _default_cms = {
         "home": {
-            "hero_title": "GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland",
+            "hero_title": "IHCA - dein persoenlicher Weg zum Facharzt in Deutschland",
             "hero_subtitle": "Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich",
             "hero_cta": "Jetzt starten",
             "box1_title": "Begleitetes Onboarding",
@@ -1781,7 +1781,7 @@ async def startup():
     }
     _default_cms_en = {
         "home": {
-            "hero_title": "GERdoctor - your personal path to becoming a medical specialist in Germany",
+            "hero_title": "IHCA - your personal path to becoming a medical specialist in Germany",
             "hero_subtitle": "From preparation to starting your career, we provide comprehensive support.",
             "hero_cta": "Get Started",
             "box1_title": "Guided Onboarding",
@@ -1816,7 +1816,7 @@ async def startup():
                 await db.cms_content.update_one({"section": section}, {"$set": update})
     # Seed site settings
     if not await db.site_settings.find_one({"_key": "global"}):
-        await db.site_settings.insert_one({"_key": "global", "site_title": "GERdoctor", "logo_text": "GERdoctor", "logo_bold_part": "GER", "logo_light_part": "doctor", "contact_email": "", "footer_text": "", "primary_color": "#114f55", "meta_description": "Praktizieren in Deutschland", "created_at": datetime.now(timezone.utc).isoformat()})
+        await db.site_settings.insert_one({"_key": "global", "site_title": "IHCA", "logo_text": "IHCA", "logo_bold_part": "IH", "logo_light_part": "CA", "contact_email": "", "footer_text": "", "primary_color": "#114f55", "meta_description": "IHCA — international health connect association. Praktizieren in Deutschland.", "created_at": datetime.now(timezone.utc).isoformat()})
     # Seed email templates (idempotent — won't overwrite admin edits)
     try:
         from seed_email_templates import DEFAULT_TEMPLATES as _EMAIL_DEFAULTS

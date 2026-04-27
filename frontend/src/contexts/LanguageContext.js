@@ -23,7 +23,7 @@ const translations = {
     // CTA
     cta_title: 'Ready to Start Your Journey?', cta_desc: 'Join hundreds of businesses that have found their perfect partners through our platform.', cta_btn: 'Create Your Account',
     // Footer
-    footer_copy: '2026 GERdoctor. All rights reserved.',
+    footer_copy: '2026 IHCA — international health connect association. All rights reserved.',
     // Auth
     auth_welcome_back: 'Welcome back', auth_sign_in_subtitle: 'Sign in to continue your journey',
     auth_email: 'Email', auth_password: 'Password', auth_forgot: 'Forgot password?',
@@ -140,7 +140,7 @@ const translations = {
     // CTA
     cta_title: 'Bereit, Ihre Reise zu beginnen?', cta_desc: 'Schließen Sie sich Hunderten von Unternehmen an, die ihre perfekten Partner über unsere Plattform gefunden haben.', cta_btn: 'Konto erstellen',
     // Footer
-    footer_copy: '2026 GERdoctor. Alle Rechte vorbehalten.',
+    footer_copy: '2026 IHCA — international health connect association. Alle Rechte vorbehalten.',
     // Auth
     auth_welcome_back: 'Willkommen zurück', auth_sign_in_subtitle: 'Melden Sie sich an, um Ihre Reise fortzusetzen',
     auth_email: 'E-Mail', auth_password: 'Passwort', auth_forgot: 'Passwort vergessen?',

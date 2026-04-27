@@ -170,7 +170,7 @@ export default function Landing() {
                                 Praktizieren in Deutschland
                             </p>
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl tracking-tighter leading-none font-black text-foreground mb-6">
-                                {hc('hero_title') || 'GERdoctor - dein persoenlicher Weg zum Facharzt in Deutschland'}
+                                {hc('hero_title') || 'IHCA - dein persönlicher Weg zum Facharzt in Deutschland'}
                             </h1>
                             <p className="text-base leading-relaxed text-muted-foreground mb-8 max-w-lg">
                                 {hc('hero_subtitle') || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich'}
@@ -367,7 +367,7 @@ export default function Landing() {
                             <span className="font-light text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>doctor</span>
                             <span className="text-[10px] font-medium text-muted-foreground ml-1.5">by digiFORT</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">&copy; 2026 GERdoctor. All rights reserved.</p>
+                        <p className="text-sm text-muted-foreground">&copy; 2026 IHCA — international health connect association. All rights reserved.</p>
                     </div>
                 </div>
             </footer>

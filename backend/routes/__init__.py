@@ -1,1 +1,1 @@
-"""Route modules for GERdoctor API."""
+"""Route modules for IHCA API."""

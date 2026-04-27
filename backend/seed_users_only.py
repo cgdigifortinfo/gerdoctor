@@ -1,5 +1,5 @@
 """
-User-only re-seed for GERdoctor.
+User-only re-seed for IHCA.
 
 WHAT IT DOES:
   1. DELETES all users with role == 'user' (plus their progress, progress history,
@@ -60,7 +60,7 @@ def now_iso():
 # Names must match partners.name exactly — falls back to "Demo Partner" if absent.
 DEMO_USERS = [
     {
-        "email": "dr.schmidt@gerdoctor.de",
+        "email": "dr.schmidt@ihca.de",
         "name": "Dr. Jan Schmidt",
         "stammdaten": {
             "first_name": "Jan", "name": "Schmidt",
@@ -77,7 +77,7 @@ DEMO_USERS = [
         "completed_up_to_order": 9,
     },
     {
-        "email": "dr.yilmaz@gerdoctor.de",
+        "email": "dr.yilmaz@ihca.de",
         "name": "Dr. Elif Yılmaz",
         "stammdaten": {
             "first_name": "Elif", "name": "Yılmaz",
@@ -94,7 +94,7 @@ DEMO_USERS = [
         "completed_up_to_order": 5,
     },
     {
-        "email": "dr.chen@gerdoctor.de",
+        "email": "dr.chen@ihca.de",
         "name": "Dr. Wei Chen",
         "stammdaten": {
             "first_name": "Wei", "name": "Chen",
@@ -111,7 +111,7 @@ DEMO_USERS = [
         "completed_up_to_order": 13,
     },
     {
-        "email": "dr.kumar@gerdoctor.de",
+        "email": "dr.kumar@ihca.de",
         "name": "Dr. Rajesh Kumar",
         "stammdaten": {
             "first_name": "Rajesh", "name": "Kumar",
@@ -128,7 +128,7 @@ DEMO_USERS = [
         "completed_up_to_order": 1,
     },
     {
-        "email": "dr.silva@gerdoctor.de",
+        "email": "dr.silva@ihca.de",
         "name": "Dr. Maria Silva",
         "stammdaten": {
             "first_name": "Maria", "name": "Silva",
@@ -145,7 +145,7 @@ DEMO_USERS = [
         "completed_up_to_order": 8,
     },
     {
-        "email": "dr.ahmed@gerdoctor.de",
+        "email": "dr.ahmed@ihca.de",
         "name": "Dr. Omar Ahmed",
         "stammdaten": {},
         "decisions": {},
@@ -153,7 +153,7 @@ DEMO_USERS = [
         "completed_up_to_order": 0,
     },
     {
-        "email": "dr.petrov@gerdoctor.de",
+        "email": "dr.petrov@ihca.de",
         "name": "Dr. Anna Petrov",
         "stammdaten": {},
         "decisions": {},
@@ -161,7 +161,7 @@ DEMO_USERS = [
         "completed_up_to_order": 0,
     },
     {
-        "email": "dr.tanaka@gerdoctor.de",
+        "email": "dr.tanaka@ihca.de",
         "name": "Dr. Hiro Tanaka",
         "stammdaten": {},
         "decisions": {},
@@ -170,7 +170,7 @@ DEMO_USERS = [
     },
     # ---- NEW diverse demo doctors ----
     {
-        "email": "dr.nguyen@gerdoctor.de",
+        "email": "dr.nguyen@ihca.de",
         "name": "Dr. Linh Nguyen",
         "stammdaten": {
             "first_name": "Linh", "name": "Nguyen",
@@ -187,7 +187,7 @@ DEMO_USERS = [
         "completed_up_to_order": 5,
     },
     {
-        "email": "dr.rossi@gerdoctor.de",
+        "email": "dr.rossi@ihca.de",
         "name": "Dr. Giulia Rossi",
         "stammdaten": {
             "first_name": "Giulia", "name": "Rossi",
@@ -204,7 +204,7 @@ DEMO_USERS = [
         "completed_up_to_order": 13,
     },
     {
-        "email": "dr.kowalski@gerdoctor.de",
+        "email": "dr.kowalski@ihca.de",
         "name": "Dr. Felix Kowalski",
         "stammdaten": {
             "first_name": "Felix", "name": "Kowalski",
@@ -222,7 +222,7 @@ DEMO_USERS = [
         "completed_up_to_order": 20,
     },
     {
-        "email": "dr.okafor@gerdoctor.de",
+        "email": "dr.okafor@ihca.de",
         "name": "Dr. Kemi Okafor",
         "stammdaten": {
             "first_name": "Kemi", "name": "Okafor",
@@ -239,7 +239,7 @@ DEMO_USERS = [
         "completed_up_to_order": 18,
     },
     {
-        "email": "dr.popov@gerdoctor.de",
+        "email": "dr.popov@ihca.de",
         "name": "Dr. Nadia Popov",
         "stammdaten": {
             "first_name": "Nadia", "name": "Popov",

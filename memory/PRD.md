@@ -44,6 +44,9 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-27: **Rebrand GERdoctor → IHCA** — vollständige Umbenennung in Frontend, Backend, Mail-Templates, Logo (`IHCA` + Tagline „international health connect association"), CMS-Hero-Title, Settings-Defaults, MIME-Type für FlowBuilder-Drag&Drop. Idempotente Migration `migrate_rebrand_ihca.py` rewrote 13 User-Emails (`*@gerdoctor.de` → `*@ihca.de`), patchte site_settings (Logo-Parts) und CMS-Content. Backend-Tests (Email-Templates, UI-Flags, Milestone-Hide) passen 41/41. Test-Credentials in `/app/memory/test_credentials.md` aktualisiert.
+
+## Completed (recent)
 - [x] 2026-04-21: **Step-Flow Milestone-Visibility Fix** — Milestone-Steps (5, 9, 13, 17, 20, 24) waren fälschlicherweise im Timeline sichtbar, bevor der User am Entscheidungsfeld (2/6/10/14/18/21) gewählt hatte. Nach Partner-Milestone-Completion sah der User statt des erwarteten Entscheidungsfeldes direkt die nächste Milestone. **Fix (3 Teile)**:
   1. `seed_survey_v2.py` um `hide`-Condition `{field: 'decision', operator: 'empty', source_step_order: decision_order}` auf jeden Milestone-Step erweitert.
   2. `_evaluate_condition` (Backend + Frontend `stepVisibility.js`): wenn `field` explizit gesetzt ist, aber nicht in `data` vorhanden, Rückgabe `undefined` statt Fallback auf `status` — damit `empty`-Operator korrekt auf fehlende Data-Felder reagiert (vorher: `status='in_progress'` war nie empty → Milestone blieb sichtbar).

@@ -80,7 +80,7 @@ def send_email_sync(to_email: str, subject: str, html_content: str) -> dict:
         return {"status": "skipped", "message": "Email not configured"}
     try:
         msg = MIMEMultipart("alternative")
-        msg["From"] = formataddr(("GERdoctor", MAILGUN_FROM_EMAIL))
+        msg["From"] = formataddr(("IHCA", MAILGUN_FROM_EMAIL))
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.attach(MIMEText(html_content, "html"))

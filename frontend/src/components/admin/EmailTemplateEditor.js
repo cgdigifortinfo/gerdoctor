@@ -45,7 +45,7 @@ const CATEGORY_COLOR = {
 // Sensible dummy fallbacks shown in the preview when no real user/step is picked
 const DEFAULT_DUMMY = {
     user_name: 'Dr. Maria Mustermann',
-    user_email: 'dr.mustermann@gerdoctor.de',
+    user_email: 'dr.mustermann@ihca.de',
     partner_name: 'ILS Berlin',
     field_of_study: 'Innere Medizin',
     bundesland: 'Berlin',
@@ -54,9 +54,9 @@ const DEFAULT_DUMMY = {
     step_description: 'Laden Sie die benötigten Nachweise für die Approbation hoch.',
     total_steps: 24,
     milestone_title: 'Antragstellung Approbation',
-    open_user_link: 'https://gerdoctor.de/partner-dashboard?openUser=DEMO-USER-ID',
-    reset_link: 'https://gerdoctor.de/reset-password?token=DEMO-TOKEN',
-    app_url: 'https://gerdoctor.de',
+    open_user_link: 'https://ihca.de/partner-dashboard?openUser=DEMO-USER-ID',
+    reset_link: 'https://ihca.de/reset-password?token=DEMO-TOKEN',
+    app_url: 'https://ihca.de',
 };
 
 export function EmailTemplateEditor() {
@@ -479,7 +479,7 @@ export function EmailTemplateEditor() {
                                 data-testid="email-test-recipients-input"
                                 value={testRecipients}
                                 onChange={(e) => setTestRecipients(e.target.value)}
-                                placeholder="qa@gerdoctor.de, test@example.com"
+                                placeholder="qa@ihca.de, test@example.com"
                                 rows={3}
                                 className="font-mono text-sm"
                             />

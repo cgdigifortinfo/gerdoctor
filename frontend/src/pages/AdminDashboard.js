@@ -1201,7 +1201,7 @@ export default function AdminDashboard() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <Label>Site Title</Label>
-                                        <Input value={siteSettings.site_title || ''} onChange={e => setSiteSettings(s => ({ ...s, site_title: e.target.value }))} placeholder="GERdoctor" data-testid="settings-site-title" />
+                                        <Input value={siteSettings.site_title || ''} onChange={e => setSiteSettings(s => ({ ...s, site_title: e.target.value }))} placeholder="IHCA" data-testid="settings-site-title" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Meta Description</Label>
@@ -1237,7 +1237,7 @@ export default function AdminDashboard() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <Label>Contact Email</Label>
-                                        <Input value={siteSettings.contact_email || ''} onChange={e => setSiteSettings(s => ({ ...s, contact_email: e.target.value }))} placeholder="info@gerdoctor.de" data-testid="settings-contact-email" />
+                                        <Input value={siteSettings.contact_email || ''} onChange={e => setSiteSettings(s => ({ ...s, contact_email: e.target.value }))} placeholder="info@ihca.de" data-testid="settings-contact-email" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Primary Color</Label>
