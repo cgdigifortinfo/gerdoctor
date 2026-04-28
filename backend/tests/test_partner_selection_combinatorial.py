@@ -99,7 +99,7 @@ def pending_for_partner_org(snapshot, partner_name):
     return None
 
 
-def test_one_partner_step(stamp_prefix, target_order, multi=False):
+def run_partner_step(stamp_prefix, target_order, multi=False):
     """Run the full flow for a single partner_selection (or multi) step order."""
     stamp = int(time.time() * 1000)
     email = f"e2e-combi-{stamp_prefix}-{stamp}@gerdoctor.example.com"
@@ -252,7 +252,7 @@ def main() -> int:
         multi = step["step_type"] == "partner_multiselection"
         tag = step.get("filter_tag", "?")
         prefix = f"o{order}"
-        fails, summary = test_one_partner_step(prefix, order, multi=multi)
+        fails, summary = run_partner_step(prefix, order, multi=multi)
         marker = "✓" if not fails and summary.startswith("PASS") else \
                  "⚠" if summary.startswith("SKIP") else "✗"
         print(f"  {marker} step #{order} [{step['step_type']:22s}] tag={tag:35s} → {summary}")

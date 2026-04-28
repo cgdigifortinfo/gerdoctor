@@ -37,7 +37,7 @@ def ils_partner():
 
 @pytest.fixture(scope="module")
 def praxis_partner():
-    return _login("empfang@hausarztpraxis-marienplatz.de", "Partner123!")
+    return _login("empfang@chrizz1001.de", "Partner123!")
 
 
 # ---------- Partner Profile (extended fields) ----------
@@ -161,14 +161,19 @@ def test_other_users_include_bundesland(ils_partner):
 
 # ---------- Match scoring (indirect: verify fields exist so FE can compute) ----------
 def test_match_fields_present_for_ils(ils_partner):
-    """The FE computes match via scoreUserForPartner(user, partnerTags). We validate the
-    data points it depends on are actually returned by the API."""
+    """The FE computes match via scoreUserForPartner(user, partnerTags). Validate that
+    each submitted user has the data points (`bundesland`, `field_of_study`) the FE
+    needs — picking any sample is enough; we don't depend on a specific user."""
     r = ils_partner.get(f"{API}/partner/submissions", timeout=30)
     subs = r.json()
-    yilmaz = next((s for s in subs if "yilmaz" in (s.get("user_email", "") or "").lower()), None)
-    assert yilmaz is not None, [s.get("user_email") for s in subs]
-    # Yilmaz is expected to be Bayern per seed → gives +5 for Bayern tag match
-    assert yilmaz.get("bundesland") == "Bayern", yilmaz
+    assert subs, "expected at least 1 submission for ILS"
+    sample = next(
+        (s for s in subs if s.get("bundesland") and s.get("field_of_study")),
+        None,
+    )
+    assert sample is not None, f"no sub has both bundesland+field_of_study: {[(s.get('user_email'), s.get('bundesland'), s.get('field_of_study')) for s in subs[:5]]}"
+    assert isinstance(sample["bundesland"], str) and sample["bundesland"]
+    assert isinstance(sample["field_of_study"], str) and sample["field_of_study"]
 
 
 def test_praxis_partner_profile_has_tags(praxis_partner):

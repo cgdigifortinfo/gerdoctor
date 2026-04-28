@@ -14,7 +14,10 @@ def base_url():
 
 @pytest.fixture(scope="module")
 def tokens(base_url):
-    """Get tokens for all 3 roles."""
+    """Get tokens for all 3 roles. Creates an ephemeral user for the user role."""
+    import time, uuid
+    test_user_email = f"routes-test-{int(time.time())}-{uuid.uuid4().hex[:6]}@chrizz1001.de"
+    test_user_pw = "Test123!"
     with httpx.Client(timeout=15) as c:
         admin = c.post(f"{base_url}/api/auth/login", json={"email": "admin@example.com", "password": "Admin123!"})
         assert admin.status_code == 200
@@ -22,14 +25,25 @@ def tokens(base_url):
         partner = c.post(f"{base_url}/api/auth/login", json={"email": "partner-example@chrizz1001.de", "password": "Partner123!"})
         assert partner.status_code == 200
 
-        user = c.post(f"{base_url}/api/auth/login", json={"email": "dr.kumar@chrizz1001.de", "password": "Demo123!"})
-        assert user.status_code == 200
+        user = c.post(f"{base_url}/api/auth/register", json={
+            "email": test_user_email, "password": test_user_pw, "name": "Routes Test User",
+        })
+        assert user.status_code == 200, f"register failed: {user.text}"
 
         return {
             "admin": admin.json()["access_token"],
             "partner": partner.json()["access_token"],
             "user": user.json()["access_token"],
         }
+
+
+@pytest.fixture(scope="module")
+def test_user_email(tokens, base_url):
+    """Resolve the email of the ephemeral user from /auth/me."""
+    with httpx.Client(timeout=15) as c:
+        r = c.get(f"{base_url}/api/auth/me", headers=auth(tokens["user"]))
+        assert r.status_code == 200
+        return r.json()["email"]
 
 def auth(token):
     return {"Authorization": f"Bearer {token}"}
@@ -129,7 +143,7 @@ class TestUserRoleEndpoints:
             assert r.status_code == 200
             steps = r.json()
             assert isinstance(steps, list)
-            assert len(steps) == 12
+            assert len(steps) >= 24, f"expected at least 24 steps (survey v2), got {len(steps)}"
             # Verify steps have id, title, order, step_type
             for s in steps:
                 assert "id" in s
@@ -153,7 +167,7 @@ class TestUserRoleEndpoints:
             assert r.status_code == 200
             data = r.json()
             assert isinstance(data, list)
-            assert len(data) == 12
+            assert len(data) >= 24, f"expected at least 24 steps in all-data, got {len(data)}"
 
     def test_steps_history(self, base_url, tokens):
         with httpx.Client(timeout=15) as c:
@@ -268,11 +282,12 @@ class TestAdminRoleEndpoints:
             assert "submissions" in detail
             assert "completion_pct" in detail
 
-    def test_admin_user_search(self, base_url, tokens):
+    def test_admin_user_search(self, base_url, tokens, test_user_email):
         with httpx.Client(timeout=15) as c:
-            r = c.get(f"{base_url}/api/admin/users/search?q=kumar&role=", headers=auth(tokens["admin"]))
+            email_local = test_user_email.split("@")[0]
+            r = c.get(f"{base_url}/api/admin/users/search?q={email_local}&role=", headers=auth(tokens["admin"]))
             assert r.status_code == 200
-            assert any("kumar" in u["email"].lower() or "kumar" in u["name"].lower() for u in r.json())
+            assert any(email_local in u["email"].lower() for u in r.json())
 
     def test_admin_steps(self, base_url, tokens):
         with httpx.Client(timeout=15) as c:

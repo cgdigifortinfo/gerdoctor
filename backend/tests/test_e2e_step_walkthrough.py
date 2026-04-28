@@ -1,8 +1,15 @@
 """
 E2E Test: A user walks through all 12 steps.
 After each step, verify the result from user, admin, and partner perspective.
+
+OBSOLETE: Written for the legacy 12-step survey. The v2 restructure (2026-04-20)
+replaced this with a 24-step decision-based survey. Replaced by `test_survey_v2.py`
++ `test_partner_selection_combinatorial.py`. Skipped at module level.
 """
 import pytest
+
+pytestmark = pytest.mark.skip(reason="Legacy 12-step survey — replaced by Survey v2; tests in test_survey_v2.py + test_partner_selection_combinatorial.py")
+
 import httpx
 import asyncio
 
