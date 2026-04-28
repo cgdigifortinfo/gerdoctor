@@ -116,8 +116,9 @@ def upload_step(order, title, description, decision_order, translations=None):
 
 def partner_step(order, title, description, decision_order, filter_tag,
                  multi=False, translations=None):
-    """Partner selection, visible only when decision_order.decision == 'partner' (or 'selbst' for Jobangebote)."""
-    trigger_value = "partner" if not multi else "selbst"
+    """Partner selection, visible only when decision_order.decision == 'partner'
+    (or 'partner_nutzen' for Jobangebote multi-select)."""
+    trigger_value = "partner" if not multi else "partner_nutzen"
     step_type = "partner_multiselection" if multi else "partner_selection"
     return {
         "title": title, "description": description, "order": order,

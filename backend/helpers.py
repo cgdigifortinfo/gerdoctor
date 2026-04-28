@@ -553,8 +553,18 @@ async def apply_anerkennungsstatus_skips(user_id: str, status: str):
 
 
 async def calculate_completion_pct(user_id: str) -> int:
+    """Percentage of milestones (the steps that count toward the goal) the
+    user has completed. We always count ALL active milestones — even ones
+    currently hidden by a pending decision — so the bar reflects true journey
+    progress instead of the size of the currently-visible subset.
+
+    Steps that are skipped via `apply_anerkennungsstatus_skips` come back as
+    status=completed in user_progress, so they're correctly counted as done.
+    """
     steps, _, hidden_ids, _ = await _get_step_context(user_id)
-    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0 and str(s["_id"]) not in hidden_ids]
+    # Countable = every step with a real duration_value (= milestones in this
+    # app). Don't filter by hidden_ids — milestones unconditionally count.
+    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0]
     if not countable_steps:
         return 0
     countable_ids = {str(s["_id"]) for s in countable_steps}
@@ -598,12 +608,18 @@ async def calculate_estimated_completion(user_id: str) -> Optional[str]:
     current = start_date
     for s in steps:
         sid = str(s["_id"])
-        if sid in hidden_ids:
-            continue
         p = progress_map.get(sid, {})
-        if p.get("status") != "completed":
-            duration_value = s.get("duration_value", 0)
-            duration_unit = s.get("duration_unit", "days")
-            if duration_value > 0:
-                current = add_duration(current, duration_value, duration_unit)
+        if p.get("status") == "completed":
+            continue
+        # Visibility skip: hide a step from ETA if it's hidden AND not a
+        # milestone. Milestones always lead to the goal — even when their
+        # decision step hasn't been picked yet, the user will eventually go
+        # through one of the branches and incur the milestone duration. So
+        # always count their `duration_value` toward ETA.
+        if sid in hidden_ids and s.get("step_type") != "milestone":
+            continue
+        duration_value = s.get("duration_value", 0)
+        duration_unit = s.get("duration_unit", "days")
+        if duration_value > 0:
+            current = add_duration(current, duration_value, duration_unit)
     return current.isoformat()
