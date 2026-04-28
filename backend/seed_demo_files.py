@@ -105,11 +105,13 @@ async def main():
                 completed_by = data.get("completed_by")
                 if completed_by != "partner":
                     continue
-                if data.get("partner_attachments"):
+                if data.get("partner_uploads"):
                     continue  # already seeded
                 placeholder = await upload_placeholder(uid, MILESTONE_PARTNER_FILENAMES[so], "partner_verification")
                 placeholder["uploaded_at"] = datetime.now(timezone.utc).isoformat()
-                data["partner_attachments"] = [placeholder]
+                placeholder["document_type"] = "Partner-Nachweis"
+                placeholder["uploaded_by"] = "partner"
+                data["partner_uploads"] = [placeholder]
                 await db.user_progress.update_one({"_id": prog["_id"]}, {"$set": {"data": data}})
                 partner_uploads += 1
 

@@ -801,10 +801,14 @@ export default function PartnerDashboard() {
                                                             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                                                 {Object.entries(stepData).map(([key, value]) => {
                                                                     if (key === 'skipped') return null;
+                                                                    // partner_uploads gets its own dedicated render block below — skip here.
+                                                                    if (key === 'partner_uploads') return null;
                                                                     const fieldDef = step.fields?.find(f => f.name === key);
                                                                     const label = fieldDef?.label || key.replace(/_/g, ' ');
                                                                     const fieldType = fieldDef?.field_type;
-                                                                    if (fieldType === 'multiupload' && Array.isArray(value)) {
+                                                                    // Detect arrays of file-like objects (e.g. {file_id, filename})
+                                                                    const isFileArray = Array.isArray(value) && value.length > 0 && value.every(v => v && typeof v === 'object' && v.file_id);
+                                                                    if ((fieldType === 'multiupload' && Array.isArray(value)) || isFileArray) {
                                                                         return (
                                                                             <div key={key} className="col-span-2" data-testid={`step-data-${step.order}-${key}`}>
                                                                                 <span className="text-xs text-muted-foreground capitalize">{label}</span>
@@ -850,7 +854,7 @@ export default function PartnerDashboard() {
                                                             <p className="text-xs text-muted-foreground italic">{t('dash_no_data')}</p>
                                                         </div>
                                                     )}
-                                                    {isPartnerMilestone && Array.isArray(stepData.partner_uploads) && stepData.partner_uploads.length > 0 && (
+                                                    {Array.isArray(stepData.partner_uploads) && stepData.partner_uploads.length > 0 && (
                                                         <div className="px-4 py-3 border-t border-border bg-background/50" data-testid={`partner-uploads-${step.order}`}>
                                                             <span className="text-xs text-muted-foreground">Partner-Nachweise</span>
                                                             <div className="mt-1 space-y-1.5">
