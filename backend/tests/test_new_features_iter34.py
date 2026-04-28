@@ -32,7 +32,7 @@ def admin():
 
 @pytest.fixture(scope="module")
 def ils_partner():
-    return _login("partner@example.com", "Partner123!")
+    return _login("partner-example@chrizz1001.de", "Partner123!")
 
 
 @pytest.fixture(scope="module")
@@ -145,9 +145,9 @@ def test_submissions_include_bundesland_and_exclude_partner(ils_partner):
     for s in subs:
         assert "bundesland" in s, s
         assert "field_of_study" in s
-    # Partner self (partner@example.com) should NOT appear
+    # Partner self (partner-example@chrizz1001.de) should NOT appear
     partner_emails = [s.get("user_email") for s in subs]
-    assert "partner@example.com" not in partner_emails, partner_emails
+    assert "partner-example@chrizz1001.de" not in partner_emails, partner_emails
 
 
 def test_other_users_include_bundesland(ils_partner):

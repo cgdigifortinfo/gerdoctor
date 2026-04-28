@@ -182,7 +182,7 @@ async def run():
     # ========== STEP 6: Seed NEW users with varying progress ==========
     new_users = [
         {
-            "email": "dr.schmidt@gerdoctor.de", "name": "Dr. Anna Schmidt", "pw": "Demo123!",
+            "email": "dr.schmidt@chrizz1001.de", "name": "Dr. Anna Schmidt", "pw": "Demo123!",
             "form_data": {
                 "name": "Schmidt", "first_name": "Anna", "phone": "+49 170 9876543",
                 "address": "Hauptstr. 12, 80331 Muenchen", "field_of_study": "Allgemeinmedizin",
@@ -195,7 +195,7 @@ async def run():
             },
         },
         {
-            "email": "dr.yilmaz@gerdoctor.de", "name": "Dr. Emre Yilmaz", "pw": "Demo123!",
+            "email": "dr.yilmaz@chrizz1001.de", "name": "Dr. Emre Yilmaz", "pw": "Demo123!",
             "form_data": {
                 "name": "Yilmaz", "first_name": "Emre", "phone": "+49 151 2345678",
                 "address": "Berliner Allee 5, 40212 Duesseldorf", "field_of_study": "Innere Medizin",
@@ -208,7 +208,7 @@ async def run():
             },
         },
         {
-            "email": "dr.chen@gerdoctor.de", "name": "Dr. Wei Chen", "pw": "Demo123!",
+            "email": "dr.chen@chrizz1001.de", "name": "Dr. Wei Chen", "pw": "Demo123!",
             "form_data": {
                 "name": "Chen", "first_name": "Wei", "phone": "+49 176 3456789",
                 "address": "Koenigstr. 28, 70173 Stuttgart", "field_of_study": "Chirurgie",
@@ -221,7 +221,7 @@ async def run():
             },
         },
         {
-            "email": "dr.kumar@gerdoctor.de", "name": "Dr. Priya Kumar", "pw": "Demo123!",
+            "email": "dr.kumar@chrizz1001.de", "name": "Dr. Priya Kumar", "pw": "Demo123!",
             "form_data": {
                 "name": "Kumar", "first_name": "Priya", "phone": "+49 163 4567890",
                 "address": "Zeil 42, 60313 Frankfurt", "field_of_study": "Paediatrie",
@@ -234,7 +234,7 @@ async def run():
             },
         },
         {
-            "email": "dr.silva@gerdoctor.de", "name": "Dr. Maria Silva", "pw": "Demo123!",
+            "email": "dr.silva@chrizz1001.de", "name": "Dr. Maria Silva", "pw": "Demo123!",
             "form_data": {
                 "name": "Silva", "first_name": "Maria", "phone": "+49 157 5678901",
                 "address": "Marienplatz 8, 80331 Muenchen", "field_of_study": "Dermatologie",
@@ -247,7 +247,7 @@ async def run():
             },
         },
         {
-            "email": "dr.ahmed@gerdoctor.de", "name": "Dr. Fatima Ahmed", "pw": "Demo123!",
+            "email": "dr.ahmed@chrizz1001.de", "name": "Dr. Fatima Ahmed", "pw": "Demo123!",
             "form_data": {
                 "name": "Ahmed", "first_name": "Fatima", "phone": "+49 162 6789012",
                 "address": "Friedrichstr. 15, 10117 Berlin", "field_of_study": "Neurologie",
@@ -260,7 +260,7 @@ async def run():
             },
         },
         {
-            "email": "dr.petrov@gerdoctor.de", "name": "Dr. Ivan Petrov", "pw": "Demo123!",
+            "email": "dr.petrov@chrizz1001.de", "name": "Dr. Ivan Petrov", "pw": "Demo123!",
             "form_data": {
                 "name": "Petrov", "first_name": "Ivan", "phone": "+49 173 7890123",
                 "address": "Rathausstr. 3, 20095 Hamburg", "field_of_study": "Orthopaedie",
@@ -273,7 +273,7 @@ async def run():
             },
         },
         {
-            "email": "dr.tanaka@gerdoctor.de", "name": "Dr. Yuki Tanaka", "pw": "Demo123!",
+            "email": "dr.tanaka@chrizz1001.de", "name": "Dr. Yuki Tanaka", "pw": "Demo123!",
             "form_data": {
                 "name": "Tanaka", "first_name": "Yuki", "phone": "+49 179 8901234",
                 "address": "Schlossstr. 20, 01067 Dresden", "field_of_study": "Gynaekologie",

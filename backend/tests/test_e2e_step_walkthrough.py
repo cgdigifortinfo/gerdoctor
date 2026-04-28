@@ -10,7 +10,7 @@ API_URL = None
 ADMIN_TOKEN = None
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PW = "Admin123!"
-TEST_USER_EMAIL = "TEST_e2e_fullwalk@gerdoctor.de"
+TEST_USER_EMAIL = "TEST_e2e_fullwalk@chrizz1001.de"
 TEST_USER_PW = "TestWalk123!"
 TEST_USER_NAME = "Dr. E2E Walker"
 

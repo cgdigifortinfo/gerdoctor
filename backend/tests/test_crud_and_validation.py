@@ -312,7 +312,7 @@ class TestNegativeInputs:
 
     def test_partner_cannot_access_admin(self, base_url):
         with httpx.Client(timeout=15) as c:
-            r = c.post(f"{base_url}/api/auth/login", json={"email": "partner@example.com", "password": "Partner123!"})
+            r = c.post(f"{base_url}/api/auth/login", json={"email": "partner-example@chrizz1001.de", "password": "Partner123!"})
             if r.status_code == 200:
                 tok = r.json()["access_token"]
                 r2 = c.get(f"{base_url}/api/admin/users", headers=auth(tok))

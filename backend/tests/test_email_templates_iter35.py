@@ -18,7 +18,7 @@ API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "Admin123!"
-DEMO_USER_EMAIL = "dr.yilmaz@gerdoctor.de"
+DEMO_USER_EMAIL = "dr.yilmaz@chrizz1001.de"
 DEMO_USER_PASSWORD = "Demo123!"
 
 
@@ -198,7 +198,7 @@ class TestPartnerDeepLinkRendering:
                 "variables": {
                     "partner_name": "ILS",
                     "user_name": "Dr. Yilmaz",
-                    "user_email": "dr.yilmaz@gerdoctor.de",
+                    "user_email": "dr.yilmaz@chrizz1001.de",
                     "open_user_link": deep,
                     "app_url": frontend_url,
                 },

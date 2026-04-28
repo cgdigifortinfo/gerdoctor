@@ -14,7 +14,7 @@ API = f"{BASE_URL}/api"
 
 ADMIN = {"email": "admin@example.com", "password": "Admin123!"}
 # Fresh users
-TEST_USERS = ["dr.petrov@gerdoctor.de", "dr.tanaka@gerdoctor.de", "dr.ahmed@gerdoctor.de"]
+TEST_USERS = ["dr.petrov@chrizz1001.de", "dr.tanaka@chrizz1001.de", "dr.ahmed@chrizz1001.de"]
 USER_PW = "Demo123!"
 
 
@@ -76,8 +76,8 @@ def _step1_payload(anerk: str):
 
 
 @pytest.mark.parametrize("email,anerk,expected_completed,expected_auto_skip_count", [
-    ("dr.petrov@gerdoctor.de", "Ich bin in Deutschland approbiert", 13, 12),
-    ("dr.tanaka@gerdoctor.de", "Ich habe die Fachsprachenprüfung Medizin bestanden", 4, 3),
+    ("dr.petrov@chrizz1001.de", "Ich bin in Deutschland approbiert", 13, 12),
+    ("dr.tanaka@chrizz1001.de", "Ich habe die Fachsprachenprüfung Medizin bestanden", 4, 3),
 ])
 def test_anerkennungsstatus_autoskip(admin_session, steps_by_order, email, anerk, expected_completed, expected_auto_skip_count):
     # Reset user
@@ -102,7 +102,7 @@ def test_anerkennungsstatus_autoskip(admin_session, steps_by_order, email, anerk
 
 
 def test_anerkennungsstatus_no_skip(admin_session, steps_by_order):
-    email = "dr.ahmed@gerdoctor.de"
+    email = "dr.ahmed@chrizz1001.de"
     user_id = reset_user_progress(admin_session, email)
     step1_id = steps_by_order[1]["id"]
 
@@ -122,7 +122,7 @@ def test_anerkennungsstatus_no_skip(admin_session, steps_by_order):
 
 def test_anerkennungsstatus_idempotent(admin_session, steps_by_order):
     """Re-applying same anerkennungsstatus should not double-insert progress_history rows for auto_skipped_by_status."""
-    email = "dr.petrov@gerdoctor.de"
+    email = "dr.petrov@chrizz1001.de"
     user_id = reset_user_progress(admin_session, email)
     step1_id = steps_by_order[1]["id"]
 
@@ -148,7 +148,7 @@ def test_anerkennungsstatus_idempotent(admin_session, steps_by_order):
 
 
 def test_admin_progress_update_triggers_autoskip(admin_session, steps_by_order):
-    email = "dr.tanaka@gerdoctor.de"
+    email = "dr.tanaka@chrizz1001.de"
     user_id = reset_user_progress(admin_session, email)
     step1_id = steps_by_order[1]["id"]
 
@@ -284,7 +284,7 @@ def test_template_from_step_and_apply_and_cleanup(admin_session, steps_by_order)
     load_dotenv("/app/backend/.env")
     # Use a user's GET /api/steps/progress to confirm presence
     us = requests.Session(); us.headers.update({"Content-Type": "application/json"})
-    login(us, "dr.kumar@gerdoctor.de", USER_PW)
+    login(us, "dr.kumar@chrizz1001.de", USER_PW)
     prog = us.get(f"{API}/steps/progress").json()
     assert any(p["step_id"] == new_step_id for p in prog), "new step should have pending progress for users"
 

@@ -18,14 +18,14 @@ BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
 API = f"{BASE_URL}/api"
 
 ADMIN = ("admin@example.com", "Admin123!")
-PARTNER = ("partner@example.com", "Partner123!")
+PARTNER = ("partner-example@chrizz1001.de", "Partner123!")
 DEMO_PW = "Demo123!"
 DEMO_USERS = {
-    "schmidt": "dr.schmidt@gerdoctor.de",
-    "yilmaz": "dr.yilmaz@gerdoctor.de",
-    "chen": "dr.chen@gerdoctor.de",
-    "kumar": "dr.kumar@gerdoctor.de",
-    "silva": "dr.silva@gerdoctor.de",
+    "schmidt": "dr.schmidt@chrizz1001.de",
+    "yilmaz": "dr.yilmaz@chrizz1001.de",
+    "chen": "dr.chen@chrizz1001.de",
+    "kumar": "dr.kumar@chrizz1001.de",
+    "silva": "dr.silva@chrizz1001.de",
 }
 
 
@@ -277,7 +277,7 @@ class TestCompletionMetrics:
         r = admin_client.get(f"{API}/admin/users")
         assert r.status_code == 200, r.text
         users = r.json()
-        demo = [u for u in users if u.get("email", "").endswith("@gerdoctor.de")]
+        demo = [u for u in users if u.get("email", "").endswith("@chrizz1001.de")]
         assert len(demo) >= 5, f"expected 5 demo users in admin list, got {len(demo)}"
         for u in demo:
             pct = u.get("completion_pct")
@@ -287,7 +287,7 @@ class TestCompletionMetrics:
     def test_upload_vs_partner_progress_differ_or_consistent(self, admin_client):
         # Both paths should hide the other, so denominator differs but pct is in [0,100].
         r = admin_client.get(f"{API}/admin/users")
-        users = {u["email"]: u for u in r.json() if u.get("email", "").endswith("@gerdoctor.de")}
+        users = {u["email"]: u for u in r.json() if u.get("email", "").endswith("@chrizz1001.de")}
         for email in DEMO_USERS.values():
             assert email in users, f"{email} missing"
         # Kumar: only step 1 done -> low pct

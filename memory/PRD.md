@@ -44,6 +44,7 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-27: **Email-Domain-Migration → @chrizz1001.de** — alle User-Emails außer dem Master-Admin (`admin@example.com`) auf `<local>@chrizz1001.de` migriert. 108 User-Konten (94 + 14 mit Suffix-Konflikt-Auflösung), 13 Partner-`contact_email`s, 28 `partner_submissions.user_email`-Felder. Idempotente Migration `migrate_emails_to_chrizz.py` mit deterministischem Slug-Suffix für `partner@*`-Konflikte (z.B. `partner@example.com` → `partner-example@chrizz1001.de`). Seed-Files (`seed_users_only.py`, `seed_survey_v2.py`, `seed_migration*.py`) und 9 Test-Files synced. Frontend-Placeholder + EmailTemplateEditor-Dummy aktualisiert. test_credentials.md komplett neu geschrieben. Tests: 41/41 PASS, Logins für admin/partner/user verifiziert.
 - [x] 2026-04-27: **Rebrand GERdoctor → IHCA** — vollständige Umbenennung in Frontend, Backend, Mail-Templates, Logo (`IHCA` + Tagline „international health connect association"), CMS-Hero-Title, Settings-Defaults, MIME-Type für FlowBuilder-Drag&Drop. Idempotente Migration `migrate_rebrand_ihca.py` rewrote 13 User-Emails (`*@gerdoctor.de` → `*@ihca.de`), patchte site_settings (Logo-Parts) und CMS-Content. Backend-Tests (Email-Templates, UI-Flags, Milestone-Hide) passen 41/41. Test-Credentials in `/app/memory/test_credentials.md` aktualisiert.
 
 ## Completed (recent)

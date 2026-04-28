@@ -472,7 +472,7 @@ async def seed_demo_data(db, step_docs_by_order):
         )
 
     demos = [
-        ("dr.schmidt@ihca.de", {
+        ("dr.schmidt@chrizz1001.de", {
             "stammdaten": {"first_name": "Jan", "name": "Schmidt",
                             "date_of_birth": "1988-04-12", "phone": "+49 170 1234567",
                             "address": "Hauptstraße 10, Berlin",
@@ -484,7 +484,7 @@ async def seed_demo_data(db, step_docs_by_order):
             "decisions": {2: "upload", 6: "partner"},
             "completed_up_to_order": 9,  # through Fachsprachen partner done + milestone auto-waiting
         }),
-        ("dr.yilmaz@ihca.de", {
+        ("dr.yilmaz@chrizz1001.de", {
             "stammdaten": {"first_name": "Elif", "name": "Yılmaz",
                             "date_of_birth": "1990-09-01", "phone": "+49 171 2345678",
                             "address": "Bahnhofstr. 5, München",
@@ -496,7 +496,7 @@ async def seed_demo_data(db, step_docs_by_order):
             "decisions": {2: "partner"},
             "completed_up_to_order": 5,
         }),
-        ("dr.chen@ihca.de", {
+        ("dr.chen@chrizz1001.de", {
             "stammdaten": {"first_name": "Wei", "name": "Chen",
                             "date_of_birth": "1985-11-22", "phone": "+49 172 3456789",
                             "address": "Marktplatz 3, Hamburg",
@@ -508,7 +508,7 @@ async def seed_demo_data(db, step_docs_by_order):
             "decisions": {2: "upload", 6: "upload", 10: "partner"},
             "completed_up_to_order": 13,
         }),
-        ("dr.kumar@ihca.de", {
+        ("dr.kumar@chrizz1001.de", {
             "stammdaten": {"first_name": "Rajesh", "name": "Kumar",
                             "date_of_birth": "1992-01-15", "phone": "+49 173 4567890",
                             "address": "Goethestr. 7, Frankfurt",
@@ -520,7 +520,7 @@ async def seed_demo_data(db, step_docs_by_order):
             "decisions": {},
             "completed_up_to_order": 1,
         }),
-        ("dr.silva@ihca.de", {
+        ("dr.silva@chrizz1001.de", {
             "stammdaten": {"first_name": "Maria", "name": "Silva",
                             "date_of_birth": "1987-06-30", "phone": "+49 174 5678901",
                             "address": "Rheinstr. 11, Köln",

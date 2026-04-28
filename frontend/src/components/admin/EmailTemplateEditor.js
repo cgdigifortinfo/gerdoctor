@@ -45,7 +45,7 @@ const CATEGORY_COLOR = {
 // Sensible dummy fallbacks shown in the preview when no real user/step is picked
 const DEFAULT_DUMMY = {
     user_name: 'Dr. Maria Mustermann',
-    user_email: 'dr.mustermann@ihca.de',
+    user_email: 'dr.mustermann@chrizz1001.de',
     partner_name: 'ILS Berlin',
     field_of_study: 'Innere Medizin',
     bundesland: 'Berlin',
@@ -479,7 +479,7 @@ export function EmailTemplateEditor() {
                                 data-testid="email-test-recipients-input"
                                 value={testRecipients}
                                 onChange={(e) => setTestRecipients(e.target.value)}
-                                placeholder="qa@ihca.de, test@example.com"
+                                placeholder="qa@chrizz1001.de, test@chrizz1001.de"
                                 rows={3}
                                 className="font-mono text-sm"
                             />

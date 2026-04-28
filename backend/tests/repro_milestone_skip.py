@@ -53,7 +53,7 @@ def submit_partner(token, partner_id, data):
 
 
 def run():
-    email = "dr.petrov@gerdoctor.de"
+    email = "dr.petrov@chrizz1001.de"
     reset(email)
     t = login(email)
     steps = get_steps(t)

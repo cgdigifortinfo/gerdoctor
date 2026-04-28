@@ -33,7 +33,7 @@ async def run():
     # Dr. users and their practice assignments
     praxis_data = [
         {
-            "dr_email": "dr.schmidt@gerdoctor.de",
+            "dr_email": "dr.schmidt@chrizz1001.de",
             "praxis_name": "Hausarztpraxis am Marienplatz",
             "praxis_desc": "Allgemeinmedizinische Praxis mit Schwerpunkt hausaerztliche Versorgung und Praevention. Moderne Diagnostik in zentraler Lage.",
             "praxis_cat": "Allgemeinmedizin",
@@ -45,7 +45,7 @@ async def run():
             "praxis_user_name": "Susanne Berger",
         },
         {
-            "dr_email": "dr.yilmaz@gerdoctor.de",
+            "dr_email": "dr.yilmaz@chrizz1001.de",
             "praxis_name": "Internistische Praxis Rheinblick",
             "praxis_desc": "Facharztpraxis fuer Innere Medizin. Kardiologie, Gastroenterologie und Diabetologie unter einem Dach.",
             "praxis_cat": "Innere Medizin",
@@ -57,7 +57,7 @@ async def run():
             "praxis_user_name": "Monika Schaefer",
         },
         {
-            "dr_email": "dr.chen@gerdoctor.de",
+            "dr_email": "dr.chen@chrizz1001.de",
             "praxis_name": "Chirurgische Gemeinschaftspraxis Koenigstrasse",
             "praxis_desc": "Ueberregionale chirurgische Praxis. Schwerpunkte: Viszeralchirurgie, Unfallchirurgie und ambulantes Operieren.",
             "praxis_cat": "Chirurgie",
@@ -69,7 +69,7 @@ async def run():
             "praxis_user_name": "Petra Hoffmann",
         },
         {
-            "dr_email": "dr.kumar@gerdoctor.de",
+            "dr_email": "dr.kumar@chrizz1001.de",
             "praxis_name": "Kinderarztpraxis Zeilnest",
             "praxis_desc": "Kinderaerztliche Gemeinschaftspraxis mit Schwerpunkt Vorsorge, Impfberatung und Entwicklungsdiagnostik.",
             "praxis_cat": "Paediatrie",
@@ -81,7 +81,7 @@ async def run():
             "praxis_user_name": "Claudia Weber",
         },
         {
-            "dr_email": "dr.silva@gerdoctor.de",
+            "dr_email": "dr.silva@chrizz1001.de",
             "praxis_name": "Hautarztpraxis am Englischen Garten",
             "praxis_desc": "Dermatologische Praxis mit Schwerpunkt aesthetische Dermatologie, Hautkrebsvorsorge und Allergologie.",
             "praxis_cat": "Dermatologie",
@@ -93,7 +93,7 @@ async def run():
             "praxis_user_name": "Nicole Bauer",
         },
         {
-            "dr_email": "dr.ahmed@gerdoctor.de",
+            "dr_email": "dr.ahmed@chrizz1001.de",
             "praxis_name": "Neurologisches Zentrum Friedrichstrasse",
             "praxis_desc": "Facharztpraxis fuer Neurologie und Psychiatrie. Diagnostik und Therapie neurologischer Erkrankungen inkl. EEG und Nervenleitungsmessung.",
             "praxis_cat": "Neurologie",
@@ -105,7 +105,7 @@ async def run():
             "praxis_user_name": "Kathrin Mueller",
         },
         {
-            "dr_email": "dr.petrov@gerdoctor.de",
+            "dr_email": "dr.petrov@chrizz1001.de",
             "praxis_name": "Orthopaedische Praxis Elbblick",
             "praxis_desc": "Facharztpraxis fuer Orthopaedie und Sportmedizin. Konservative und operative Behandlung des Bewegungsapparates.",
             "praxis_cat": "Orthopaedie",
@@ -117,7 +117,7 @@ async def run():
             "praxis_user_name": "Andrea Fischer",
         },
         {
-            "dr_email": "dr.tanaka@gerdoctor.de",
+            "dr_email": "dr.tanaka@chrizz1001.de",
             "praxis_name": "Frauenarztpraxis an der Frauenkirche",
             "praxis_desc": "Gynaekologische Praxis mit Schwerpunkt Schwangerenvorsorge, Geburtsplanung und Krebsfrueherkennung.",
             "praxis_cat": "Gynaekologie",

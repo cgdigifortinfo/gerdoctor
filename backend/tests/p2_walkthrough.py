@@ -90,7 +90,7 @@ def main():
     print("=" * 60)
     print("FLOW A: Jobangebote 'Ich möchte selbst suchen'")
     print("=" * 60)
-    email = "dr.tanaka@gerdoctor.de"
+    email = "dr.tanaka@chrizz1001.de"
     token = fast_forward_to_jobangebote_decision(email)
     vis = get_visibility(token)
     prog = get_progress(token)
@@ -130,7 +130,7 @@ def main():
     print("=" * 60)
     print("FLOW B: Jobangebote 'Ich möchte einen Partner nutzen'")
     print("=" * 60)
-    email = "dr.petrov@gerdoctor.de"
+    email = "dr.petrov@chrizz1001.de"
     token = fast_forward_to_jobangebote_decision(email)
     vis = get_visibility(token)
     steps = get_steps(token)
@@ -156,7 +156,7 @@ def main():
     print("=" * 60)
     print("FLOW C: PartnerDashboard hides steps correctly for viewed user")
     print("=" * 60)
-    schmidt_token = login("dr.schmidt@gerdoctor.de", "Demo123!")
+    schmidt_token = login("dr.schmidt@chrizz1001.de", "Demo123!")
     schmidt_vis = get_visibility(schmidt_token)
     schmidt_prog = get_progress(schmidt_token)
     schmidt_steps = get_steps(schmidt_token)
@@ -178,7 +178,7 @@ def main():
     print(f"  ✓ step7 hidden, step8 visible (partner path)")
 
     # Now verify partner can view schmidt and sees the same visibility
-    ptok = login("partner@example.com", "Partner123!")
+    ptok = login("partner-example@chrizz1001.de", "Partner123!")
     # Get partner's linked users via submissions
     r = requests.get(f"{API}/partner/submissions", headers={"Authorization": f"Bearer {ptok}"})
     if r.status_code != 200:
@@ -188,7 +188,7 @@ def main():
     r = requests.get(f"{API}/admin/partners", headers={"Authorization": f"Bearer {admin_tok}"})
     partner_rec = next((p for p in r.json() if p.get("name") == "ILS"), None)
     r = requests.get(f"{API}/admin/users", headers={"Authorization": f"Bearer {admin_tok}"})
-    schmidt_user = next(u for u in r.json() if u["email"] == "dr.schmidt@gerdoctor.de")
+    schmidt_user = next(u for u in r.json() if u["email"] == "dr.schmidt@chrizz1001.de")
     if partner_rec and schmidt_user["id"] not in (partner_rec.get("linked_user_ids") or []):
         requests.put(f"{API}/admin/partners/{partner_rec['id']}/link-user?user_id={schmidt_user['id']}",
                      headers={"Authorization": f"Bearer {admin_tok}"})

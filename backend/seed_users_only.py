@@ -60,7 +60,7 @@ def now_iso():
 # Names must match partners.name exactly — falls back to "Demo Partner" if absent.
 DEMO_USERS = [
     {
-        "email": "dr.schmidt@ihca.de",
+        "email": "dr.schmidt@chrizz1001.de",
         "name": "Dr. Jan Schmidt",
         "stammdaten": {
             "first_name": "Jan", "name": "Schmidt",
@@ -77,7 +77,7 @@ DEMO_USERS = [
         "completed_up_to_order": 9,
     },
     {
-        "email": "dr.yilmaz@ihca.de",
+        "email": "dr.yilmaz@chrizz1001.de",
         "name": "Dr. Elif Yılmaz",
         "stammdaten": {
             "first_name": "Elif", "name": "Yılmaz",
@@ -94,7 +94,7 @@ DEMO_USERS = [
         "completed_up_to_order": 5,
     },
     {
-        "email": "dr.chen@ihca.de",
+        "email": "dr.chen@chrizz1001.de",
         "name": "Dr. Wei Chen",
         "stammdaten": {
             "first_name": "Wei", "name": "Chen",
@@ -111,7 +111,7 @@ DEMO_USERS = [
         "completed_up_to_order": 13,
     },
     {
-        "email": "dr.kumar@ihca.de",
+        "email": "dr.kumar@chrizz1001.de",
         "name": "Dr. Rajesh Kumar",
         "stammdaten": {
             "first_name": "Rajesh", "name": "Kumar",
@@ -128,7 +128,7 @@ DEMO_USERS = [
         "completed_up_to_order": 1,
     },
     {
-        "email": "dr.silva@ihca.de",
+        "email": "dr.silva@chrizz1001.de",
         "name": "Dr. Maria Silva",
         "stammdaten": {
             "first_name": "Maria", "name": "Silva",
@@ -145,7 +145,7 @@ DEMO_USERS = [
         "completed_up_to_order": 8,
     },
     {
-        "email": "dr.ahmed@ihca.de",
+        "email": "dr.ahmed@chrizz1001.de",
         "name": "Dr. Omar Ahmed",
         "stammdaten": {},
         "decisions": {},
@@ -153,7 +153,7 @@ DEMO_USERS = [
         "completed_up_to_order": 0,
     },
     {
-        "email": "dr.petrov@ihca.de",
+        "email": "dr.petrov@chrizz1001.de",
         "name": "Dr. Anna Petrov",
         "stammdaten": {},
         "decisions": {},
@@ -161,7 +161,7 @@ DEMO_USERS = [
         "completed_up_to_order": 0,
     },
     {
-        "email": "dr.tanaka@ihca.de",
+        "email": "dr.tanaka@chrizz1001.de",
         "name": "Dr. Hiro Tanaka",
         "stammdaten": {},
         "decisions": {},
@@ -170,7 +170,7 @@ DEMO_USERS = [
     },
     # ---- NEW diverse demo doctors ----
     {
-        "email": "dr.nguyen@ihca.de",
+        "email": "dr.nguyen@chrizz1001.de",
         "name": "Dr. Linh Nguyen",
         "stammdaten": {
             "first_name": "Linh", "name": "Nguyen",
@@ -187,7 +187,7 @@ DEMO_USERS = [
         "completed_up_to_order": 5,
     },
     {
-        "email": "dr.rossi@ihca.de",
+        "email": "dr.rossi@chrizz1001.de",
         "name": "Dr. Giulia Rossi",
         "stammdaten": {
             "first_name": "Giulia", "name": "Rossi",
@@ -204,7 +204,7 @@ DEMO_USERS = [
         "completed_up_to_order": 13,
     },
     {
-        "email": "dr.kowalski@ihca.de",
+        "email": "dr.kowalski@chrizz1001.de",
         "name": "Dr. Felix Kowalski",
         "stammdaten": {
             "first_name": "Felix", "name": "Kowalski",
@@ -222,7 +222,7 @@ DEMO_USERS = [
         "completed_up_to_order": 20,
     },
     {
-        "email": "dr.okafor@ihca.de",
+        "email": "dr.okafor@chrizz1001.de",
         "name": "Dr. Kemi Okafor",
         "stammdaten": {
             "first_name": "Kemi", "name": "Okafor",
@@ -239,7 +239,7 @@ DEMO_USERS = [
         "completed_up_to_order": 18,
     },
     {
-        "email": "dr.popov@ihca.de",
+        "email": "dr.popov@chrizz1001.de",
         "name": "Dr. Nadia Popov",
         "stammdaten": {
             "first_name": "Nadia", "name": "Popov",
@@ -283,13 +283,14 @@ async def ensure_partner_users(db) -> tuple:
             existing.append({"partner": p["name"], "users": linked[pid]})
             continue
 
-        # Build deterministic email from the partner name
+        # Build deterministic email like `partner-<slug>@chrizz1001.de` so the
+        # local part stays unique inside the single chrizz1001 mailbox domain.
         slug = slugify(p["name"])
-        email = f"partner@{slug}.de"
+        email = f"partner-{slug}@chrizz1001.de"
         # Avoid collisions (e.g. partner appearing twice with near-identical names)
         suffix = 2
         while await db.users.find_one({"email": email}):
-            email = f"partner+{suffix}@{slug}.de"
+            email = f"partner-{slug}-{suffix}@chrizz1001.de"
             suffix += 1
 
         name = f"Partner: {p['name']}"

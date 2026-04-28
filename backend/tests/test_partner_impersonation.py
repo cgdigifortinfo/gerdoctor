@@ -28,7 +28,7 @@ class TestPartnerImpersonation:
         """Admin can impersonate a partner user and get a valid token."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(admin_token)).json()
-            partner_user = next(u for u in users if u["email"] == "partner@example.com")
+            partner_user = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
 
             r = c.post(f"{base_url}/api/admin/impersonate/{partner_user['id']}", headers=auth(admin_token))
             assert r.status_code == 200
@@ -39,7 +39,7 @@ class TestPartnerImpersonation:
         """Impersonated partner user can access /partner/submissions."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(admin_token)).json()
-            partner_user = next(u for u in users if u["email"] == "partner@example.com")
+            partner_user = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
 
             imp_token = c.post(f"{base_url}/api/admin/impersonate/{partner_user['id']}", headers=auth(admin_token)).json()["access_token"]
 
@@ -53,21 +53,21 @@ class TestPartnerImpersonation:
         """Impersonated partner user can access /partner/profile."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(admin_token)).json()
-            partner_user = next(u for u in users if u["email"] == "partner@example.com")
+            partner_user = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
 
             imp_token = c.post(f"{base_url}/api/admin/impersonate/{partner_user['id']}", headers=auth(admin_token)).json()["access_token"]
 
             r = c.get(f"{base_url}/api/partner/profile", headers=auth(imp_token))
             assert r.status_code == 200
             profile = r.json()
-            assert profile["email"] == "partner@example.com"
+            assert profile["email"] == "partner-example@chrizz1001.de"
             assert profile["partner_name"] is not None
 
     def test_impersonated_partner_can_get_other_users(self, base_url, admin_token):
         """Impersonated partner user can access /partner/other-users."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(admin_token)).json()
-            partner_user = next(u for u in users if u["email"] == "partner@example.com")
+            partner_user = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
 
             imp_token = c.post(f"{base_url}/api/admin/impersonate/{partner_user['id']}", headers=auth(admin_token)).json()["access_token"]
 
@@ -79,7 +79,7 @@ class TestPartnerImpersonation:
         """Impersonated partner can view user detail for a submitted user."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(admin_token)).json()
-            partner_user = next(u for u in users if u["email"] == "partner@example.com")
+            partner_user = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
 
             imp_token = c.post(f"{base_url}/api/admin/impersonate/{partner_user['id']}", headers=auth(admin_token)).json()["access_token"]
 

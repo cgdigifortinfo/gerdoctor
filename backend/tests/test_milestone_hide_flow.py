@@ -71,7 +71,7 @@ def fresh_user():
 @pytest.fixture()
 def partner_token():
     r = requests.post(f"{API}/auth/login",
-                      json={"email": "partner@example.com", "password": "Partner123!"})
+                      json={"email": "partner-example@chrizz1001.de", "password": "Partner123!"})
     r.raise_for_status()
     return r.json()["access_token"]
 

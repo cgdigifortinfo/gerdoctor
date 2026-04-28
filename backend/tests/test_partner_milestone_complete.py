@@ -23,7 +23,7 @@ API = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
 
 ADMIN = ("admin@example.com", "Admin123!")
 PARTNER = ("partner@digifort-experts.de", "Partner123!")
-TARGET_USER_EMAIL = "dr.silva@gerdoctor.de"
+TARGET_USER_EMAIL = "dr.silva@chrizz1001.de"
 
 
 def login(email, pw):

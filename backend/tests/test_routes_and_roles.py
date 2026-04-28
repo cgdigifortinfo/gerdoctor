@@ -19,10 +19,10 @@ def tokens(base_url):
         admin = c.post(f"{base_url}/api/auth/login", json={"email": "admin@example.com", "password": "Admin123!"})
         assert admin.status_code == 200
 
-        partner = c.post(f"{base_url}/api/auth/login", json={"email": "partner@example.com", "password": "Partner123!"})
+        partner = c.post(f"{base_url}/api/auth/login", json={"email": "partner-example@chrizz1001.de", "password": "Partner123!"})
         assert partner.status_code == 200
 
-        user = c.post(f"{base_url}/api/auth/login", json={"email": "dr.kumar@gerdoctor.de", "password": "Demo123!"})
+        user = c.post(f"{base_url}/api/auth/login", json={"email": "dr.kumar@chrizz1001.de", "password": "Demo123!"})
         assert user.status_code == 200
 
         return {
@@ -403,7 +403,7 @@ class TestCrossRoleAccess:
         """Admin impersonating a partner can access partner dashboard."""
         with httpx.Client(timeout=15) as c:
             users = c.get(f"{base_url}/api/admin/users", headers=auth(tokens["admin"])).json()
-            partner = next(u for u in users if u["email"] == "partner@example.com")
+            partner = next(u for u in users if u["email"] == "partner-example@chrizz1001.de")
             imp = c.post(f"{base_url}/api/admin/impersonate/{partner['id']}", headers=auth(tokens["admin"]))
             imp_tok = imp.json()["access_token"]
 
