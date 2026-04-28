@@ -80,6 +80,7 @@ async def register(data: UserRegister, response: Response):
     for step in steps:
         await db.user_progress.insert_one({
             "user_id": user_id, "step_id": str(step["_id"]),
+            "step_order": step.get("order"),
             "status": "pending", "data": {},
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()

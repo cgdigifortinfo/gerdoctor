@@ -553,27 +553,27 @@ async def apply_anerkennungsstatus_skips(user_id: str, status: str):
 
 
 async def calculate_completion_pct(user_id: str) -> int:
-    """Percentage of milestones (the steps that count toward the goal) the
-    user has completed. We always count ALL active milestones — even ones
-    currently hidden by a pending decision — so the bar reflects true journey
-    progress instead of the size of the currently-visible subset.
+    """Percentage of the user's journey that is complete.
+
+    Counts every visible (non-hidden) active step the user has finished against
+    the total visible step count. Hidden steps (e.g. the upload-path is hidden
+    when the user picked the partner-path) are excluded so the denominator
+    matches what the user actually sees in their UI.
 
     Steps that are skipped via `apply_anerkennungsstatus_skips` come back as
     status=completed in user_progress, so they're correctly counted as done.
     """
     steps, _, hidden_ids, _ = await _get_step_context(user_id)
-    # Countable = every step with a real duration_value (= milestones in this
-    # app). Don't filter by hidden_ids — milestones unconditionally count.
-    countable_steps = [s for s in steps if s.get("duration_value", 0) > 0]
-    if not countable_steps:
+    visible_steps = [s for s in steps if str(s["_id"]) not in hidden_ids]
+    if not visible_steps:
         return 0
-    countable_ids = {str(s["_id"]) for s in countable_steps}
+    visible_ids = {str(s["_id"]) for s in visible_steps}
     completed = await db.user_progress.count_documents({
         "user_id": user_id,
         "status": "completed",
-        "step_id": {"$in": list(countable_ids)}
+        "step_id": {"$in": list(visible_ids)},
     })
-    return round((completed / len(countable_steps) * 100))
+    return round((completed / len(visible_steps) * 100))
 
 async def calculate_estimated_completion(user_id: str) -> Optional[str]:
     steps, _, hidden_ids, _ = await _get_step_context(user_id)

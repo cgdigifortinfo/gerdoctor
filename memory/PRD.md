@@ -44,6 +44,17 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-28: **Datenstruktur-Repair: user_progress + Progress-Berechnung** — root-cause fix für Partner-Tabelle "0% / kein Fortschritt"-Anzeige.
+  Drei zusammenhängende Datenprobleme behoben:
+  1. **3 Orphan-Duplicate Steps** (#26/27/28 alle "Persönliche Daten") aus fehlgeschlagenen `test_template_from_step_and_apply_and_cleanup`-Runs gelöscht (deren Cleanup nie lief, da Asserts vorher fehlschlugen). Inkl. 504 referenzierender Progress-Rows.
+  2. **1708 Progress-Rows fehlte `step_order`** — `/api/auth/register` schrieb Pending-Stubs ohne den Order-Feld. Backfill aus `steps.order`. Endpoint gefixt um `step_order` jetzt mitzuschreiben.
+  3. **1491 fehlende Pending-Stubs** — Seed `seed_100_demo_users.py` legte nur Progress-Rows für Steps an, die der User auch berührt hatte. Konsequenz: Visibility/ETA-Berechnungen liefen auf lückenhaften Daten. Migration füllt für jeden User+aktiven Step einen Pending-Stub.
+  Migration `migrate_repair_progress_data.py` (idempotent) führt alle 5 Reparatur-Schritte aus (orphan-step-cleanup, step_order-backfill, stale-row-cleanup, dedup, missing-stub-fill).
+  
+  **Algorithmus-Fix `calculate_completion_pct`**: vorher zählte nur Milestones (Steps mit `duration_value > 0`) → User mit 4 erledigten Steps zeigten 0% bis zum ersten Milestone. Jetzt: completed/visible_active Steps. Ergebnis im Partner-Dashboard: aktive User zeigen 30% statt 0%, abgeschlossene 95% statt 100% (= 24/25, da Congrats-Step #25 noch pending). Hidden-Steps bleiben aus Nenner ausgeschlossen, sodass Upload-Pfad-User nicht für versteckte Partner-Steps bestraft werden und vice versa.
+  
+  **Test-Cleanup gehärtet**: `test_template_from_step_and_apply_and_cleanup` hat jetzt try/finally für DELETE — keine zukünftigen Orphans mehr. Neue Test-Datei `test_completion_pct_visible_steps.py` (5 Cases, ALL PASS) sperrt das neue Verhalten ab. Gesamt-Backend-Regression: **58/58 PASS** über 8 zusammenhängende Test-Files.
+
 - [x] 2026-04-28: **Backend Test Suite Cleanup** — 8 obsolete tests across 5 files modernized to align with the 2026-04-27 email migration + Survey v2 schema:
   - `test_survey_v2.py`: ephemeral fixture users (`{run_tag}-kumar/schmidt/yilmaz/chen/silva`) created via `/auth/register` + cleaned up via direct mongo at module teardown. Step-count assertion relaxed to `>= 24` (tolerates new Congrats-Step #25 and any orphan #26).
   - `test_new_features_iter33.py`: replaced `dr.petrov/tanaka/ahmed/kumar` with parametrized ephemeral users, same fixture pattern.

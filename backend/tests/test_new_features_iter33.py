@@ -290,28 +290,33 @@ def test_template_from_step_and_apply_and_cleanup(admin_session, steps_by_order)
                            params={"name": "TEST_tmpl_from_step1", "description": "from step"})
     assert r.status_code == 200, r.text
     tid = r.json()["id"]
-    listed = admin_session.get(f"{API}/admin/step-templates").json()
-    mine = next(t for t in listed if t["id"] == tid)
-    cfg = mine["config"]
-    assert "_id" not in cfg and "order" not in cfg and "is_active" not in cfg
-    assert cfg.get("title") and cfg.get("fields")
+    new_step_id = None
+    try:
+        listed = admin_session.get(f"{API}/admin/step-templates").json()
+        mine = next(t for t in listed if t["id"] == tid)
+        cfg = mine["config"]
+        assert "_id" not in cfg and "order" not in cfg and "is_active" not in cfg
+        assert cfg.get("title") and cfg.get("fields")
 
-    target_order = max(steps_by_order.keys()) + 1
-    r = admin_session.post(f"{API}/admin/step-templates/{tid}/apply", params={"order": target_order})
-    assert r.status_code == 200, r.text
-    new_step_id = r.json()["id"]
+        target_order = max(steps_by_order.keys()) + 1
+        r = admin_session.post(f"{API}/admin/step-templates/{tid}/apply", params={"order": target_order})
+        assert r.status_code == 200, r.text
+        new_step_id = r.json()["id"]
 
-    all_steps = admin_session.get(f"{API}/admin/steps").json()
-    new_step = next((s for s in all_steps if s["id"] == new_step_id), None)
-    assert new_step is not None, "applied step not found"
-    assert new_step["order"] == target_order
+        all_steps = admin_session.get(f"{API}/admin/steps").json()
+        new_step = next((s for s in all_steps if s["id"] == new_step_id), None)
+        assert new_step is not None, "applied step not found"
+        assert new_step["order"] == target_order
 
-    # verify pending progress entries created for regular users (use kumar fixture)
-    us = requests.Session(); us.headers.update({"Content-Type": "application/json"})
-    login(us, TEST_USERS["kumar"], USER_PW)
-    prog = us.get(f"{API}/steps/progress").json()
-    assert any(p["step_id"] == new_step_id for p in prog), "new step should have pending progress for users"
-
-    admin_session.put(f"{API}/admin/steps/{new_step_id}", json={"is_active": False})
-    admin_session.delete(f"{API}/admin/steps/{new_step_id}")
-    admin_session.delete(f"{API}/admin/step-templates/{tid}")
+        # verify pending progress entries created for regular users (use kumar fixture)
+        us = requests.Session(); us.headers.update({"Content-Type": "application/json"})
+        login(us, TEST_USERS["kumar"], USER_PW)
+        prog = us.get(f"{API}/steps/progress").json()
+        assert any(p["step_id"] == new_step_id for p in prog), "new step should have pending progress for users"
+    finally:
+        # Always clean up — even if assertions above failed — so we don't leave
+        # orphan duplicate steps that pollute everyone's progress data.
+        if new_step_id:
+            admin_session.put(f"{API}/admin/steps/{new_step_id}", json={"is_active": False})
+            admin_session.delete(f"{API}/admin/steps/{new_step_id}")
+        admin_session.delete(f"{API}/admin/step-templates/{tid}")
