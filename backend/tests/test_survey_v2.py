@@ -96,30 +96,38 @@ def _seed_users(steps):
     by_order = {st["order"]: st for st in steps}
     sid = lambda o: str(by_order[o].get("id") or by_order[o].get("_id"))
 
+    def _selber(s):
+        """Pick 'selber' on the new Step 2 (Schnellstart) so the journey continues."""
+        _put_progress(s, sid(2), "completed", {"decision": "selber"})
+
     # kumar: register only — auto-progress rows are pending. No step 1 done.
     register(STAGE_USERS["kumar"], "Dr. Kumar Test")
 
-    # schmidt: step 1 + decision=upload on step 2 (does NOT upload yet)
+    # schmidt: step 1 + step 2 selber + decision=upload on step 3 (does NOT upload yet)
     s, _ = register(STAGE_USERS["schmidt"], "Dr. Schmidt Test")
     _put_progress(s, sid(1), "completed", _stammdaten_payload("Anna", "Schmidt"))
-    _put_progress(s, sid(2), "completed", {"decision": "upload"})
+    _selber(s)
+    _put_progress(s, sid(3), "completed", {"decision": "upload"})
 
-    # yilmaz: step 1 + decision=partner on step 2
+    # yilmaz: step 1 + step 2 selber + decision=partner on step 3
     s, _ = register(STAGE_USERS["yilmaz"], "Dr. Yilmaz Test")
     _put_progress(s, sid(1), "completed", _stammdaten_payload("Mehmet", "Yilmaz"))
-    _put_progress(s, sid(2), "completed", {"decision": "partner"})
+    _selber(s)
+    _put_progress(s, sid(3), "completed", {"decision": "partner"})
 
     # silva: complete block 1 fully (decision=upload + real file)
     s, _ = register(STAGE_USERS["silva"], "Dr. Silva Test")
     _put_progress(s, sid(1), "completed", _stammdaten_payload("Diego", "Silva"))
-    _put_progress(s, sid(2), "completed", {"decision": "upload"})
-    _put_progress(s, sid(3), "completed", _real_upload_doc())
-    # milestone 5 auto-completes via has_upload condition
+    _selber(s)
+    _put_progress(s, sid(3), "completed", {"decision": "upload"})
+    _put_progress(s, sid(4), "completed", _real_upload_doc())
+    # milestone 6 auto-completes via has_upload condition
 
     # chen: complete blocks 1-3 (upload path each)
     s, _ = register(STAGE_USERS["chen"], "Dr. Chen Test")
     _put_progress(s, sid(1), "completed", _stammdaten_payload("Lin", "Chen"))
-    for dec, up in ((2, 3), (6, 7), (10, 11)):
+    _selber(s)
+    for dec, up in ((3, 4), (7, 8), (11, 12)):
         _put_progress(s, sid(dec), "completed", {"decision": "upload"})
         _put_progress(s, sid(up), "completed", _real_upload_doc())
 
@@ -169,59 +177,80 @@ def stage_users(steps):
 # ---------- /api/steps structure ----------
 
 class TestStepsStructure:
-    def test_step_count_is_24(self, steps):
-        # Core survey has 24 steps; an extra "Herzlichen Glückwunsch" display
-        # step and any orphan duplicates may sit at order >= 25 and are tolerated.
-        core = [s for s in steps if s["order"] <= 24]
-        assert len(core) == 24, f"Expected 24 core steps (orders 1-24), got {len(core)}"
+    def test_step_count_is_25(self, steps):
+        # Core survey has 25 steps (24 original + 1 new "Schnellstart" decision
+        # inserted at order 2 in 2026-04-28). Optional Congrats display step at
+        # order 26 is tolerated.
+        core = [s for s in steps if s["order"] <= 25]
+        assert len(core) == 25, f"Expected 25 core steps (orders 1-25), got {len(core)}"
 
     def test_step_types_per_block(self, steps):
         by_order = {s["order"]: s for s in steps}
         assert by_order[1]["step_type"] == "form"
-        assert by_order[2]["step_type"] == "decision"
-        assert by_order[3]["step_type"] == "form"
-        assert by_order[4]["step_type"] == "partner_selection"
-        assert by_order[5]["step_type"] == "milestone"
-        assert by_order[6]["step_type"] == "decision"
-        assert by_order[9]["step_type"] == "milestone"
-        assert by_order[18]["step_type"] == "decision"
-        assert by_order[19]["step_type"] == "partner_multiselection"
-        assert by_order[20]["step_type"] == "milestone"
+        assert by_order[2]["step_type"] == "decision"     # NEW Schnellstart
+        assert by_order[3]["step_type"] == "decision"     # Antragstellung Approbation
+        assert by_order[4]["step_type"] == "form"
+        assert by_order[5]["step_type"] == "partner_selection"
+        assert by_order[6]["step_type"] == "milestone"
+        assert by_order[7]["step_type"] == "decision"     # Fachsprache
+        assert by_order[10]["step_type"] == "milestone"
+        assert by_order[19]["step_type"] == "decision"    # Jobangebote
+        assert by_order[20]["step_type"] == "partner_multiselection"
+        assert by_order[21]["step_type"] == "milestone"
+
+    def test_schnellstart_step_has_primary_option(self, steps):
+        """Step #2 = Schnellstart decision with `ueberholspur` (primary) and `selber`."""
+        by_order = {s["order"]: s for s in steps}
+        st = by_order[2]
+        assert st["title"] == "Schnellstart oder Selbststart?"
+        field = st["fields"][0]
+        assert field["field_type"] == "decision"
+        opts = {o["value"]: o for o in field["options"]}
+        assert set(opts.keys()) == {"ueberholspur", "selber"}
+        assert opts["ueberholspur"].get("primary") is True
+        assert "info_body" in opts["ueberholspur"]
+        assert opts["selber"].get("primary") is not True  # default/none
 
     def test_decision_step_has_2_options(self, steps):
         by_order = {s["order"]: s for s in steps}
-        dec2 = by_order[2]
-        field = dec2["fields"][0]
+        # Step 3 = Antragstellung Approbation (decision upload/partner)
+        dec3 = by_order[3]
+        field = dec3["fields"][0]
         assert field["field_type"] == "decision"
         values = {o["value"] for o in field["options"]}
         assert values == {"upload", "partner"}
-        dec18 = by_order[18]
-        values18 = {o["value"] for o in dec18["fields"][0]["options"]}
-        assert values18 == {"selbst", "partner_nutzen"}
+        # Step 19 = Jobangebote (decision selbst/partner_nutzen)
+        dec19 = by_order[19]
+        values19 = {o["value"] for o in dec19["fields"][0]["options"]}
+        assert values19 == {"selbst", "partner_nutzen"}
 
     def test_hide_auto_complete_and_block_conditions(self, steps):
         by_order = {s["order"]: s for s in steps}
-        c3 = by_order[3]["conditions"]
-        assert any(c["action"] == "hide" and c["source_step_order"] == 2 for c in c3)
+        # Step 4 (upload Antragstellung) hidden when step 3 decision=partner
         c4 = by_order[4]["conditions"]
-        assert any(c["action"] == "hide" and c["source_step_order"] == 2 for c in c4)
+        assert any(c["action"] == "hide" and c["source_step_order"] == 3 for c in c4)
+        # Step 5 (partner_selection Antragstellung) hidden when step 3 decision=upload
         c5 = by_order[5]["conditions"]
+        assert any(c["action"] == "hide" and c["source_step_order"] == 3 for c in c5)
+        # Step 6 (milestone Antragstellung) auto_completes on step 4 has_upload
+        c6 = by_order[6]["conditions"]
         assert any(
             c["action"] == "auto_complete"
-            and c["source_step_order"] == 3
+            and c["source_step_order"] == 4
             and c.get("operator") == "has_upload"
             and c.get("field") == "documents"
-            for c in c5
-        ), f"milestone 5 should auto_complete on upload step #3 has_upload(documents), got {c5}"
+            for c in c6
+        ), f"milestone 6 should auto_complete on upload step #4 has_upload(documents), got {c6}"
         assert any(
             c.get("action") == "block"
             and isinstance(c.get("all_of"), list)
-            and any(sub.get("source_step_order") == 3
+            and any(sub.get("source_step_order") == 4
                     and sub.get("operator") == "missing_upload" for sub in c["all_of"])
-            for c in c5
-        ), f"milestone 5 should block when upload=chosen+no file, got {c5}"
-        c6 = by_order[6]["conditions"]
-        assert any(c["action"] == "block" and c["source_step_order"] == 5 for c in c6)
+            for c in c6
+        ), f"milestone 6 should block when upload=chosen+no file, got {c6}"
+        # Step 7 (Fachsprache decision) blocked until step 6 (Antragstellung milestone) complete
+        c7 = by_order[7]["conditions"]
+        assert any(c["action"] == "block" and c["source_step_order"] == 6 for c in c7)
 
     def test_stammdaten_fields(self, steps):
         s1 = next(s for s in steps if s["order"] == 1)
@@ -245,30 +274,30 @@ class TestVisibility:
         assert r.status_code == 200, r.text
         return s, r.json()
 
-    def test_kumar_blocked_step6(self, steps):
-        # Kumar registered only — milestone 5 pending → step 6 blocked
+    def test_kumar_blocked_step7(self, steps):
+        # Kumar registered only — milestone 6 (Antragstellung) pending → step 7 (Fachsprache) blocked
         _, vis = self._get_vis(STAGE_USERS["kumar"])
         by_order = {s["order"]: s for s in steps}
-        step6_id = str(by_order[6].get("id") or by_order[6].get("_id"))
+        step7_id = str(by_order[7].get("id") or by_order[7].get("_id"))
         blocked = set(vis.get("blocked_step_ids", []))
-        assert step6_id in blocked, f"step 6 should be blocked for kumar, blocked={blocked}"
+        assert step7_id in blocked, f"step 7 should be blocked for kumar, blocked={blocked}"
 
     def test_schmidt_upload_hides_partner(self, steps):
-        # schmidt picked decision=upload → partner step 4 hidden, upload step 3 visible
+        # schmidt picked step3 decision=upload → partner step 5 hidden, upload step 4 visible
         _, vis = self._get_vis(STAGE_USERS["schmidt"])
         by_order = {s["order"]: s for s in steps}
         sid = lambda o: str(by_order[o].get("id") or by_order[o].get("_id"))
         hidden = set(vis.get("hidden_step_ids", []))
-        assert sid(4) in hidden, "partner step 4 should be hidden for upload path"
-        assert sid(3) not in hidden, "upload step 3 must be visible"
+        assert sid(5) in hidden, "partner step 5 should be hidden for upload path"
+        assert sid(4) not in hidden, "upload step 4 must be visible"
 
     def test_yilmaz_partner_hides_upload(self, steps):
         _, vis = self._get_vis(STAGE_USERS["yilmaz"])
         by_order = {s["order"]: s for s in steps}
         sid = lambda o: str(by_order[o].get("id") or by_order[o].get("_id"))
         hidden = set(vis.get("hidden_step_ids", []))
-        assert sid(3) in hidden, "upload step 3 should be hidden on partner path"
-        assert sid(4) not in hidden, "partner step 4 must be visible"
+        assert sid(4) in hidden, "upload step 4 should be hidden on partner path"
+        assert sid(5) not in hidden, "partner step 5 must be visible"
 
 
 # ---------- Progress with auto_complete ----------
@@ -281,56 +310,64 @@ class TestAutoComplete:
 
     def _reset_kumar(self, s, steps):
         by_order = {st["order"]: st for st in steps}
-        for o in (2, 3, 4, 5):
+        # reset block 1 steps (3..6) plus the new Schnellstart step (2)
+        for o in (2, 3, 4, 5, 6):
             sid = str(by_order[o].get("id") or by_order[o].get("_id"))
             s.put(f"{API}/steps/progress", json={"step_id": sid, "status": "pending", "data": {}}, timeout=15)
 
-    def test_upload_triggers_milestone_auto_complete(self, steps):
-        """Milestone 5 only auto-completes once upload step #3 has a real file."""
-        s = self._login_kumar()
-        self._reset_kumar(s, steps)
+    def _selber(self, s, steps):
         by_order = {st["order"]: st for st in steps}
         sid2 = str(by_order[2].get("id") or by_order[2].get("_id"))
-        sid3 = str(by_order[3].get("id") or by_order[3].get("_id"))
-        sid5 = str(by_order[5].get("id") or by_order[5].get("_id"))
+        _put_progress(s, sid2, "completed", {"decision": "selber"})
 
-        # 1) Choose upload path
-        _put_progress(s, sid2, "completed", {"decision": "upload"})
+    def test_upload_triggers_milestone_auto_complete(self, steps):
+        """Milestone 6 only auto-completes once upload step #4 has a real file."""
+        s = self._login_kumar()
+        self._reset_kumar(s, steps)
+        self._selber(s, steps)
+        by_order = {st["order"]: st for st in steps}
+        sid3 = str(by_order[3].get("id") or by_order[3].get("_id"))
+        sid4 = str(by_order[4].get("id") or by_order[4].get("_id"))
+        sid6 = str(by_order[6].get("id") or by_order[6].get("_id"))
+
+        # 1) Choose upload path on Antragstellung step (#3)
+        _put_progress(s, sid3, "completed", {"decision": "upload"})
 
         # 2) Empty upload submission → backend rejects (400)
-        r_bad = s.put(f"{API}/steps/progress", json={"step_id": sid3, "status": "completed", "data": {}}, timeout=15)
+        r_bad = s.put(f"{API}/steps/progress", json={"step_id": sid4, "status": "completed", "data": {}}, timeout=15)
         assert r_bad.status_code == 400, f"expected 400 for empty upload, got {r_bad.status_code}: {r_bad.text}"
         assert "Dokument" in r_bad.text, f"expected German 'Dokument' error, got {r_bad.text}"
 
-        # 3) Milestone 5 still pending + blocked
+        # 3) Milestone 6 still pending + blocked
         prog_mid = {p["step_id"]: p for p in s.get(f"{API}/steps/progress").json()}
-        assert prog_mid[sid5]["status"] != "completed"
+        assert prog_mid[sid6]["status"] != "completed"
         vis = s.get(f"{API}/steps/visibility").json()
-        assert sid5 in (vis.get("blocked_step_ids") or [])
+        assert sid6 in (vis.get("blocked_step_ids") or [])
 
         # 4) Real file → milestone auto-completes
-        _put_progress(s, sid3, "completed", _real_upload_doc())
+        _put_progress(s, sid4, "completed", _real_upload_doc())
         prog = {p["step_id"]: p for p in s.get(f"{API}/steps/progress").json()}
-        assert prog[sid5]["status"] == "completed", f"milestone 5 not auto-completed: {prog[sid5]}"
+        assert prog[sid6]["status"] == "completed", f"milestone 6 not auto-completed: {prog[sid6]}"
 
         hist = s.get(f"{API}/steps/history").json()
-        assert any(h.get("step_id") == sid5 and h.get("action") == "auto_completed" for h in hist), (
-            "progress_history missing auto_completed entry for milestone 5"
+        assert any(h.get("step_id") == sid6 and h.get("action") == "auto_completed" for h in hist), (
+            "progress_history missing auto_completed entry for milestone 6"
         )
         self._reset_kumar(s, steps)
 
     def test_partner_does_not_auto_complete_milestone(self, steps):
         s = self._login_kumar()
         self._reset_kumar(s, steps)
+        self._selber(s, steps)
         by_order = {st["order"]: st for st in steps}
-        sid2 = str(by_order[2].get("id") or by_order[2].get("_id"))
-        sid5 = str(by_order[5].get("id") or by_order[5].get("_id"))
+        sid3 = str(by_order[3].get("id") or by_order[3].get("_id"))
+        sid6 = str(by_order[6].get("id") or by_order[6].get("_id"))
 
-        _put_progress(s, sid2, "completed", {"decision": "partner"})
+        _put_progress(s, sid3, "completed", {"decision": "partner"})
 
         prog = {p["step_id"]: p for p in s.get(f"{API}/steps/progress").json()}
-        assert prog[sid5]["status"] != "completed", (
-            f"milestone 5 should NOT auto-complete on partner path: {prog[sid5]}"
+        assert prog[sid6]["status"] != "completed", (
+            f"milestone 6 should NOT auto-complete on partner path: {prog[sid6]}"
         )
         self._reset_kumar(s, steps)
 

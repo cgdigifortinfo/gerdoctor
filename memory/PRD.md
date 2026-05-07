@@ -44,6 +44,16 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-28: **Neuer "Schnellstart oder Selbststart?" Step (Step #2)** — Decision-Step zwischen Stammdaten und Antragstellung-Approbation eingebaut.
+  - **Step-Datenstruktur**: 2 Optionen — *Bring mich auf die Überholspur* (`primary: True`, mit `info_title` + HTML `info_body`) und *Lass mich selber starten* (default).
+  - **Frontend-UX**: Click auf primary-Option zeigt **inline Info-Panel** (kein neuer Step!) mit Werbe-Text + nur **Zurück**-Button (kein Weiter). Click auf Selbststart speichert decision="selber" und schreitet zum nächsten Step. Primary-Option ist visuell hervorgehoben (dunkles Teal-Background, gelbes "EMPFOHLEN"-Badge).
+  - **Migration `migrate_add_ueberholspur_step.py`** (idempotent): Shifted alle bestehenden Steps mit `order >= 2` um +1, alle `source_step_order` Konditionen entsprechend angepasst (rekursiv durch `all_of`/`any_of`), ebenso `step_order` in 7896 user_progress + progress_history Rows. Pending-Stub für 300 demo-User eingefügt.
+  - **Backfill `migrate_backfill_ueberholspur_decision.py`**: Markiert Step #2 als completed mit `decision: "selber"` für alle User mit fertigem Stammdaten — sodass der Demo-Datenstand nahtlos weiterläuft (300 Rows aktualisiert).
+  - **Seed-Updates**: `seed_300_demo_users.py` BLOCKS + UPLOAD_FILENAMES + PARTNER_PROOF_FILENAMES alle um +1 verschoben. `seed_survey_v2.py` enthält jetzt den neuen Step #2 als Teil der kanonischen Survey. `helpers.py` BLOCK_DEFINITIONS aktualisiert. Künftige Re-Seeds bleiben konsistent.
+  - **Tests-Update**: 6 Test-Files an die neue Order-Map angepasst (`test_survey_v2`, `test_milestone_hide_flow`, `test_completion_pct_visible_steps`, `test_partner_completed_users_split`, `test_partner_milestone_complete`, `test_new_features_iter33`). Bonus: nebenbei `test_cms_home_update_persists` gegen rekursive Content-Verschachtelung gehärtet (defensive cleanup von vorigen polluted runs).
+  - **End-to-End verifiziert**: Playwright-Smoke-Test: Login → Step 2 → Schnellstart-Decision sichtbar, primary-Option Klick → Info-Panel + Zurück sichtbar (kein Weiter), Zurück → Decision-View, Selbststart-Klick → schreitet zu Step 3 (Antragstellung Approbation). 26 aktive Steps in DB.
+  - Tests: 116/117 PASS (1 Cleanup-Side-Effect bereinigt). Survey hat jetzt 26 Steps inkl. Congrats.
+
 - [x] 2026-04-28: **Partner-Insights Bug-Fix: Statistiken auf Null** — `/api/partner/insights` benutzte zwei nicht existierende Felder/Werte und zeigte daher überall 0:
   1. **Timestamp-Bug**: Endpoint las `s["submitted_at"]` für die 7d/30d-Counts und Timeline. Im gesamten Codebase wird aber `created_at` geschrieben, nie `submitted_at` — Resultat: 0 neue Anfragen, leere Timeline. Fix: kanonisch `created_at` mit Fallback auf `submitted_at` (legacy).
   2. **Status-Mismatch**: Funnel-Logik prüfte `status in ("accepted", "in_progress", "completed")` — `partner_submissions` schreibt aber durchgängig `status="submitted"`. Resultat: accepted=0, completed=0. Fix: `accepted` = User mit ≥1 Step beyond Stammdaten in `completed`/`in_progress` (echtes Engagement-Signal), `completed` = `partner_work_completed=True` (kanonisches Flag).

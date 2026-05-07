@@ -331,48 +331,84 @@ def build_all_steps():
         "is_active": True, "created_at": now_iso(),
     })
 
-    # Block 1: Antragstellung Approbation (steps 2-5)
+    # Step 2: Schnellstart vs. Selbststart (Überholspur decision)
+    all_steps.append({
+        "title": "Schnellstart oder Selbststart?",
+        "description": "Wählen Sie, wie Sie Ihren Anerkennungsprozess starten wollen.",
+        "order": 2, "step_type": "decision",
+        "fields": [{
+            "name": "decision", "field_type": "decision",
+            "label": "Schnellstart oder Selbststart?", "required": True,
+            "options": [
+                {
+                    "value": "ueberholspur",
+                    "label": "Bring mich auf die Überholspur",
+                    "primary": True,
+                    "info_title": "Persönliche Begleitung durch das gesamte Verfahren",
+                    "info_body": (
+                        "<p><strong>Mit der Überholspur</strong> übernehmen wir die komplette "
+                        "Koordination Ihres Anerkennungsverfahrens. Sie sparen Zeit, Nerven "
+                        "und vermeiden teure Verzögerungen.</p>"
+                        "<ul class='list-disc pl-5 mt-3 space-y-1'>"
+                        "<li>Persönlicher Ansprechpartner</li>"
+                        "<li>Vorbereitung &amp; Einreichung aller Dokumente</li>"
+                        "<li>Direkter Draht zu Behörden &amp; Prüfungsstellen</li>"
+                        "<li>Garantierte Termine für Fach- und Kenntnisprüfung</li>"
+                        "</ul>"
+                        "<p class='mt-4 text-sm text-muted-foreground'>"
+                        "Unser Team meldet sich innerhalb von 24 Stunden bei Ihnen. "
+                        "Klicken Sie auf <em>Zurück</em>, um zur Auswahl zurückzukehren.</p>"
+                    ),
+                },
+                {"value": "selber", "label": "Lass mich selber starten"},
+            ],
+        }],
+        "duration_value": 0, "duration_unit": "days",
+        "is_active": True, "created_at": now_iso(),
+    })
+
+    # Block 1: Antragstellung Approbation (steps 3-6)
     all_steps.extend(build_block(
-        base_order=2, block_name="Antragstellung Approbation",
+        base_order=3, block_name="Antragstellung Approbation",
         filter_tag="Antragstellung Approbation",
         dur_value=4, dur_unit="weeks",
     ))
-    # Gate subsequent blocks on the Antragstellung milestone = order 5
-    approbation_milestone_order = 5
+    # Gate subsequent blocks on the Antragstellung milestone = order 6
+    approbation_milestone_order = 6
 
-    # Block 2: Fachsprachenprüfung (steps 6-9)
+    # Block 2: Fachsprachenprüfung (steps 7-10)
     all_steps.extend(build_block(
-        base_order=6, block_name="Fachsprachenprüfung",
+        base_order=7, block_name="Fachsprachenprüfung",
         filter_tag="Fachsprachenprüfung", dur_value=2, dur_unit="months",
         block_prev_milestone_order=approbation_milestone_order,
     ))
 
-    # Block 3: Gleichwertigkeitsprüfung (steps 10-13)
+    # Block 3: Gleichwertigkeitsprüfung (steps 11-14)
     all_steps.extend(build_block(
-        base_order=10, block_name="Gleichwertigkeitsprüfung",
+        base_order=11, block_name="Gleichwertigkeitsprüfung",
         filter_tag="Gleichwertigkeitsprüfung", dur_value=3, dur_unit="months",
         block_prev_milestone_order=approbation_milestone_order,
     ))
 
-    # Block 4: Kenntnisprüfung (steps 14-17)
+    # Block 4: Kenntnisprüfung (steps 15-18)
     all_steps.extend(build_block(
-        base_order=14, block_name="Kenntnisprüfung",
+        base_order=15, block_name="Kenntnisprüfung",
         filter_tag="Kenntnisprüfung", dur_value=3, dur_unit="months",
         block_prev_milestone_order=approbation_milestone_order,
     ))
 
-    # Block 5: Jobangebote (steps 18-20) - no upload, multi partner
+    # Block 5: Jobangebote (steps 19-21) - no upload, multi partner
     all_steps.extend(build_block(
-        base_order=18, block_name="Jobangebote",
+        base_order=19, block_name="Jobangebote",
         filter_tag="Jobangebote", dur_value=4, dur_unit="weeks",
         include_upload=False, partner_multi=True,
         decision_description="Möchten Sie selbst nach Jobangeboten suchen oder einen Partner damit beauftragen?",
         block_prev_milestone_order=approbation_milestone_order,
     ))
 
-    # Block 6: Weiterbildung (steps 21-24)
+    # Block 6: Weiterbildung (steps 22-25)
     all_steps.extend(build_block(
-        base_order=21, block_name="Weiterbildung",
+        base_order=22, block_name="Weiterbildung",
         filter_tag="Weiterbildung", dur_value=6, dur_unit="months",
         block_prev_milestone_order=approbation_milestone_order,
     ))

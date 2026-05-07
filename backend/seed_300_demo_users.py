@@ -82,28 +82,29 @@ STREETS = ["Hauptstr.", "Goethestr.", "Lindenweg", "Dorfstr.", "Bahnhofstr.",
            "Schillerstr.", "Mühlweg", "Kirchgasse"]
 
 # Survey blocks: (decision_order, upload_order|None, partner_select_order, milestone_order, block_filter_tag, is_multi)
+# Orders post-2026-04-28 ueberholspur insertion: every theme block shifted +1.
 BLOCKS = [
-    (2, 3, 4, 5, "Antragstellung Approbation", False),
-    (6, 7, 8, 9, "Fachsprachenprüfung", False),
-    (10, 11, 12, 13, "Gleichwertigkeitsprüfung", False),
-    (14, 15, 16, 17, "Kenntnisprüfung", False),
-    (18, None, 19, 20, "Jobangebote", True),  # multi
-    (21, 22, 23, 24, "Weiterbildung", False),
+    (3, 4, 5, 6, "Antragstellung Approbation", False),
+    (7, 8, 9, 10, "Fachsprachenprüfung", False),
+    (11, 12, 13, 14, "Gleichwertigkeitsprüfung", False),
+    (15, 16, 17, 18, "Kenntnisprüfung", False),
+    (19, None, 20, 21, "Jobangebote", True),  # multi
+    (22, 23, 24, 25, "Weiterbildung", False),
 ]
 UPLOAD_FILENAMES = {
-    3:  "approbations_dokumente.png",
-    7:  "fachsprachenpruefung_dokumente.png",
-    11: "gleichwertigkeitspruefung_dokumente.png",
-    15: "kenntnispruefung_dokumente.png",
-    22: "weiterbildung_dokumente.png",
+    4:  "approbations_dokumente.png",
+    8:  "fachsprachenpruefung_dokumente.png",
+    12: "gleichwertigkeitspruefung_dokumente.png",
+    16: "kenntnispruefung_dokumente.png",
+    23: "weiterbildung_dokumente.png",
 }
 PARTNER_PROOF_FILENAMES = {
-    5:  "partner_bestaetigung_approbation.png",
-    9:  "partner_bestaetigung_fachsprache.png",
-    13: "partner_bestaetigung_gleichwertigkeit.png",
-    17: "partner_bestaetigung_kenntnispruefung.png",
-    20: "partner_bestaetigung_jobangebote.png",
-    24: "partner_bestaetigung_weiterbildung.png",
+    6:  "partner_bestaetigung_approbation.png",
+    10: "partner_bestaetigung_fachsprache.png",
+    14: "partner_bestaetigung_gleichwertigkeit.png",
+    18: "partner_bestaetigung_kenntnispruefung.png",
+    21: "partner_bestaetigung_jobangebote.png",
+    25: "partner_bestaetigung_weiterbildung.png",
 }
 
 # Stage = "this many blocks fully done; the next block is currently active in
@@ -335,6 +336,19 @@ async def seed():
             )
             progress.append(doc)
             completed_step_ids.add(str(step_by_order[1]["_id"]))
+
+            # ---- Step 2 (Schnellstart vs. Selbststart) ----
+            # Every demo user picks "Selbststart" so they enter the actual
+            # journey. Picking "Überholspur" is a frontend dead-end (info-only)
+            # and would block all downstream progress.
+            if 2 in step_by_order:
+                d_step2 = max(1, d_step1 - 1)
+                progress.append(progress_doc(
+                    user_id, step_by_order[2]["_id"], 2,
+                    status="completed", data={"decision": "selber"},
+                    days_ago=d_step2,
+                ))
+                completed_step_ids.add(str(step_by_order[2]["_id"]))
 
         # ---- For each block, finish or partial-progress per stage ----
         n_done = N_DONE[stage]

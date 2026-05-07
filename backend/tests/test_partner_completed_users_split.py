@@ -71,43 +71,45 @@ def main() -> int:
                      timeout=15).raise_for_status()
 
         real_doc = [{"file_id": "e2e-doc", "document_type": "Diplom", "filename": "diplom.pdf"}]
-        for order in range(2, 12):
+        # Walk steps 2..13 picking partner path at step 11 (Gleichwertigkeit decision).
+        # Step orders post-2026-04-28: Schnellstart=2, Antragstellung-decision=3,
+        # upload=4, partner=5, milestone=6 ; Fachsprache 7-10 ; Gleichwert. 11-14.
+        for order in range(2, 13):
             step = by_order[order]
             stype = step.get("step_type")
             if stype == "decision":
+                value = "selber" if order == 2 else "upload"
                 requests.put(f"{API}/steps/progress",
                              headers={**h(utok), "Content-Type": "application/json"},
                              json={"step_id": step["id"], "status": "completed",
-                                   "data": {"decision": "upload"}}, timeout=15).raise_for_status()
+                                   "data": {"decision": value}}, timeout=15).raise_for_status()
             elif stype == "form":
                 requests.put(f"{API}/steps/progress",
                              headers={**h(utok), "Content-Type": "application/json"},
                              json={"step_id": step["id"], "status": "completed",
                                    "data": {"documents": real_doc}}, timeout=15).raise_for_status()
 
-        # Step 10 decision → partner (so step 12 becomes the active partner_selection).
-        # Before flipping, clear step 11's upload so the milestone #13 isn't auto-completed
-        # from our eager walk-through.
+        # Step 11 decision → partner (so step 13 becomes the active partner_selection
+        # for the Gleichwertigkeitsprüfung block). Reset upload step 12 + milestone 14.
         requests.put(f"{API}/steps/progress",
                      headers={**h(utok), "Content-Type": "application/json"},
-                     json={"step_id": by_order[11]["id"], "status": "pending", "data": {}},
+                     json={"step_id": by_order[12]["id"], "status": "pending", "data": {}},
                      timeout=15).raise_for_status()
         requests.put(f"{API}/steps/progress",
                      headers={**h(utok), "Content-Type": "application/json"},
-                     json={"step_id": by_order[10]["id"], "status": "completed",
+                     json={"step_id": by_order[11]["id"], "status": "completed",
                            "data": {"decision": "partner"}}, timeout=15).raise_for_status()
-        # Explicitly reset the milestone in case it was auto-set earlier
         requests.put(f"{API}/steps/progress",
                      headers={**h(utok), "Content-Type": "application/json"},
-                     json={"step_id": by_order[13]["id"], "status": "pending", "data": {}},
+                     json={"step_id": by_order[14]["id"], "status": "pending", "data": {}},
                      timeout=15).raise_for_status()
 
-        # Pick first matching partner
+        # Pick first matching partner for step 13 (Gleichwert. partner_selection)
         partners = requests.get(f"{API}/partners", headers=h(utok), timeout=15).json()
-        step12_tag = by_order[12].get("filter_tag") or "Gleichwertigkeitsprüfung"
-        candidates = [p for p in partners if step12_tag in (p.get("tags") or [])]
+        step13_tag = by_order[13].get("filter_tag") or "Gleichwertigkeitsprüfung"
+        candidates = [p for p in partners if step13_tag in (p.get("tags") or [])]
         if not candidates:
-            failures.append(f"no partner matches filter_tag '{step12_tag}'")
+            failures.append(f"no partner matches filter_tag '{step13_tag}'")
             return 1
         picked = candidates[0]
         requests.post(f"{API}/partners/submit",
@@ -115,11 +117,11 @@ def main() -> int:
                       json={"partner_id": picked["id"],
                             "data": {"selected_partner_id": picked["id"],
                                      "selected_partner_name": picked["name"],
-                                     "step_order": 12, **stammdaten}},
+                                     "step_order": 13, **stammdaten}},
                       timeout=15).raise_for_status()
         requests.put(f"{API}/steps/progress",
                      headers={**h(utok), "Content-Type": "application/json"},
-                     json={"step_id": by_order[12]["id"], "status": "completed",
+                     json={"step_id": by_order[13]["id"], "status": "completed",
                            "data": {"selected_partner_id": picked["id"],
                                     "selected_partner_name": picked["name"]}},
                      timeout=15).raise_for_status()

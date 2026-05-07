@@ -114,29 +114,29 @@ def test_stammdaten_only_low_pct(admin_session, by_order):
 
 
 def test_upload_path_excludes_hidden_partner_step(admin_session, by_order):
-    """When user picks decision=upload, the partner step (#4) is hidden and must
-    not penalise the denominator. Completing block 1 fully (steps 1, 2, 3, 5)
-    → 4 of (25 - 6 hidden) ≈ 21%."""
+    """When user picks decision=upload on Antragstellung (#3), the partner
+    step (#5) is hidden and must not penalise the denominator. Completing
+    block 1 fully (steps 1, 2-Schnellstart, 3, 4, 6-auto) → meaningful progress."""
     email = f"{RUN}-upload@chrizz1001.de"
     s, _ = _register(email, "Upload")
     _put(s, by_order[1]["id"], "completed", _stammdaten())
-    _put(s, by_order[2]["id"], "completed", {"decision": "upload"})
-    _put(s, by_order[3]["id"], "completed", {"documents": [{"file_id": str(uuid.uuid4()), "filename": "doc.pdf"}]})
-    # step 5 should auto-complete
+    _put(s, by_order[2]["id"], "completed", {"decision": "selber"})    # NEW Schnellstart
+    _put(s, by_order[3]["id"], "completed", {"decision": "upload"})
+    _put(s, by_order[4]["id"], "completed", {"documents": [{"file_id": str(uuid.uuid4()), "filename": "doc.pdf"}]})
+    # step 6 should auto-complete via has_upload(documents)
     pct = _completion_for(admin_session, email)
-    # All steps in blocks 2-6 with hidden partner_selection paths excluded;
-    # we expect a non-trivial fraction.
     assert pct >= 10, f"upload-path user should have >=10%, got {pct}"
 
 
 def test_partner_path_user_has_progress(admin_session, by_order):
-    """Decision=partner: step 3 hidden, but stammdaten + decision + partner
-    selection are visible+completed → meaningful progress (~12%)."""
+    """Decision=partner on Antragstellung (#3): step 4 (upload) hidden, but
+    Stammdaten + Schnellstart + decision + partner selection are visible+completed."""
     email = f"{RUN}-partner@chrizz1001.de"
     s, _ = _register(email, "PartnerPath")
     _put(s, by_order[1]["id"], "completed", _stammdaten())
-    _put(s, by_order[2]["id"], "completed", {"decision": "partner"})
-    _put(s, by_order[4]["id"], "completed", {"selected_partner_id": "x", "selected_partner_name": "ILS"})
+    _put(s, by_order[2]["id"], "completed", {"decision": "selber"})   # NEW Schnellstart
+    _put(s, by_order[3]["id"], "completed", {"decision": "partner"})
+    _put(s, by_order[5]["id"], "completed", {"selected_partner_id": "x", "selected_partner_name": "ILS"})
     pct = _completion_for(admin_session, email)
     assert pct >= 10, f"partner-path user with 3 steps done should have >=10%, got {pct}"
 

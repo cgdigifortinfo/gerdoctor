@@ -129,6 +129,10 @@ export default function UserDashboard() {
     const [animateProgress, setAnimateProgress] = useState(false);
     const [expandedStep, setExpandedStep] = useState(null);
     const [estimatedCompletion, setEstimatedCompletion] = useState(null);
+    // Tracks whether the user is currently previewing a `primary` decision
+    // option (e.g. the Überholspur info panel). Cleared on step navigation
+    // and on the Zurück button. Holds the option's `value` or null.
+    const [fastlanePreview, setFastlanePreview] = useState(null);
     // UI feature flags from site settings (admin-controlled). Defaults to true
     // so the app works unchanged if the settings have never been saved.
     const [uiFlags, setUiFlags] = useState({
@@ -418,6 +422,7 @@ export default function UserDashboard() {
         if (!canNavigateToStep(idx)) return;
         setCurrentStepIndex(idx);
         setExpandedStep(expandedStep === idx ? null : idx);
+        setFastlanePreview(null);  // reset Überholspur preview on navigation
         const step = visibleSteps[idx];
         const stepProgress = progress.find(p => p.step_id === step?.id);
         if (stepProgress?.data && Object.keys(stepProgress.data).length > 0) {
@@ -543,6 +548,31 @@ export default function UserDashboard() {
                 const decField = (currentStep.fields || []).find(f => f.field_type === 'decision') || (currentStep.fields || [])[0];
                 const options = decField?.options || [];
                 const currentChoice = formData.decision;
+                // If the active hover preview is a "primary" option (e.g. the
+                // Überholspur option), render its info panel inline with a
+                // single Zurück button and no Weiter — matches the spec.
+                const previewOption = options.find(o => o?.primary && o.value === fastlanePreview);
+                if (previewOption) {
+                    return (
+                        <div className="space-y-6" data-testid="decision-step-info">
+                            <div className="p-8 rounded-sm border-2 border-[#114f55] bg-gradient-to-br from-[#114f55]/8 via-card to-card shadow-md">
+                                <h3 className="text-xl font-semibold text-[#114f55] mb-3">{previewOption.info_title || previewOption.label}</h3>
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-foreground" dangerouslySetInnerHTML={{ __html: previewOption.info_body || '' }} />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setFastlanePreview(null)}
+                                    className="border-border"
+                                    data-testid="fastlane-back-btn"
+                                >
+                                    <ArrowLeft size={16} className="mr-2" />
+                                    Zurück
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                }
                 return (
                     <div className="space-y-6" data-testid="decision-step">
                         {(currentStep.content || currentStep.pending_message) && (
@@ -551,25 +581,50 @@ export default function UserDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {options.map((opt, i) => {
                                 const isActive = currentChoice === opt.value;
+                                const isPrimary = !!opt.primary;
+                                const onClick = () => {
+                                    if (isPrimary) {
+                                        // Show the inline info panel — DO NOT save
+                                        // the choice. The user must use Zurück then
+                                        // pick the alternate option to continue.
+                                        setFastlanePreview(opt.value);
+                                    } else {
+                                        handleDecisionChoice(opt.value);
+                                    }
+                                };
                                 return (
                                     <button
                                         key={opt.value}
-                                        onClick={() => handleDecisionChoice(opt.value)}
+                                        onClick={onClick}
                                         disabled={submitting}
-                                        className={`group relative text-left p-6 rounded-sm border-2 transition-all duration-200
-                                            ${isActive
-                                                ? 'border-[#114f55] bg-[#114f55]/5 shadow-md'
-                                                : 'border-border bg-card hover:border-[#114f55]/40 hover:shadow-sm'}
+                                        className={`group relative text-left p-6 rounded-sm border-2 transition-all duration-200 overflow-hidden
+                                            ${isPrimary
+                                                ? 'border-[#114f55] bg-gradient-to-br from-[#114f55] via-[#114f55] to-[#0d3d42] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                                                : isActive
+                                                    ? 'border-[#114f55] bg-[#114f55]/5 shadow-md'
+                                                    : 'border-border bg-card hover:border-[#114f55]/40 hover:shadow-sm'}
                                             ${submitting ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                                         data-testid={`decision-option-${scope === 'desktop' ? i : `mobile-${i}`}`}
                                     >
+                                        {isPrimary && (
+                                            <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm bg-yellow-300 text-[#114f55] shadow-sm" data-testid={`decision-option-badge-${i}`}>
+                                                Empfohlen
+                                            </span>
+                                        )}
                                         <div className="flex items-start gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors
-                                                ${isActive ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground group-hover:bg-[#114f55]/10 group-hover:text-[#114f55]'}`}>
+                                                ${isPrimary
+                                                    ? 'bg-white/20 text-white'
+                                                    : isActive
+                                                        ? 'bg-[#114f55] text-white'
+                                                        : 'bg-muted text-muted-foreground group-hover:bg-[#114f55]/10 group-hover:text-[#114f55]'}`}>
                                                 {isActive ? <Check size={18} weight="bold" /> : <ArrowRight size={18} />}
                                             </div>
                                             <div className="flex-1">
-                                                <p className={`font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{opt.label}</p>
+                                                <p className={`font-semibold ${isPrimary ? 'text-white' : isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{opt.label}</p>
+                                                {isPrimary && opt.info_title && (
+                                                    <p className="text-sm text-white/80 mt-1">{opt.info_title}</p>
+                                                )}
                                             </div>
                                         </div>
                                     </button>

@@ -466,12 +466,13 @@ async def apply_auto_completes(user_id: str):
 # ANERKENNUNGSSTATUS → Block auto-skip
 # ========================
 # Each block is (decision_order, upload_order_or_None, milestone_order)
+# (orders post-2026-04-28 ueberholspur insertion: every theme block shifted +1)
 BLOCK_DEFINITIONS = {
-    "Antragstellung Approbation": (2, 3, 5),
-    "Fachsprachenprüfung":        (6, 7, 9),
-    "Gleichwertigkeitsprüfung":  (10, 11, 13),
-    "Kenntnisprüfung":            (14, 15, 17),
-    "Weiterbildung":              (21, 22, 24),
+    "Antragstellung Approbation": (3, 4, 6),
+    "Fachsprachenprüfung":        (7, 8, 10),
+    "Gleichwertigkeitsprüfung":  (11, 12, 14),
+    "Kenntnisprüfung":            (15, 16, 18),
+    "Weiterbildung":              (22, 23, 25),
 }
 
 # Which blocks are already-done when the user picks a given anerkennungsstatus.

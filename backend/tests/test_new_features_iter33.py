@@ -231,12 +231,20 @@ def test_cms_home_update_persists(admin_session):
     current = requests.get(f"{API}/cms/home").json()
     content = dict(current.get("content", {}))
     translations = dict(current.get("translations", {}))
+    # Defensive cleanup: if a previous polluted run nested the response shape
+    # back into `content`, strip those keys before writing.
+    for k in ("content", "translations", "section"):
+        content.pop(k, None)
     marker = f"TEST_BOX_{int(time.time())}"
     content["box1_title"] = marker
     r = admin_session.put(f"{API}/cms/home", json={"section": "home", "content": content, "translations": translations})
     assert r.status_code == 200, r.text
     after = requests.get(f"{API}/cms/home").json()
     assert after["content"]["box1_title"] == marker
+    # Self-check: response must not have the recursive nesting bug.
+    assert "content" not in after["content"], (
+        f"cms/home content has nested `content` key — pollution still leaking: {after['content']}"
+    )
 
 
 # ==========================================================
