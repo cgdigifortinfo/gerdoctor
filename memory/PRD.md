@@ -44,6 +44,15 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-28: **Re-Seed: 300 In-Progress User mit MVZ-Routing** — `seed_300_demo_users.py` (neu, idempotent):
+  - Cleanup: 0 flowbug-User (bereits weg) + 125 alte demoNNN-User + alle Progress/Submissions/Files/History-Rows entfernt
+  - 300 frische User generiert mit logisch korrekten, sequentiellen Step-Daten:
+    Stammdaten → Decision → Upload-OR-Partner → Milestone, mit echten 1×1-PNG-Uploads via GridFS-Object-Storage (User-Uploads + Partner-Verifications)
+  - **Exakt 164 distinct User MVZ Gruppe zugeordnet** (Stages: block2_partner_waiting, block4_partner_waiting, block2_done bis almost_done — alle haben Block 2 oder 4 mit decision=partner=MVZ). Non-MVZ-User auf Block-0/1-Stages beschränkt, sodass sie nie MVZ-eligible Steps erreichen.
+  - **MVZ Partner-Dashboard verifiziert** (`partner-fia-academy@chrizz1001.de`): My Users (30 active) + Completed Users (135 done) = 165 sichtbare = 164 distinct + 1 "linked" overlap. Progress-Bars zeigen 50-95% statt vorher 0%.
+  - Stage-Histogramm: 13 Stages, keine "fully_done", Distribution 14-30 User pro Stage.
+  - Object-Storage-Retry-Logic ergänzt (5x mit Backoff) wegen sporadischer 500er bei Bulk-Uploads.
+
 - [x] 2026-04-28: **Datenstruktur-Repair: user_progress + Progress-Berechnung** — root-cause fix für Partner-Tabelle "0% / kein Fortschritt"-Anzeige.
   Drei zusammenhängende Datenprobleme behoben:
   1. **3 Orphan-Duplicate Steps** (#26/27/28 alle "Persönliche Daten") aus fehlgeschlagenen `test_template_from_step_and_apply_and_cleanup`-Runs gelöscht (deren Cleanup nie lief, da Asserts vorher fehlschlugen). Inkl. 504 referenzierender Progress-Rows.
