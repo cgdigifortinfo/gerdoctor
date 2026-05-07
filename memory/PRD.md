@@ -44,6 +44,23 @@
 - Frontend `localize(item, field)` helper
 
 ## Completed (recent)
+- [x] 2026-04-28: **Partner-Insights Bug-Fix: Statistiken auf Null** — `/api/partner/insights` benutzte zwei nicht existierende Felder/Werte und zeigte daher überall 0:
+  1. **Timestamp-Bug**: Endpoint las `s["submitted_at"]` für die 7d/30d-Counts und Timeline. Im gesamten Codebase wird aber `created_at` geschrieben, nie `submitted_at` — Resultat: 0 neue Anfragen, leere Timeline. Fix: kanonisch `created_at` mit Fallback auf `submitted_at` (legacy).
+  2. **Status-Mismatch**: Funnel-Logik prüfte `status in ("accepted", "in_progress", "completed")` — `partner_submissions` schreibt aber durchgängig `status="submitted"`. Resultat: accepted=0, completed=0. Fix: `accepted` = User mit ≥1 Step beyond Stammdaten in `completed`/`in_progress` (echtes Engagement-Signal), `completed` = `partner_work_completed=True` (kanonisches Flag).
+  
+  **Vorher/Nachher (MVZ Gruppe Partner)**:
+  | Metrik | Vorher | Nachher |
+  |---|---|---|
+  | Neue Anfragen 7T | 0 | 37 |
+  | Neue Anfragen 30T | 0 | 97 |
+  | Funnel: received | 165 | 165 |
+  | Funnel: accepted | 0 | 165 |
+  | Funnel: completed | 0 | 135 |
+  | Conversion-Rate | 0% | 100% |
+  | Timeline (Total) | 0 | 97 über 25 Tage |
+  
+  Tests: neue Datei `test_partner_insights_alignment.py` (8 Cases, ALL PASS) verifiziert dass `funnel.completed == count(partner_work_completed=True)`, `funnel.received == len(submissions)`, Timeline-Sum == 30d-Window, accepted ≤ received, etc.
+
 - [x] 2026-04-28: **Re-Seed: 300 In-Progress User mit MVZ-Routing** — `seed_300_demo_users.py` (neu, idempotent):
   - Cleanup: 0 flowbug-User (bereits weg) + 125 alte demoNNN-User + alle Progress/Submissions/Files/History-Rows entfernt
   - 300 frische User generiert mit logisch korrekten, sequentiellen Step-Daten:

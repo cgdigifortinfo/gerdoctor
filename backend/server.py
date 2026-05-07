@@ -947,12 +947,23 @@ async def update_own_partner_data(data: PartnerSelfUpdate, request: Request):
 
 @api_router.get("/partner/insights")
 async def get_partner_insights(request: Request):
-    """Return a compact analytics payload for the partner's dashboard:
-       - new_submissions_7d / _30d
-       - by_fachrichtung (counts)
-       - by_bundesland (counts)
-       - conversion_funnel (received -> accepted -> completed)
-       - timeline_30d (daily new submissions)"""
+    """Return a compact analytics payload for the partner's dashboard.
+
+    Numbers are derived from the actual partner_submissions documents so they
+    line up with what the partner sees in My-/Completed-Users tabs:
+      - new_submissions_7d / _30d  → submissions whose `created_at` falls in
+        the window (the canonical "submission timestamp" — this codebase
+        never writes a separate `submitted_at`).
+      - by_fachrichtung / by_bundesland → step-1 profile facets across all
+        target users (submissions ∪ linked_user_ids).
+      - conversion_funnel:
+          received  = total submissions
+          accepted  = submissions linked to a user that has at least one
+                      progress entry beyond Stammdaten (i.e. the partner's
+                      offer was acted on)
+          completed = submissions where partner_work_completed=True
+      - timeline_30d → daily counts of newly created submissions.
+    """
     user = await require_role("partner")(request)
     partner_id = user.get("partner_id")
     if not partner_id:
@@ -965,19 +976,32 @@ async def get_partner_insights(request: Request):
     linked_user_ids = set((partner_doc or {}).get("linked_user_ids", []))
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(5000)
 
-    # Combine submission user_ids and linked user_ids for analysis
+    def _ts(s: dict) -> str:
+        # canonical timestamp = created_at; fall back to legacy `submitted_at`
+        return s.get("created_at") or s.get("submitted_at") or ""
+
     target_user_ids = set(s.get("user_id") for s in submissions if s.get("user_id")) | linked_user_ids
 
-    new_7 = sum(1 for s in submissions if (s.get("submitted_at") or "") >= cutoff_7)
-    new_30 = sum(1 for s in submissions if (s.get("submitted_at") or "") >= cutoff_30)
+    new_7 = sum(1 for s in submissions if _ts(s) >= cutoff_7)
+    new_30 = sum(1 for s in submissions if _ts(s) >= cutoff_30)
 
     # Group counts by user's step-1 profile data
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
     step1_id = str(step1["_id"]) if step1 else None
-    by_fach = {}
-    by_bl = {}
-    funnel = {"received": 0, "accepted": 0, "completed": 0}
-    timeline = {}  # iso-date -> count
+    by_fach: dict[str, int] = {}
+    by_bl: dict[str, int] = {}
+
+    # "Accepted" = partner submission's user has at least one non-Stammdaten
+    # step in `completed` or `in_progress` — the user actually progressed
+    # past initial profile after picking the partner.
+    accepted_user_ids: set[str] = set()
+    if target_user_ids:
+        async for prog in db.user_progress.find({
+            "user_id": {"$in": list(target_user_ids)},
+            "status": {"$in": ["completed", "in_progress"]},
+            "step_order": {"$gt": 1},
+        }, {"user_id": 1}):
+            accepted_user_ids.add(prog["user_id"])
 
     for uid in target_user_ids:
         if step1_id:
@@ -988,14 +1012,18 @@ async def get_partner_insights(request: Request):
             by_fach[fach] = by_fach.get(fach, 0) + 1
             by_bl[bl] = by_bl.get(bl, 0) + 1
 
+    funnel = {"received": 0, "accepted": 0, "completed": 0}
+    timeline: dict[str, int] = {}
     for s in submissions:
         funnel["received"] += 1
-        status = s.get("status")
-        if status in ("accepted", "in_progress", "completed"):
+        uid = s.get("user_id")
+        if uid in accepted_user_ids:
             funnel["accepted"] += 1
-        if status == "completed":
+        # `partner_work_completed` is the canonical "this partner finished
+        # their part" flag; legacy code also looked at status=='completed'.
+        if s.get("partner_work_completed") is True or s.get("status") == "completed":
             funnel["completed"] += 1
-        ts = s.get("submitted_at") or ""
+        ts = _ts(s)
         if ts >= cutoff_30:
             day = ts[:10]
             timeline[day] = timeline.get(day, 0) + 1
