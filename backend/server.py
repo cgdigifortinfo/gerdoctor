@@ -59,6 +59,17 @@ steps_router = APIRouter(prefix="/steps", tags=["steps"])
 files_router = APIRouter(prefix="/files", tags=["files"])
 cms_router = APIRouter(prefix="/cms", tags=["cms"])
 
+def _auth_cookie_kwargs(max_age: int) -> dict:
+    frontend_url = os.environ.get("FRONTEND_URL", "")
+    local_http = frontend_url.startswith("http://localhost") or frontend_url.startswith("http://127.0.0.1")
+    return {
+        "httponly": True,
+        "secure": not local_http,
+        "samesite": "lax" if local_http else "none",
+        "max_age": max_age,
+        "path": "/",
+    }
+
 # ========================
 # AUTH ROUTES
 # ========================
@@ -87,8 +98,8 @@ async def register(data: UserRegister, response: Response):
         })
     access_token = create_access_token(user_id, email, "user")
     refresh_token = create_refresh_token(user_id)
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
+    response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
     return {"id": user_id, "email": email, "name": data.name, "role": "user", "access_token": access_token}
 
 @auth_router.post("/login")
@@ -115,8 +126,8 @@ async def login(data: UserLogin, request: Request, response: Response):
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email, user["role"])
     refresh_token = create_refresh_token(user_id)
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
+    response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
     return {"id": user_id, "email": user["email"], "name": user["name"], "role": user["role"], "access_token": access_token}
 
 @auth_router.post("/logout")
@@ -144,7 +155,7 @@ async def refresh_token(request: Request, response: Response):
             raise HTTPException(status_code=401, detail="User not found")
         user_id = str(user["_id"])
         access_token = create_access_token(user_id, user["email"], user["role"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=7200, path="/")
+        response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
         return {"message": "Token refreshed"}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
