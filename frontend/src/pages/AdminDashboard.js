@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { adminAPI, formatApiError, filesAPI, settingsAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -30,6 +30,10 @@ export default function AdminDashboard() {
     const { user, logout, impersonate } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
+    const location = useLocation();
+    const loadDataRequestRef = useRef(0);
+    const stepsRequestRef = useRef(0);
+    const loadedStepsSurveyRef = useRef('');
     const [activeTab, setActiveTab] = useState('analytics');
 
     const handleImpersonate = async (userId) => {
@@ -46,6 +50,8 @@ export default function AdminDashboard() {
     };
     const [users, setUsers] = useState([]);
     const [steps, setSteps] = useState([]);
+    const [surveys, setSurveys] = useState([]);
+    const [activeSurveyId, setActiveSurveyId] = useState('');
     const [partners, setPartners] = useState([]);
     const [analytics, setAnalytics] = useState(null);
     const [auditLogs, setAuditLogs] = useState([]);
@@ -81,9 +87,11 @@ export default function AdminDashboard() {
     const [cmsHome, setCmsHome] = useState({});
     const [cmsAbout, setCmsAbout] = useState({});
     const [cmsPartners, setCmsPartners] = useState({});
+    const [cmsLandingPages, setCmsLandingPages] = useState({ pages: [] });
     const [cmsHomeTrans, setCmsHomeTrans] = useState({});
     const [cmsAboutTrans, setCmsAboutTrans] = useState({});
     const [cmsPartnersTrans, setCmsPartnersTrans] = useState({});
+    const [cmsLandingPagesTrans, setCmsLandingPagesTrans] = useState({});
     const [cmsLang, setCmsLang] = useState('de');
     const [cmsSaving, setCmsSaving] = useState(false);
 
@@ -99,21 +107,36 @@ export default function AdminDashboard() {
     const [settingsSaving, setSettingsSaving] = useState(false);
 
     const loadData = useCallback(async () => {
+        const requestId = loadDataRequestRef.current + 1;
+        loadDataRequestRef.current = requestId;
         try {
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, auditRes, settingsRes, templatesRes] = await Promise.all([
+            const surveysRes = await adminAPI.getSurveys().catch(() => ({ data: [] }));
+            const surveyList = surveysRes.data || [];
+            const params = new URLSearchParams(location.search);
+            const requestedSurvey = params.get('survey') || '';
+            const requestedSurveyId = surveyList.find(s => s.id === requestedSurvey || s.slug === requestedSurvey)?.id || '';
+            const selectedSurveyId = requestedSurveyId || surveyList.find(s => s.is_default)?.id || surveyList[0]?.id || '';
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, landingPagesRes, auditRes, settingsRes, templatesRes] = await Promise.all([
                 adminAPI.getUsers(),
-                adminAPI.getSteps(),
+                adminAPI.getSteps(selectedSurveyId),
                 adminAPI.getPartners(),
                 adminAPI.getAnalytics(),
                 adminAPI.getCmsContent('home'),
                 adminAPI.getCmsContent('about'),
                 adminAPI.getCmsContent('partners'),
+                adminAPI.getCmsContent('landing_pages'),
                 adminAPI.getAuditLog(50),
                 settingsAPI.get().catch(() => ({ data: {} })),
                 adminAPI.listStepTemplates().catch(() => ({ data: [] }))
             ]);
+            if (requestId !== loadDataRequestRef.current) return;
+            setSurveys(surveyList);
+            if (selectedSurveyId) {
+                setActiveSurveyId(current => current === selectedSurveyId ? current : selectedSurveyId);
+            }
             setUsers(usersRes.data);
             setSteps(stepsRes.data);
+            loadedStepsSurveyRef.current = selectedSurveyId;
             setPartners(partnersRes.data);
             setAnalytics(analyticsRes.data);
             setCmsHome(homeRes.data.content || {});
@@ -122,20 +145,58 @@ export default function AdminDashboard() {
             setCmsAboutTrans(aboutRes.data.translations || {});
             setCmsPartners(partnersContentRes.data.content || {});
             setCmsPartnersTrans(partnersContentRes.data.translations || {});
+            setCmsLandingPages(landingPagesRes.data.content || { pages: [] });
+            setCmsLandingPagesTrans(landingPagesRes.data.translations || {});
             setAuditLogs(auditRes.data.logs || []);
             setAuditActionTypes(auditRes.data.action_types || []);
             if (settingsRes.data) setSiteSettings(settingsRes.data);
             setStepTemplates(templatesRes.data || []);
         } catch (error) {
+            if (requestId !== loadDataRequestRef.current) return;
             toast.error('Failed to load data');
         } finally {
-            setLoading(false);
+            if (requestId === loadDataRequestRef.current) setLoading(false);
         }
-    }, []);
+    }, [location.search]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        if (!activeSurveyId) return;
+        if (loadedStepsSurveyRef.current === activeSurveyId) return;
+        const requestId = stepsRequestRef.current + 1;
+        stepsRequestRef.current = requestId;
+        adminAPI.getSteps(activeSurveyId)
+            .then((res) => {
+                if (requestId === stepsRequestRef.current) {
+                    setSteps(res.data || []);
+                    loadedStepsSurveyRef.current = activeSurveyId;
+                }
+            })
+            .catch(() => {
+                if (requestId === stepsRequestRef.current) {
+                    toast.error('Failed to load steps');
+                }
+            });
+    }, [activeSurveyId]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab) setActiveTab(tab);
+        if (params.get('step')) setStepsView('list');
+    }, [location.search]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const stepOrder = params.get('step');
+        if (!stepOrder || activeTab !== 'steps' || stepsView !== 'list' || steps.length === 0) return;
+        window.requestAnimationFrame(() => {
+            document.querySelector(`[data-testid="step-row-order-${stepOrder}"]`)?.scrollIntoView({ block: 'start' });
+        });
+    }, [location.search, activeTab, stepsView, steps]);
 
     const handleLogout = async () => {
         await logout();
@@ -189,11 +250,12 @@ export default function AdminDashboard() {
     // Step handlers
     const handleSaveStep = async (stepData) => {
         try {
+            const payload = { ...stepData, survey_id: stepData.survey_id || activeSurveyId };
             if (editingStep?.id) {
-                await adminAPI.updateStep(editingStep.id, stepData);
+                await adminAPI.updateStep(editingStep.id, payload);
                 toast.success('Step updated');
             } else {
-                await adminAPI.createStep(stepData);
+                await adminAPI.createStep(payload);
                 toast.success('Step created');
             }
             setShowStepDialog(false);
@@ -202,6 +264,39 @@ export default function AdminDashboard() {
         } catch (error) {
             toast.error(formatApiError(error));
         }
+    };
+
+    const handleCreateSurvey = async () => {
+        const name = window.prompt('Name des neuen Surveys:', 'FSP Pflege');
+        if (!name || !name.trim()) return;
+        const slug = window.prompt('URL-Slug, z.B. pflege:', name.toLowerCase().replace(/\s+/g, '-'));
+        if (!slug || !slug.trim()) return;
+        try {
+            await adminAPI.createSurvey({
+                name: name.trim(),
+                slug: slug.trim(),
+                description: '',
+                audience: '',
+                is_active: true,
+                is_default: false,
+            });
+            toast.success('Survey angelegt');
+            setActiveSurveyId('');
+            loadData();
+        } catch (error) {
+            toast.error(formatApiError(error));
+        }
+    };
+
+    const handleSurveyChange = (surveyId) => {
+        setEditingStep(null);
+        setShowTemplatesPanel(false);
+        setStepsView('list');
+        setSteps([]);
+        setActiveSurveyId(surveyId);
+        const selectedSurvey = surveys.find(s => s.id === surveyId);
+        const surveyParam = selectedSurvey?.slug || surveyId;
+        navigate(`/admin?tab=steps&survey=${encodeURIComponent(surveyParam)}&step=1`, { replace: true });
     };
 
     const handleDeleteStep = async (stepId) => {
@@ -231,7 +326,7 @@ export default function AdminDashboard() {
         [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
         
         try {
-            await adminAPI.reorderSteps(newOrder);
+            await adminAPI.reorderSteps(newOrder, activeSurveyId);
             toast.success('Steps reordered');
             loadData();
         } catch (error) {
@@ -262,7 +357,7 @@ export default function AdminDashboard() {
         const order = parseInt(input, 10);
         if (!Number.isFinite(order) || order < 1) { toast.error('Ungültige Position'); return; }
         try {
-            await adminAPI.applyStepTemplate(template.id, order);
+            await adminAPI.applyStepTemplate(template.id, order, activeSurveyId);
             toast.success(`Template "${template.name}" eingefügt`);
             loadData();
         } catch (error) {
@@ -463,7 +558,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
                             <Logo />
-                            <span className="text-xs font-bold tracking-wider uppercase text-[#114f55] px-2 py-1 bg-teal-50 rounded">
+                            <span className="text-xs font-bold tracking-wider uppercase text-[var(--brand-primary)] px-2 py-1 bg-[var(--brand-soft)] rounded">
                                 Admin
                             </span>
                         </div>
@@ -481,35 +576,35 @@ export default function AdminDashboard() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
-                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
                             {t('admin_dashboard')}
                         </TabsTrigger>
-                        <TabsTrigger value="users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <Users size={18} className="mr-2" />
                             {t('admin_users')}
                         </TabsTrigger>
-                        <TabsTrigger value="steps" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <ListChecks size={18} className="mr-2" />
                             {t('admin_steps')}
                         </TabsTrigger>
-                        <TabsTrigger value="partners" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <Buildings size={18} className="mr-2" />
                             {t('admin_partners')}
                         </TabsTrigger>
-                        <TabsTrigger value="cms" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="cms" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
                             {t('admin_cms')}
                         </TabsTrigger>
-                        <TabsTrigger value="email-templates" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
+                        <TabsTrigger value="email-templates" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
                             <Envelope size={18} className="mr-2" />
                             E-Mail-Vorlagen
                         </TabsTrigger>
-                        <TabsTrigger value="audit" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white">
+                        <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <ClockCounterClockwise size={18} className="mr-2" />
                             {t('admin_audit')}
                         </TabsTrigger>
-                        <TabsTrigger value="settings" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="admin-settings-tab">
+                        <TabsTrigger value="settings" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-settings-tab">
                             <GearSix size={18} className="mr-2" />
                             {t('admin_settings')}
                         </TabsTrigger>
@@ -554,14 +649,14 @@ export default function AdminDashboard() {
                                             <div key={step.step_id} className="space-y-2">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="w-6 h-6 rounded-full bg-[#114f55] text-white flex items-center justify-center text-xs font-bold">
+                                                        <span className="w-6 h-6 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-xs font-bold">
                                                             {step.order}
                                                         </span>
                                                         <span className="font-medium text-sm text-foreground">{step.title}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span>{step.completed}/{step.total} completed</span>
-                                                        <span className="font-bold text-[#114f55]">{step.completion_rate}%</span>
+                                                        <span className="font-bold text-[var(--brand-primary)]">{step.completion_rate}%</span>
                                                     </div>
                                                 </div>
                                                 <Progress value={step.completion_rate} className="h-2" />
@@ -604,7 +699,7 @@ export default function AdminDashboard() {
                                         <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
                                         </Button>
-                                        <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="create-user-btn">
+                                        <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="create-user-btn">
                                             <UserPlus size={16} className="mr-1" /> {t('admin_create_user')}
                                         </Button>
                                     </div>
@@ -614,8 +709,8 @@ export default function AdminDashboard() {
 
                             {/* Bulk Actions Bar */}
                             {selectedUserIds.length > 0 && (
-                                <div className="p-3 bg-[#114f55]/5 border-b border-border flex flex-wrap items-center gap-3">
-                                    <span className="text-sm font-medium text-[#114f55]">{selectedUserIds.length} selected</span>
+                                <div className="p-3 bg-[var(--brand-primary)]/5 border-b border-border flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-medium text-[var(--brand-primary)]">{selectedUserIds.length} selected</span>
                                     <Select value={bulkRole} onValueChange={setBulkRole}>
                                         <SelectTrigger className="w-32 h-8 text-xs border-border" data-testid="bulk-role-select">
                                             <SelectValue />
@@ -626,7 +721,7 @@ export default function AdminDashboard() {
                                             <SelectItem value="partner">Partner</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="bulk-apply-btn">
+                                    <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="bulk-apply-btn">
                                         Apply Role
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])} className="text-muted-foreground">
@@ -659,7 +754,7 @@ export default function AdminDashboard() {
                                     </thead>
                                     <tbody>
                                         {filteredUsers.map((u) => (
-                                            <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[#114f55]/5' : ''}`}>
+                                            <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[var(--brand-primary)]/5' : ''}`}>
                                                 <td className="px-4 py-3">
                                                     <Checkbox
                                                         checked={selectedUserIds.includes(u.id)}
@@ -704,7 +799,7 @@ export default function AdminDashboard() {
                                                                 <span
                                                                     key={`${pn}-${idx}`}
                                                                     title={pn}
-                                                                    className="px-1.5 py-0.5 text-[11px] font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm truncate max-w-[120px]"
+                                                                    className="px-1.5 py-0.5 text-[11px] font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm truncate max-w-[120px]"
                                                                 >
                                                                     {pn}
                                                                 </span>
@@ -717,7 +812,7 @@ export default function AdminDashboard() {
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                            <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${u.completion_pct || 0}%` }} />
+                                                            <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${u.completion_pct || 0}%` }} />
                                                         </div>
                                                         <span className="text-xs text-muted-foreground font-medium">{u.completion_pct || 0}%</span>
                                                     </div>
@@ -734,7 +829,7 @@ export default function AdminDashboard() {
                                                             <Eye size={16} className="mr-1" /> View
                                                         </Button>
                                                         {u.role !== 'admin' && (
-                                                            <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-[#114f55] hover:border-[#114f55]" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
+                                                            <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
                                                                 <UserSwitch size={16} />
                                                             </Button>
                                                         )}
@@ -757,19 +852,44 @@ export default function AdminDashboard() {
                     <TabsContent value="steps">
                         <div className="bg-card border border-border rounded-sm">
                             <div className="p-4 border-b border-border flex flex-wrap justify-between items-center gap-2">
-                                <h2 className="text-lg font-semibold text-foreground">Step Management</h2>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-foreground">Survey & Step Management</h2>
+                                    <p className="text-xs text-muted-foreground">Verwalte unterschiedliche Survey-URLs und die dazugehörigen Step-Ketten.</p>
+                                </div>
                                 <div className="flex flex-wrap gap-2 items-center">
+                                    <Select value={activeSurveyId} onValueChange={handleSurveyChange}>
+                                        <SelectTrigger className="w-56 h-9" data-testid="admin-survey-select">
+                                            <SelectValue placeholder="Survey wählen" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {surveys.map(s => (
+                                                <SelectItem key={s.id} value={s.id}>
+                                                    {s.name} /s/{s.slug}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {surveys.find(s => s.id === activeSurveyId)?.slug && (
+                                        <Link to={`/admin?tab=steps&survey=${encodeURIComponent(surveys.find(s => s.id === activeSurveyId)?.slug)}&step=1`} target="_blank">
+                                            <Button variant="outline" className="h-9 border-border" data-testid="open-survey-url-btn">
+                                                URL öffnen
+                                            </Button>
+                                        </Link>
+                                    )}
+                                    <Button variant="outline" onClick={handleCreateSurvey} className="h-9 border-border" data-testid="create-survey-btn">
+                                        Survey anlegen
+                                    </Button>
                                     <div className="inline-flex rounded-sm border border-border overflow-hidden" data-testid="steps-view-toggle">
                                         <button
                                             onClick={() => setStepsView('flow')}
-                                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${stepsView === 'flow' ? 'bg-[#114f55] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${stepsView === 'flow' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
                                             data-testid="steps-view-flow"
                                         >
                                             Flow-Ansicht
                                         </button>
                                         <button
                                             onClick={() => setStepsView('list')}
-                                            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-border ${stepsView === 'list' ? 'bg-[#114f55] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                                            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-border ${stepsView === 'list' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
                                             data-testid="steps-view-list"
                                         >
                                             Listen-Ansicht
@@ -783,7 +903,7 @@ export default function AdminDashboard() {
                                     >
                                         Templates ({stepTemplates.length})
                                     </Button>
-                                    <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-step-btn">
+                                    <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="add-step-btn">
                                         <Plus size={18} className="mr-2" /> Add Step
                                     </Button>
                                 </div>
@@ -810,7 +930,7 @@ export default function AdminDashboard() {
                                                         </span>
                                                     </div>
                                                     <div className="flex gap-2 mt-3">
-                                                        <Button size="sm" onClick={() => handleApplyTemplate(tpl)} className="h-7 px-2 text-xs bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid={`apply-template-${tpl.id}`}>
+                                                        <Button size="sm" onClick={() => handleApplyTemplate(tpl)} className="h-7 px-2 text-xs bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid={`apply-template-${tpl.id}`}>
                                                             Einfügen
                                                         </Button>
                                                         <Button size="sm" variant="outline" onClick={() => handleDeleteTemplate(tpl)} className="h-7 px-2 text-xs border-red-200 text-red-500" data-testid={`delete-template-${tpl.id}`}>
@@ -826,6 +946,7 @@ export default function AdminDashboard() {
                             {stepsView === 'flow' ? (
                                 <div className="p-4">
                                     <StepsFlowBuilder
+                                        key={activeSurveyId}
                                         steps={steps}
                                         onEdit={(s) => { setEditingStep(s); setShowStepDialog(true); }}
                                         onDelete={(s) => handleDeleteStep(s.id)}
@@ -834,6 +955,7 @@ export default function AdminDashboard() {
                                             const maxOrder = steps.length ? Math.max(...steps.map(s => s.order)) : 0;
                                             setEditingStep({
                                                 title: '', description: '', step_type: stepType, order: maxOrder + 1,
+                                                survey_id: activeSurveyId,
                                                 fields: [], required_fields: [], required_uploads: [],
                                                 conditions: [], field_mappings: [], duration_value: 0, duration_unit: 'days',
                                                 is_active: true,
@@ -850,7 +972,7 @@ export default function AdminDashboard() {
                                                     value: form.value || '',
                                                 };
                                                 const updatedConditions = [...(target.conditions || []), newCondition];
-                                                await adminAPI.updateStep(target.id, { ...target, conditions: updatedConditions });
+                                                await adminAPI.updateStep(target.id, { ...target, survey_id: target.survey_id || activeSurveyId, conditions: updatedConditions });
                                                 toast.success(`Condition erstellt: ${form.action}`);
                                                 loadData();
                                             } catch (error) { toast.error(formatApiError(error)); }
@@ -867,7 +989,7 @@ export default function AdminDashboard() {
                                                     operator: updatedCond.operator,
                                                     value: updatedCond.value || '',
                                                 };
-                                                await adminAPI.updateStep(stepId, { ...step, conditions: conds });
+                                                await adminAPI.updateStep(stepId, { ...step, survey_id: step.survey_id || activeSurveyId, conditions: conds });
                                                 toast.success('Condition aktualisiert');
                                                 loadData();
                                             } catch (error) { toast.error(formatApiError(error)); }
@@ -877,7 +999,7 @@ export default function AdminDashboard() {
                                                 const step = steps.find(s => s.id === stepId);
                                                 if (!step) return;
                                                 const conds = (step.conditions || []).filter((_, i) => i !== condIndex);
-                                                await adminAPI.updateStep(stepId, { ...step, conditions: conds });
+                                                await adminAPI.updateStep(stepId, { ...step, survey_id: step.survey_id || activeSurveyId, conditions: conds });
                                                 toast.success('Condition gelöscht');
                                                 loadData();
                                             } catch (error) { toast.error(formatApiError(error)); }
@@ -891,8 +1013,21 @@ export default function AdminDashboard() {
                                 </div>
                             ) : (
                             <div className="p-4 space-y-4">
-                                {steps.sort((a, b) => a.order - b.order).map((step, idx) => (
-                                    <div key={step.id} className="border border-border rounded-sm p-4">
+                                {steps.length === 0 && (
+                                    <div className="border border-dashed border-border rounded-sm p-8 text-center" data-testid="steps-list-empty-state">
+                                        <p className="text-sm font-semibold text-foreground">Keine Steps in diesem Survey</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Erstelle den ersten Step oder wähle ein Template aus.</p>
+                                        <Button
+                                            onClick={() => { setEditingStep(null); setShowStepDialog(true); }}
+                                            className="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                            data-testid="steps-list-empty-add-step-btn"
+                                        >
+                                            <Plus size={16} className="mr-2" /> Step erstellen
+                                        </Button>
+                                    </div>
+                                )}
+                                {[...steps].sort((a, b) => a.order - b.order).map((step, idx) => (
+                                    <div key={step.id} className="border border-border rounded-sm p-4" data-testid={`step-row-order-${step.order}`}>
                                         <div className="flex justify-between items-start">
                                             {/* Reorder arrows */}
                                             <div className="flex flex-col gap-1 mr-3 flex-shrink-0">
@@ -919,7 +1054,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                                    <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                                                         {step.order}
                                                     </span>
                                                     <h3 className="font-semibold text-foreground">{step.title}</h3>
@@ -932,16 +1067,16 @@ export default function AdminDashboard() {
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
                                                     <span>Dauer: <strong>{step.duration_value === 0 ? t('step_instant') : `${step.duration_value} ${t('step_' + step.duration_unit)}`}</strong></span>
-                                                    {step.email_on_enter && <span className="text-[#114f55]">Email on enter</span>}
-                                                    {step.email_on_edit && <span className="text-[#114f55]">Email on edit</span>}
-                                                    {step.email_on_leave && <span className="text-[#114f55]">Email on leave</span>}
+                                                    {step.email_on_enter && <span className="text-[var(--brand-primary)]">Email on enter</span>}
+                                                    {step.email_on_edit && <span className="text-[var(--brand-primary)]">Email on edit</span>}
+                                                    {step.email_on_leave && <span className="text-[var(--brand-primary)]">Email on leave</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 flex-shrink-0 ml-4">
-                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-[#114f55] hover:bg-teal-50" data-testid={`edit-step-${step.id}`}>
+                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-[var(--brand-primary)] hover:bg-[var(--brand-soft)]" data-testid={`edit-step-${step.id}`}>
                                                     <Pencil size={16} className="mr-1" /> Edit
                                                 </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleSaveStepAsTemplate(step)} className="border-border text-muted-foreground hover:text-[#114f55]" data-testid={`save-template-${step.id}`} title="Als Template speichern">
+                                                <Button variant="outline" size="sm" onClick={() => handleSaveStepAsTemplate(step)} className="border-border text-muted-foreground hover:text-[var(--brand-primary)]" data-testid={`save-template-${step.id}`} title="Als Template speichern">
                                                     Template
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>
@@ -961,7 +1096,7 @@ export default function AdminDashboard() {
                         <div className="bg-card border border-border rounded-sm">
                             <div className="p-4 border-b border-border flex justify-between items-center">
                                 <h2 className="text-lg font-semibold text-foreground">Partner Management</h2>
-                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="add-partner-btn">
+                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="add-partner-btn">
                                     <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
                             </div>
@@ -1008,7 +1143,7 @@ export default function AdminDashboard() {
                                                     <td className="px-4 py-3">
                                                         <div className="flex flex-wrap gap-1">
                                                             {(partner.tags || []).map(tag => (
-                                                                <span key={tag} className="px-2 py-0.5 text-xs bg-[#114f55]/10 text-[#114f55] rounded-sm">{tag}</span>
+                                                                <span key={tag} className="px-2 py-0.5 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{tag}</span>
                                                             ))}
                                                             {(!partner.tags || partner.tags.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
                                                         </div>
@@ -1022,7 +1157,7 @@ export default function AdminDashboard() {
                                                                 </Button>
                                                             </div>
                                                         ) : (
-                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[#114f55] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
+                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[var(--brand-primary)] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
                                                                 <UserPlus size={14} className="mr-1" /> Link User
                                                             </Button>
                                                         )}
@@ -1054,6 +1189,16 @@ export default function AdminDashboard() {
                     {/* ============ CMS TAB ============ */}
                     <TabsContent value="cms">
                         <div className="space-y-6">
+                            <LandingPagesSection
+                                content={cmsLandingPages}
+                                onChange={setCmsLandingPages}
+                                translations={cmsLandingPagesTrans}
+                                onTransChange={setCmsLandingPagesTrans}
+                                surveys={surveys}
+                                onSave={() => handleSaveCms('landing_pages', cmsLandingPages, cmsLandingPagesTrans)}
+                                saving={cmsSaving}
+                            />
+
                             {/* Home Section */}
                             <CmsSection
                                 title="Home / Hero Section"
@@ -1142,7 +1287,7 @@ export default function AdminDashboard() {
                                         <Label className="text-xs text-muted-foreground">To</Label>
                                         <Input type="date" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)} className="h-9 text-sm border-border w-40" data-testid="audit-date-to" />
                                     </div>
-                                    <Button size="sm" onClick={handleAuditFilter} className="bg-[#114f55] hover:bg-[#0d3d42] text-white h-9" data-testid="audit-apply-filter">
+                                    <Button size="sm" onClick={handleAuditFilter} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white h-9" data-testid="audit-apply-filter">
                                         Filter
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={handleClearAuditFilter} className="text-muted-foreground h-9" data-testid="audit-clear-filter">
@@ -1226,8 +1371,8 @@ export default function AdminDashboard() {
                                 <div className="mt-4 p-4 bg-muted rounded-sm">
                                     <Label className="text-xs text-muted-foreground mb-2 block">Preview</Label>
                                     <div className="flex items-baseline">
-                                        <span className="font-black text-2xl tracking-tight text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>{siteSettings.logo_bold_part || 'GER'}</span>
-                                        <span className="font-light text-2xl tracking-tight text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>{siteSettings.logo_light_part || 'doctor'}</span>
+                                        <span className="font-black text-2xl text-foreground" style={{ fontFamily: "'Varela Round', sans-serif", letterSpacing: 0 }}>{siteSettings.logo_bold_part || 'GER'}</span>
+                                        <span className="font-light text-2xl text-foreground" style={{ fontFamily: "'Varela Round', sans-serif", letterSpacing: 0 }}>{siteSettings.logo_light_part || 'doctor'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1242,8 +1387,8 @@ export default function AdminDashboard() {
                                     <div className="space-y-2">
                                         <Label>Primary Color</Label>
                                         <div className="flex items-center gap-3">
-                                            <input type="color" value={siteSettings.primary_color || '#114f55'} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} className="w-10 h-10 rounded cursor-pointer border border-border" data-testid="settings-primary-color" />
-                                            <Input value={siteSettings.primary_color || ''} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} placeholder="#114f55" className="flex-1" />
+                                            <input type="color" value={siteSettings.primary_color || 'var(--brand-primary)'} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} className="w-10 h-10 rounded cursor-pointer border border-border" data-testid="settings-primary-color" />
+                                            <Input value={siteSettings.primary_color || ''} onChange={e => setSiteSettings(s => ({ ...s, primary_color: e.target.value }))} placeholder="var(--brand-primary)" className="flex-1" />
                                         </div>
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
@@ -1287,7 +1432,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="flex justify-end">
-                                <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-settings-btn">
+                                <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-settings-btn">
                                     {settingsSaving ? t('admin_saving') : t('admin_save_settings')}
                                 </Button>
                             </div>
@@ -1345,10 +1490,10 @@ export default function AdminDashboard() {
                             <div className="p-4 bg-muted rounded-sm">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-medium">Fortschritt</span>
-                                    <span className="text-sm font-bold text-[#114f55]">{selectedUser.completion_pct || 0}%</span>
+                                    <span className="text-sm font-bold text-[var(--brand-primary)]">{selectedUser.completion_pct || 0}%</span>
                                 </div>
                                 <div className="w-full h-2 bg-background rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${selectedUser.completion_pct || 0}%` }} />
+                                    <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${selectedUser.completion_pct || 0}%` }} />
                                 </div>
                             </div>
 
@@ -1365,7 +1510,7 @@ export default function AdminDashboard() {
                                                 {typeof value === 'string' && value.length === 36 && value.includes('-') ? (
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <ImageIcon size={14} className="text-muted-foreground" />
-                                                        <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-[#114f55] hover:underline">
+                                                        <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--brand-primary)] hover:underline">
                                                             View file
                                                         </a>
                                                     </div>
@@ -1390,7 +1535,7 @@ export default function AdminDashboard() {
                                             <div key={p.step_id} className="border border-border rounded-sm overflow-hidden">
                                                 <div className="flex items-center justify-between p-3 bg-muted/50">
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${p.status === 'completed' ? 'bg-green-500 text-white' : p.status === 'in_progress' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${p.status === 'completed' ? 'bg-green-500 text-white' : p.status === 'in_progress' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
                                                             {p.status === 'completed' ? <Check size={10} weight="bold" /> : step?.order || '?'}
                                                         </div>
                                                         <span className="text-sm font-medium">{step?.title || 'Unknown Step'}</span>
@@ -1421,8 +1566,8 @@ export default function AdminDashboard() {
                                                                             <div className="mt-1 space-y-1">
                                                                                 {value.map((entry, i) => (
                                                                                     <div key={i} className="flex items-center gap-2 text-sm">
-                                                                                        {entry.document_type && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>}
-                                                                                        {entry.file_id ? <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="text-[#114f55] hover:underline text-xs">{entry.filename || 'Download'}</a> : <span className="text-muted-foreground text-xs">-</span>}
+                                                                                        {entry.document_type && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{entry.document_type}</span>}
+                                                                                        {entry.file_id ? <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="text-[var(--brand-primary)] hover:underline text-xs">{entry.filename || 'Download'}</a> : <span className="text-muted-foreground text-xs">-</span>}
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
@@ -1430,7 +1575,7 @@ export default function AdminDashboard() {
                                                                     );
                                                                 }
                                                                 if (fieldType === 'file' && value) {
-                                                                    return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[#114f55] hover:underline">Download</a></div></div>);
+                                                                    return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--brand-primary)] hover:underline">Download</a></div></div>);
                                                                 }
                                                                 const display = Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value || '-');
                                                                 return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><p className="text-sm font-medium">{display}</p></div>);
@@ -1478,7 +1623,7 @@ export default function AdminDashboard() {
                                             const isWip = h.action === 'in_progress';
                                             return (
                                                 <div key={idx} className="relative flex items-start gap-3 py-2">
-                                                    <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-500 text-white' : isWip ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                    <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-500 text-white' : isWip ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
                                                         {isDone ? <Check size={10} /> : <ArrowRight size={10} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -1508,6 +1653,9 @@ export default function AdminDashboard() {
                 step={editingStep}
                 onSave={handleSaveStep}
                 existingSteps={steps}
+                surveys={surveys}
+                activeSurveyId={activeSurveyId}
+                onSurveyChange={handleSurveyChange}
                 t={t}
             />
 
@@ -1567,6 +1715,167 @@ function StatCard({ label, value }) {
     );
 }
 
+function LandingPagesSection({ content, onChange, translations, onTransChange, surveys, onSave, saving }) {
+    const [selectedId, setSelectedId] = useState('');
+    const [cmsLang, setCmsLang] = useState('de');
+    const pages = useMemo(() => content?.pages || [], [content]);
+    const selectedPage = pages.find(p => p.id === selectedId) || pages[0] || null;
+    const activeId = selectedPage?.id || '';
+
+    useEffect(() => {
+        if (!selectedId && pages[0]?.id) setSelectedId(pages[0].id);
+        if (selectedId && pages.length && !pages.some(p => p.id === selectedId)) {
+            setSelectedId(pages[0].id);
+        }
+    }, [pages, selectedId]);
+
+    const fields = [
+        { key: 'title', label: 'Interner Name', type: 'text', placeholder: 'FSP Pflege' },
+        { key: 'path', label: 'URL-Pfad', type: 'text', placeholder: '/pflege' },
+        { key: 'survey_slug', label: 'Survey-Slug', type: 'text', placeholder: 'pflege' },
+        { key: 'partner_tags', label: 'Partner-Tags', type: 'text', placeholder: 'Pflege Sprachschulung,Pflege Arbeitgeber' },
+        { key: 'eyebrow', label: 'Hero Eyebrow', type: 'text', placeholder: 'Pflege in Deutschland' },
+        { key: 'hero_title', label: 'Hero Titel', type: 'text', placeholder: 'Anerkennung als Pflegefachkraft in Deutschland' },
+        { key: 'hero_subtitle', label: 'Hero Text', type: 'textarea', placeholder: 'Kurzbeschreibung der Landingpage' },
+        { key: 'hero_cta', label: 'CTA Text', type: 'text', placeholder: 'Jetzt registrieren' },
+        { key: 'learn_more_label', label: 'Sekundärbutton', type: 'text', placeholder: 'Mehr erfahren' },
+        { key: 'hero_image_url', label: 'Hero Bild URL', type: 'text', placeholder: 'https://...' },
+        { key: 'stat_value', label: 'Stat Wert', type: 'text', placeholder: '100%' },
+        { key: 'stat_label', label: 'Stat Label', type: 'text', placeholder: 'Von der Anerkennung bis zum Pflegejob' },
+        { key: 'box1_title', label: 'Feature 1 Titel', type: 'text', placeholder: 'Geführte Anerkennung' },
+        { key: 'box1_description', label: 'Feature 1 Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'box2_title', label: 'Feature 2 Titel', type: 'text', placeholder: 'Partner-Netzwerk' },
+        { key: 'box2_description', label: 'Feature 2 Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'box3_title', label: 'Feature 3 Titel', type: 'text', placeholder: 'Fortschritt' },
+        { key: 'box3_description', label: 'Feature 3 Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'about_eyebrow', label: 'About Eyebrow', type: 'text', placeholder: 'Für internationale Pflegekräfte' },
+        { key: 'about_title', label: 'About Titel', type: 'text', placeholder: 'Ihr Weg in Deutschland' },
+        { key: 'about_description', label: 'About Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'about_mission', label: 'About Mission', type: 'textarea', placeholder: 'Mission' },
+        { key: 'partners_eyebrow', label: 'Partner Eyebrow', type: 'text', placeholder: 'Partner & Vorbereitung' },
+        { key: 'partners_title', label: 'Partner Titel', type: 'text', placeholder: 'Unterstützung' },
+        { key: 'partners_description', label: 'Partner Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'cta_title', label: 'CTA Titel', type: 'text', placeholder: 'Bereit?' },
+        { key: 'cta_description', label: 'CTA Text', type: 'textarea', placeholder: 'Beschreibung' },
+        { key: 'footer_logo_url', label: 'Footer Logo URL', type: 'text', placeholder: 'https://...' },
+        { key: 'footer_text', label: 'Footer Text', type: 'text', placeholder: '© 2026 ...' },
+    ];
+
+    const updatePages = (nextPages) => onChange({ ...(content || {}), pages: nextPages });
+    const updatePage = (patch) => {
+        if (!selectedPage) return;
+        updatePages(pages.map(page => page.id === selectedPage.id ? { ...page, ...patch } : page));
+    };
+    const updateTrans = (key, value) => {
+        if (!activeId) return;
+        onTransChange(prev => ({
+            ...prev,
+            en: {
+                ...(prev?.en || {}),
+                [activeId]: {
+                    ...(prev?.en?.[activeId] || {}),
+                    [key]: value,
+                },
+            },
+        }));
+    };
+    const addPage = () => {
+        const id = `landing-${Date.now()}`;
+        const next = {
+            id,
+            title: 'Neue Landingpage',
+            path: '/neue-seite',
+            survey_slug: surveys[0]?.slug || '',
+            partner_tags: '',
+            hero_title: 'Neue Landingpage',
+            hero_cta: 'Jetzt starten',
+        };
+        updatePages([...pages, next]);
+        setSelectedId(id);
+    };
+    const removePage = () => {
+        if (!selectedPage || selectedPage.path === '/') return;
+        const nextPages = pages.filter(page => page.id !== selectedPage.id);
+        updatePages(nextPages);
+        setSelectedId(nextPages[0]?.id || '');
+    };
+
+    return (
+        <div className="bg-card border border-border rounded-sm">
+            <div className="p-4 border-b border-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div>
+                    <h3 className="font-semibold text-foreground">Landingpages</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Pflege hier mehrere öffentliche Seiten mit eigener URL und Survey-Verknüpfung.</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={activeId} onValueChange={setSelectedId}>
+                        <SelectTrigger className="w-56 border-border rounded-sm">
+                            <SelectValue placeholder="Landingpage wählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {pages.map(page => (
+                                <SelectItem key={page.id} value={page.id}>{page.title || page.path} {page.path}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <div className="flex border border-border rounded-sm overflow-hidden">
+                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
+                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
+                    </div>
+                    <Button type="button" variant="outline" onClick={addPage} className="border-border rounded-sm">
+                        <Plus size={16} className="mr-2" /> Neu
+                    </Button>
+                    <Button type="button" variant="outline" onClick={removePage} disabled={!selectedPage || selectedPage.path === '/'} className="border-border rounded-sm">
+                        <Trash size={16} className="mr-2" /> Entfernen
+                    </Button>
+                    <Button onClick={onSave} disabled={saving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="cms-save-landingpages">
+                        {saving ? 'Saving...' : 'Save'}
+                    </Button>
+                </div>
+            </div>
+            {selectedPage ? (
+                <div className="p-4 grid md:grid-cols-2 gap-4">
+                    {fields.map((field) => {
+                        const value = cmsLang === 'de'
+                            ? selectedPage[field.key] || ''
+                            : translations?.en?.[activeId]?.[field.key] || '';
+                        const onFieldChange = (nextValue) => {
+                            if (cmsLang === 'de') updatePage({ [field.key]: nextValue });
+                            else updateTrans(field.key, nextValue);
+                        };
+                        return (
+                            <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+                                <Label className="text-foreground">{field.label} <span className="text-xs text-muted-foreground">({cmsLang.toUpperCase()})</span></Label>
+                                {field.type === 'textarea' ? (
+                                    <Textarea value={value} onChange={(e) => onFieldChange(e.target.value)} placeholder={cmsLang === 'en' ? selectedPage[field.key] || field.placeholder : field.placeholder} className="mt-1 border-border rounded-sm min-h-[80px]" />
+                                ) : field.key === 'survey_slug' ? (
+                                    <Select value={value || '__none'} onValueChange={(next) => onFieldChange(next === '__none' ? '' : next)}>
+                                        <SelectTrigger className="mt-1 border-border rounded-sm">
+                                            <SelectValue placeholder="Survey wählen" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none">Kein Survey</SelectItem>
+                                            {surveys.map(survey => (
+                                                <SelectItem key={survey.id} value={survey.slug}>{survey.name} /s/{survey.slug}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input value={value} onChange={(e) => onFieldChange(e.target.value)} placeholder={cmsLang === 'en' ? selectedPage[field.key] || field.placeholder : field.placeholder} className="mt-1 border-border rounded-sm" />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="p-8 text-center text-muted-foreground">
+                    Noch keine Landingpages angelegt.
+                </div>
+            )}
+        </div>
+    );
+}
+
 function CmsSection({ title, fields, content, onChange, translations, onTransChange, onSave, saving }) {
     const [cmsLang, setCmsLang] = useState('de');
 
@@ -1580,10 +1889,10 @@ function CmsSection({ title, fields, content, onChange, translations, onTransCha
                 <h3 className="font-semibold text-foreground">{title}</h3>
                 <div className="flex items-center gap-2">
                     <div className="flex border border-border rounded-sm overflow-hidden">
-                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
-                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
+                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
+                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
                     </div>
-                    <Button onClick={onSave} disabled={saving} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <Button onClick={onSave} disabled={saving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}>
                         {saving ? 'Saving...' : 'Save'}
                     </Button>
                 </div>
@@ -1651,7 +1960,7 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
                                 <Button
                                     size="sm"
                                     onClick={() => onLink(partner?.id, u.id)}
-                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white"
+                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
                                     data-testid={`link-select-user-${u.id}`}
                                 >
                                     <LinkIcon size={14} className="mr-1" /> Link
@@ -1671,9 +1980,10 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
 }
 
 // Step Dialog Component
-function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
+function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], activeSurveyId = '', onSurveyChange, t }) {
     const [formData, setFormData] = useState({
         title: '', description: '', order: existingSteps.length + 1,
+        survey_id: activeSurveyId,
         step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
         action_label: '', pending_message: '', complete_message: '',
         required_fields: [], required_uploads: [],
@@ -1691,6 +2001,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
             setFormData({
                 title: step.title || '', description: step.description || '',
                 order: step.order || existingSteps.length + 1,
+                survey_id: step.survey_id || activeSurveyId,
                 step_type: step.step_type || 'form', fields: step.fields || [],
                 filter_tag: step.filter_tag || '', skippable: step.skippable || false,
                 skip_label: step.skip_label || '', action_label: step.action_label || '',
@@ -1705,6 +2016,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
         } else {
             setFormData({
                 title: '', description: '', order: existingSteps.length + 1,
+                survey_id: activeSurveyId,
                 step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
                 action_label: '', pending_message: '', complete_message: '',
                 required_fields: [], required_uploads: [],
@@ -1714,9 +2026,16 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
             });
             setTranslations({});
         }
-    }, [step, existingSteps.length]);
+    }, [step, existingSteps.length, activeSurveyId]);
 
     const handleSubmit = (e) => { e.preventDefault(); onSave({ ...formData, translations }); };
+
+    const handleStepSurveyChange = (surveyId) => {
+        setFormData({ ...formData, survey_id: surveyId });
+        if (surveyId !== activeSurveyId) {
+            onSurveyChange?.(surveyId);
+        }
+    };
 
     const setTrans = (lang, field, value) => {
         setTranslations(prev => ({
@@ -1750,7 +2069,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
     const addRequiredUpload = () => { if (newReqUpload && !formData.required_uploads.includes(newReqUpload)) { setFormData({ ...formData, required_uploads: [...formData.required_uploads, newReqUpload] }); setNewReqUpload(''); } };
     const removeRequiredUpload = (u) => { setFormData({ ...formData, required_uploads: formData.required_uploads.filter(x => x !== u) }); };
 
-    const sectionBtnClass = (s) => `px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${activeSection === s ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`;
+    const sectionBtnClass = (s) => `px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${activeSection === s ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -1773,6 +2092,19 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                     {/* BASIC */}
                     {activeSection === 'basic' && (
                         <div className="space-y-4">
+                            <div>
+                                <Label>Survey</Label>
+                                <Select value={formData.survey_id || activeSurveyId} onValueChange={handleStepSurveyChange}>
+                                    <SelectTrigger className="mt-1" data-testid="step-survey-select">
+                                        <SelectValue placeholder="Survey wählen" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {surveys.map(s => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name} /s/{s.slug}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div><Label>{t('step_title')}</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
                             <div><Label>{t('step_description')}</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
@@ -1876,8 +2208,8 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
                             <div className="flex justify-between items-center"><Label>Bedingungen (Zugangssteuerung basierend auf vorherigen Schritten)</Label><Button type="button" variant="outline" size="sm" onClick={addCondition}><Plus size={14} className="mr-1" /> Bedingung</Button></div>
                             
                             {/* Presets */}
-                            <div className="p-3 bg-[#114f55]/5 border border-[#114f55]/20 rounded-sm">
-                                <p className="text-xs font-semibold text-[#114f55] mb-2">Vorlagen (klicken zum Hinzufügen)</p>
+                            <div className="p-3 bg-[var(--brand-primary)]/5 border border-[var(--brand-primary)]/20 rounded-sm">
+                                <p className="text-xs font-semibold text-[var(--brand-primary)] mb-2">Vorlagen (klicken zum Hinzufügen)</p>
                                 <div className="flex flex-wrap gap-2">
                                     {[
                                         { label: 'Vorheriger Schritt abgeschlossen', preset: { source_step_order: Math.max(1, formData.order - 1), field: 'status', operator: 'status_not', value: 'completed', action: 'block', message: 'Bitte schließen Sie zuerst den vorherigen Schritt ab.' } },
@@ -2027,7 +2359,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, t }) {
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
+                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
                     </div>
                 </form>
 
@@ -2097,7 +2429,7 @@ function FieldForm({ field, onSave, onCancel }) {
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                     <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-field-btn">
+                    <Button onClick={handleSubmit} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-field-btn">
                         {field ? 'Update' : 'Add'} Field
                     </Button>
                 </div>
@@ -2221,7 +2553,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                         <Label>Tags</Label>
                             <div className="mt-1 flex flex-wrap gap-1.5 p-2 min-h-[38px] border border-border rounded-sm bg-background">
                                 {formData.tags.map(tag => (
-                                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#114f55]/10 text-[#114f55] text-xs rounded-sm" data-testid={`tag-badge-${tag}`}>
+                                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] text-xs rounded-sm" data-testid={`tag-badge-${tag}`}>
                                         {tag}
                                         <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500 font-bold ml-0.5" data-testid={`remove-tag-${tag}`}>&times;</button>
                                     </span>
@@ -2250,7 +2582,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                                             {tagSuggestions.map(s => (
                                                 <button key={s} type="button" onMouseDown={() => addTag(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-foreground">{s}</button>
                                             ))}
-                                            <button type="button" onMouseDown={() => addTag(tagInput)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-[#114f55] font-medium border-t border-border" data-testid="create-new-tag">
+                                            <button type="button" onMouseDown={() => addTag(tagInput)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-[var(--brand-primary)] font-medium border-t border-border" data-testid="create-new-tag">
                                                 + Neuen Tag "{tagInput.trim()}" erstellen
                                             </button>
                                         </div>
@@ -2291,7 +2623,7 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                     </div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-partner-btn">
+                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-partner-btn">
                             {partner ? t('save') : t('partner_create')}
                         </Button>
                     </div>
@@ -2349,7 +2681,7 @@ function CreateUserDialog({ open, onClose, onSave, partners, t }) {
                     )}
                     <div className="flex justify-end gap-3 pt-2">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
+                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
                     </div>
                 </form>
             </DialogContent>
@@ -2403,4 +2735,3 @@ function ElementToggle({ id, label, description, checked, onChange }) {
         </div>
     );
 }
-

@@ -16,16 +16,19 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
 load_dotenv("/app/backend/.env")
+_runner = asyncio.Runner()
 
 
 @pytest.fixture(scope="module")
 def db():
     client = AsyncIOMotorClient(os.environ["MONGO_URL"])
-    return client[os.environ["DB_NAME"]]
+    yield client[os.environ["DB_NAME"]]
+    client.close()
+    _runner.close()
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return _runner.run(coro)
 
 
 def test_no_progress_for_non_user_accounts(db):

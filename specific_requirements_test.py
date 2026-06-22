@@ -4,13 +4,18 @@ Specific requirements test for Guided Journey App
 Testing the exact requirements from the review request
 """
 
+import os
 import requests
 import sys
 import json
+import time
+import uuid
 from datetime import datetime
 
 class SpecificRequirementsTest:
-    def __init__(self, base_url="https://guided-journey-5.preview.emergentagent.com"):
+    def __init__(self, base_url=None):
+        if base_url is None:
+            base_url = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001")
         self.base_url = base_url
         self.session = requests.Session()
         self.tests_run = 0
@@ -60,17 +65,17 @@ class SpecificRequirementsTest:
                 else:
                     self.log_test("Total Users > 0", False, f"Total Users: {total_users}")
                 
-                # Check Active Partners = 3
+                # Check active partner catalog is populated
                 total_partners = analytics_data.get('total_partners', 0)
-                if total_partners == 3:
-                    self.log_test("Active Partners = 3", True, f"Active Partners: {total_partners}")
+                if total_partners >= 3:
+                    self.log_test("Active Partners >= 3", True, f"Active Partners: {total_partners}")
                 else:
-                    self.log_test("Active Partners = 3", False, f"Active Partners: {total_partners}")
+                    self.log_test("Active Partners >= 3", False, f"Active Partners: {total_partners}")
                 
-                # Check step completion rates for 4 steps
+                # Check step completion rates for current medical flow
                 step_analytics = analytics_data.get('step_analytics', [])
-                if len(step_analytics) == 4:
-                    self.log_test("4 Steps Present", True, f"Steps count: {len(step_analytics)}")
+                if len(step_analytics) >= 20:
+                    self.log_test("Medical Steps Present", True, f"Steps count: {len(step_analytics)}")
                     
                     # Check each step has completion rate
                     for i, step in enumerate(step_analytics):
@@ -85,7 +90,7 @@ class SpecificRequirementsTest:
                             f"{step_title}: {completed}/{total} ({completion_rate}%)"
                         )
                 else:
-                    self.log_test("4 Steps Present", False, f"Steps count: {len(step_analytics)}")
+                    self.log_test("Medical Steps Present", False, f"Steps count: {len(step_analytics)}")
                 
                 print(f"\n📊 Analytics Summary:")
                 print(f"   Total Users: {analytics_data.get('total_users', 0)}")
@@ -106,11 +111,12 @@ class SpecificRequirementsTest:
         # Create new session for demo user
         demo_session = requests.Session()
         
-        # Test demo user login
-        url = f"{self.base_url}/api/auth/login"
+        # Register an ephemeral user so progress expectations are deterministic.
+        url = f"{self.base_url}/api/auth/register"
         response = demo_session.post(url, json={
-            "email": "demo@example.com", 
-            "password": "Demo123!"
+            "email": f"specific-smoke-{int(time.time())}-{uuid.uuid4().hex[:6]}@chrizz1001.de",
+            "password": "Demo123!",
+            "name": "Specific Smoke User",
         })
         
         if response.status_code == 200:
@@ -154,7 +160,7 @@ class SpecificRequirementsTest:
             self.log_test("Demo User Login", False, f"Status: {response.status_code}")
 
     def test_seeded_partners(self):
-        """Test that 3 specific partners are seeded"""
+        """Test that current recognition partners are seeded"""
         print("\n🏢 Testing Seeded Partners...")
         
         url = f"{self.base_url}/api/partners"
@@ -163,7 +169,7 @@ class SpecificRequirementsTest:
         if response.status_code == 200:
             partners = response.json()
             
-            expected_partners = ["TechVenture", "Global Consulting", "Innovation Labs"]
+            expected_partners = ["ILS", "FIA Academy", "Lingoda"]
             found_partners = []
             
             for partner in partners:
@@ -173,10 +179,10 @@ class SpecificRequirementsTest:
                         found_partners.append(expected)
                         break
             
-            if len(found_partners) == 3:
-                self.log_test("3 Seeded Partners", True, f"Found: {found_partners}")
+            if len(set(found_partners)) == len(expected_partners):
+                self.log_test("Recognition Partners Seeded", True, f"Found: {found_partners}")
             else:
-                self.log_test("3 Seeded Partners", False, f"Found: {found_partners}, Expected: {expected_partners}")
+                self.log_test("Recognition Partners Seeded", False, f"Found: {found_partners}, Expected: {expected_partners}")
             
             print(f"\n🏢 Partners Found:")
             for partner in partners:
@@ -186,7 +192,7 @@ class SpecificRequirementsTest:
             self.log_test("Get Partners", False, f"Status: {response.status_code}")
 
     def test_seeded_steps(self):
-        """Test that 4 steps are seeded"""
+        """Test that the medical recognition step chain is seeded"""
         print("\n📋 Testing Seeded Steps...")
         
         # Re-login as admin
@@ -199,10 +205,8 @@ class SpecificRequirementsTest:
         if response.status_code == 200:
             steps = response.json()
             
-            if len(steps) == 4:
-                self.log_test("4 Seeded Steps", True, f"Steps count: {len(steps)}")
-                
-                expected_step_titles = ["Complete Your Profile", "Select a Partner", "Partner Application", "Review & Confirm"]
+            if len(steps) >= 20:
+                self.log_test("Medical Steps Seeded", True, f"Steps count: {len(steps)}")
                 found_titles = []
                 
                 for step in sorted(steps, key=lambda x: x.get('order', 0)):
@@ -213,15 +217,14 @@ class SpecificRequirementsTest:
                 for i, title in enumerate(found_titles):
                     print(f"   {i+1}. {title}")
                 
-                # Check if we have the expected step types
                 step_types = [step.get('step_type') for step in steps]
-                if 'form' in step_types and 'partner_selection' in step_types and 'info' in step_types:
+                if 'form' in step_types and 'partner_selection' in step_types and 'milestone' in step_types:
                     self.log_test("Step Types Variety", True, f"Types: {set(step_types)}")
                 else:
                     self.log_test("Step Types Variety", False, f"Types: {set(step_types)}")
                     
             else:
-                self.log_test("4 Seeded Steps", False, f"Steps count: {len(steps)}")
+                self.log_test("Medical Steps Seeded", False, f"Steps count: {len(steps)}")
         else:
             self.log_test("Get Admin Steps", False, f"Status: {response.status_code}")
 
@@ -229,7 +232,7 @@ class SpecificRequirementsTest:
         """Test CMS content is seeded"""
         print("\n📄 Testing CMS Content...")
         
-        sections = ['home', 'about', 'partners']
+        sections = ['home', 'about', 'partners', 'landing_pages']
         
         for section in sections:
             url = f"{self.base_url}/api/cms/{section}"

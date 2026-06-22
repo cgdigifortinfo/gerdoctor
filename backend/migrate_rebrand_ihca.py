@@ -71,7 +71,7 @@ async def main():
     # 4) Email templates — reset header/footer/password_reset if they still
     # contain the old brand string. We only reset *unedited* defaults so admin
     # copy customisations survive.
-    from seed_email_templates import DEFAULT_TEMPLATES  # noqa: E402
+    from email_template_defaults import DEFAULT_TEMPLATES  # noqa: E402
     for key in ("header", "footer", "user_password_reset"):
         tpl = await db.email_templates.find_one({"key": key})
         if not tpl:

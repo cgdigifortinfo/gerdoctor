@@ -70,6 +70,18 @@ class TestPublicEndpoints:
             r = c.get(f"{base_url}/api/cms/home")
             assert r.status_code == 200
 
+    def test_cms_landing_pages_section(self, base_url):
+        with httpx.Client(timeout=15) as c:
+            r = c.get(f"{base_url}/api/cms/landing_pages")
+            assert r.status_code == 200
+            pages = r.json().get("content", {}).get("pages", [])
+            assert isinstance(pages, list)
+            by_path = {page.get("path"): page for page in pages}
+            assert "/" in by_path
+            assert "/pflege" in by_path
+            assert by_path["/"].get("survey_slug") == "aerzte"
+            assert by_path["/pflege"].get("survey_slug") == "pflege"
+
     def test_partners_public(self, base_url):
         with httpx.Client(timeout=15) as c:
             r = c.get(f"{base_url}/api/partners")
@@ -452,7 +464,7 @@ class TestDataIntegrity:
         """User steps and admin steps have same count of active steps."""
         with httpx.Client(timeout=15) as c:
             user_steps = c.get(f"{base_url}/api/steps", headers=auth(tokens["user"])).json()
-            admin_steps = c.get(f"{base_url}/api/admin/steps", headers=auth(tokens["admin"])).json()
+            admin_steps = c.get(f"{base_url}/api/admin/steps?survey_slug=aerzte", headers=auth(tokens["admin"])).json()
             active_admin = [s for s in admin_steps if s.get("is_active", True)]
             assert len(user_steps) == len(active_admin)
 

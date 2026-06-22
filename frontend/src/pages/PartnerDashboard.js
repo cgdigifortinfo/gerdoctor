@@ -54,7 +54,7 @@ function scoreUserForPartner(user, partnerTags = []) {
 }
 
 // Compact horizontal bar chart for category counts
-function BarChart({ data, accent = '#114f55', valueSuffix = '', testid = 'barchart' }) {
+function BarChart({ data, accent = 'var(--brand-primary)', valueSuffix = '', testid = 'barchart' }) {
     if (!data || data.length === 0) return <p className="text-sm text-muted-foreground">Keine Daten verfügbar</p>;
     const max = Math.max(...data.map(d => d.count));
     return (
@@ -78,7 +78,7 @@ function BarChart({ data, accent = '#114f55', valueSuffix = '', testid = 'barcha
 }
 
 // Compact 30-day timeline sparkline
-function Timeline({ series, accent = '#114f55' }) {
+function Timeline({ series, accent = 'var(--brand-primary)' }) {
     if (!series || series.length === 0) return null;
     const total = series.reduce((sum, s) => sum + s.count, 0);
     if (total === 0) {
@@ -134,8 +134,8 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
             <div className="flex items-center gap-1">
                 {label}
                 <span className="inline-flex flex-col leading-none">
-                    <CaretUp size={10} weight={sortKey === sortField && sortDir === 'asc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'asc' ? 'text-[#114f55]' : 'text-muted-foreground/40'} />
-                    <CaretDown size={10} weight={sortKey === sortField && sortDir === 'desc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'desc' ? 'text-[#114f55]' : 'text-muted-foreground/40'} />
+                    <CaretUp size={10} weight={sortKey === sortField && sortDir === 'asc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'asc' ? 'text-[var(--brand-primary)]' : 'text-muted-foreground/40'} />
+                    <CaretDown size={10} weight={sortKey === sortField && sortDir === 'desc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'desc' ? 'text-[var(--brand-primary)]' : 'text-muted-foreground/40'} />
                 </span>
             </div>
         </th>
@@ -229,7 +229,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                                 {partnerTags.length > 0 && (
                                     <td className="px-4 py-3 text-sm" data-testid={`match-${item.user_id || item.id}`}>
                                         {item.match_score > 0 ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold bg-[#114f55]/10 text-[#114f55]">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
                                                 <Star size={11} weight="fill" />
                                                 {item.match_score}
                                             </span>
@@ -244,7 +244,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2 min-w-[100px]">
                                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${item.completion_pct || 0}%` }} />
+                                            <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${item.completion_pct || 0}%` }} />
                                         </div>
                                         <span className="text-xs font-medium text-muted-foreground w-8 text-right">{item.completion_pct || 0}%</span>
                                     </div>
@@ -340,23 +340,17 @@ export default function PartnerDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [subsRes, otherRes] = await Promise.all([
+            const [subsRes, otherRes, profileRes, insightsRes] = await Promise.all([
                 partnerDashboardAPI.getSubmissions(),
                 partnerDashboardAPI.getOtherUsers(),
+                partnerDashboardAPI.getProfile().catch(() => ({ data: { name: user?.name, email: user?.email } })),
+                partnerDashboardAPI.getInsights().catch(() => ({ data: null })),
             ]);
             setSubmissions(subsRes.data);
             setOtherUsers(otherRes.data);
-            try {
-                const profileRes = await partnerDashboardAPI.getProfile();
-                setProfile(profileRes.data);
-                setProfileForm(profileRes.data);
-            } catch {
-                setProfile({ name: user?.name, email: user?.email });
-            }
-            try {
-                const insightsRes = await partnerDashboardAPI.getInsights();
-                setInsights(insightsRes.data);
-            } catch (e) { /* insights optional */ }
+            setProfile(profileRes.data);
+            setProfileForm(profileRes.data);
+            setInsights(insightsRes.data);
         } catch (error) {
             console.error('Failed to load data:', error);
             if (error.response?.status === 400) toast.error('Your account is not linked to a partner');
@@ -543,23 +537,23 @@ export default function PartnerDashboard() {
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="mb-6 bg-card border border-border">
-                            <TabsTrigger value="my-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-my-users">
+                            <TabsTrigger value="my-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
                                 {t('partner_my_users')} ({activeSubmissions.length})
                             </TabsTrigger>
-                            <TabsTrigger value="completed-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-completed-users">
+                            <TabsTrigger value="completed-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-completed-users">
                                 <CheckCircle size={18} className="mr-2" />
                                 Completed Users ({completedSubmissions.length})
                             </TabsTrigger>
-                            <TabsTrigger value="other-users" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-other-users">
+                            <TabsTrigger value="other-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
                                 {t('partner_other_users')} ({otherUsers.length})
                             </TabsTrigger>
-                            <TabsTrigger value="insights" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-insights">
+                            <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
                                 <ChartLine size={18} className="mr-2" />
                                 Insights
                             </TabsTrigger>
-                            <TabsTrigger value="profile" className="data-[state=active]:bg-[#114f55] data-[state=active]:text-white" data-testid="tab-profile">
+                            <TabsTrigger value="profile" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
                                 {t('partner_profile')}
                             </TabsTrigger>
@@ -604,26 +598,26 @@ export default function PartnerDashboard() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Neue Anfragen (7 Tage)</p>
-                                        <p className="text-3xl font-bold mt-2 text-[#114f55]" data-testid="kpi-new-7d">{insights?.new_submissions_7d ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-new-7d">{insights?.new_submissions_7d ?? 0}</p>
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Neue Anfragen (30 Tage)</p>
-                                        <p className="text-3xl font-bold mt-2 text-[#114f55]" data-testid="kpi-new-30d">{insights?.new_submissions_30d ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-new-30d">{insights?.new_submissions_30d ?? 0}</p>
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Verknüpfte Kandidaten</p>
-                                        <p className="text-3xl font-bold mt-2 text-[#114f55]" data-testid="kpi-total-users">{insights?.total_linked_users ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-total-users">{insights?.total_linked_users ?? 0}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <h3 className="text-sm font-semibold text-foreground mb-4">Verteilung nach Fachrichtung</h3>
-                                        <BarChart data={insights?.by_fachrichtung || []} accent="#114f55" testid="chart-fachrichtung" />
+                                        <BarChart data={insights?.by_fachrichtung || []} accent="var(--brand-primary)" testid="chart-fachrichtung" />
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <h3 className="text-sm font-semibold text-foreground mb-4">Verteilung nach Bundesland</h3>
-                                        <BarChart data={insights?.by_bundesland || []} accent="#0d3d42" testid="chart-bundesland" />
+                                        <BarChart data={insights?.by_bundesland || []} accent="var(--brand-primary-hover)" testid="chart-bundesland" />
                                     </div>
                                 </div>
 
@@ -650,7 +644,7 @@ export default function PartnerDashboard() {
                                         ))}
                                     </div>
                                     <p className="text-center text-sm text-muted-foreground mt-4">
-                                        Conversion-Rate: <span className="font-semibold text-[#114f55]" data-testid="conversion-rate">{insights?.conversion_rate_pct ?? 0}%</span>
+                                        Conversion-Rate: <span className="font-semibold text-[var(--brand-primary)]" data-testid="conversion-rate">{insights?.conversion_rate_pct ?? 0}%</span>
                                     </p>
                                 </div>
                             </div>
@@ -674,7 +668,7 @@ export default function PartnerDashboard() {
                                                 <p className="text-xs text-muted-foreground mt-1 mb-2">Fügen Sie Bundesländer und Fachrichtungen hinzu, mit denen Ihr Angebot matched. Bewerber mit passenden Werten erhalten ein „Match"-Score in Ihrer Liste.</p>
                                                 <div className="flex flex-wrap gap-1.5 mb-2">
                                                     {(profileForm.tags || []).map(tag => (
-                                                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[#114f55]/10 text-[#114f55] rounded-sm" data-testid={`tag-chip-${tag}`}>
+                                                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm" data-testid={`tag-chip-${tag}`}>
                                                             {tag}
                                                             <button type="button" onClick={() => handleRemoveTag(tag)} className="hover:text-red-500" data-testid={`remove-tag-${tag}`}>
                                                                 <X size={11} weight="bold" />
@@ -703,14 +697,14 @@ export default function PartnerDashboard() {
                                                 <div className="mt-3 flex flex-wrap gap-1">
                                                     <span className="text-[11px] text-muted-foreground mr-1">Schnellauswahl:</span>
                                                     {BUNDESLAENDER.slice(0, 8).map(bl => (
-                                                        <button key={bl} type="button" onClick={() => handleAddTag(bl)} className="text-[11px] px-1.5 py-0.5 border border-border rounded-sm text-muted-foreground hover:border-[#114f55] hover:text-[#114f55]">{bl}</button>
+                                                        <button key={bl} type="button" onClick={() => handleAddTag(bl)} className="text-[11px] px-1.5 py-0.5 border border-border rounded-sm text-muted-foreground hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]">{bl}</button>
                                                     ))}
                                                 </div>
                                             </div>
 
                                             <div className="flex gap-3 pt-4 border-t border-border">
                                                 <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>{t('cancel')}</Button>
-                                                <Button onClick={handleSaveProfile} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-profile-btn">{t('save')}</Button>
+                                                <Button onClick={handleSaveProfile} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-profile-btn">{t('save')}</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -728,7 +722,7 @@ export default function PartnerDashboard() {
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     {(profile.tags || []).length === 0 && <span className="text-sm text-muted-foreground">Keine Tags</span>}
                                                     {(profile.tags || []).map(tag => (
-                                                        <span key={tag} className="inline-block px-2 py-1 text-xs bg-[#114f55]/10 text-[#114f55] rounded-sm">{tag}</span>
+                                                        <span key={tag} className="inline-block px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{tag}</span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -760,7 +754,7 @@ export default function PartnerDashboard() {
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
                                         <Label className="text-muted-foreground">Fortschritt</Label>
-                                        <span className="text-sm font-medium text-[#114f55]" data-testid="detail-completion-pct">{userDetail.completion_pct}%</span>
+                                        <span className="text-sm font-medium text-[var(--brand-primary)]" data-testid="detail-completion-pct">{userDetail.completion_pct}%</span>
                                     </div>
                                     <Progress value={userDetail.completion_pct} className="h-2 mb-4" />
                                     <div className="space-y-3">
@@ -774,10 +768,10 @@ export default function PartnerDashboard() {
                                             const canComplete = status !== 'completed' && (isPartnerStep || status === 'in_progress');
                                             const upload = uploadState[step.id] || {};
                                             return (
-                                                <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[#114f55] ring-1 ring-[#114f55]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
+                                                <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
                                                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? <Check size={12} weight="bold" /> : step.order}
                                                             </div>
                                                             <div>
@@ -790,7 +784,7 @@ export default function PartnerDashboard() {
                                                                 {status === 'completed' ? t('completed') : status === 'in_progress' ? t('in_progress') : t('pending')}
                                                             </span>
                                                             {canComplete && !isPartnerMilestone && (
-                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className={`text-white text-xs h-7 px-2 ${isPartnerStep ? 'bg-[#114f55] hover:bg-[#0d3d42]' : 'bg-green-600 hover:bg-green-700'}`} data-testid={`complete-step-${step.order}`}>
+                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className={`text-white text-xs h-7 px-2 ${isPartnerStep ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]' : 'bg-green-600 hover:bg-green-700'}`} data-testid={`complete-step-${step.order}`}>
                                                                     <CheckCircle size={14} className="mr-1" /> {isPartnerStep ? t('partner_approve_step') : t('partner_complete_step')}
                                                                 </Button>
                                                             )}
@@ -815,9 +809,9 @@ export default function PartnerDashboard() {
                                                                                 <div className="mt-1 space-y-1.5">
                                                                                     {value.map((entry, i) => (
                                                                                         <div key={i} className="flex items-center gap-2 text-sm">
-                                                                                            {entry.document_type && <span className="px-2 py-0.5 text-xs font-medium bg-[#114f55]/10 text-[#114f55] rounded-sm">{entry.document_type}</span>}
+                                                                                            {entry.document_type && <span className="px-2 py-0.5 text-xs font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{entry.document_type}</span>}
                                                                                             {entry.file_id ? (
-                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium" data-testid={`download-${step.order}-${key}-${i}`}>
+                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline font-medium" data-testid={`download-${step.order}-${key}-${i}`}>
                                                                                                     <DownloadSimple size={14} />{entry.filename || 'Download'}
                                                                                                 </a>
                                                                                             ) : <span className="text-muted-foreground">{entry.filename || '-'}</span>}
@@ -831,7 +825,7 @@ export default function PartnerDashboard() {
                                                                         return (
                                                                             <div key={key} data-testid={`step-data-${step.order}-${key}`}>
                                                                                 <span className="text-xs text-muted-foreground capitalize">{label}</span>
-                                                                                <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[#114f55] hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
+                                                                                <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[var(--brand-primary)] hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
                                                                             </div>
                                                                         );
                                                                     }
@@ -862,7 +856,7 @@ export default function PartnerDashboard() {
                                                                     <div key={i} className="flex items-center gap-2 text-sm">
                                                                         <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-sm">{entry.document_type || 'Nachweis'}</span>
                                                                         {entry.file_id && (
-                                                                            <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#114f55] hover:underline font-medium" data-testid={`partner-upload-dl-${step.order}-${i}`}>
+                                                                            <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline font-medium" data-testid={`partner-upload-dl-${step.order}-${i}`}>
                                                                                 <DownloadSimple size={14} />{entry.filename || 'Download'}
                                                                             </a>
                                                                         )}
@@ -872,7 +866,7 @@ export default function PartnerDashboard() {
                                                         </div>
                                                     )}
                                                     {isPartnerMilestone && status !== 'completed' && (
-                                                        <div className="px-4 py-3 border-t border-border bg-[#114f55]/5" data-testid={`milestone-partner-action-${step.order}`}>
+                                                        <div className="px-4 py-3 border-t border-border bg-[var(--brand-primary)]/5" data-testid={`milestone-partner-action-${step.order}`}>
                                                             <p className="text-xs font-semibold text-foreground mb-2">Meilenstein abschließen</p>
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                 <Input
@@ -885,7 +879,7 @@ export default function PartnerDashboard() {
                                                                     size="sm"
                                                                     onClick={() => handleCompleteMilestoneWithUpload(userDetail.id, step.id)}
                                                                     disabled={upload.uploading}
-                                                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white text-xs h-8 px-3"
+                                                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs h-8 px-3"
                                                                     data-testid={`milestone-complete-btn-${step.order}`}
                                                                 >
                                                                     <CheckCircle size={14} className="mr-1" />

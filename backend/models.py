@@ -7,6 +7,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     name: str
+    survey_slug: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -85,6 +86,7 @@ class StepCreate(BaseModel):
     description: str
     order: int
     step_type: str
+    survey_id: Optional[str] = None
     fields: Optional[List[StepFieldCreate]] = None
     filter_tag: Optional[str] = None
     skippable: bool = False
@@ -115,6 +117,7 @@ class StepUpdate(BaseModel):
     description: Optional[str] = None
     order: Optional[int] = None
     step_type: Optional[str] = None
+    survey_id: Optional[str] = None
     fields: Optional[List[StepFieldCreate]] = None
     filter_tag: Optional[str] = None
     skippable: Optional[bool] = None
@@ -146,6 +149,7 @@ class StepLayoutBulk(BaseModel):
 
 class StepReorder(BaseModel):
     step_ids: List[str]
+    survey_id: Optional[str] = None
 
 class UserProgressUpdate(BaseModel):
     step_id: str
@@ -209,3 +213,21 @@ class StepTemplateUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     config: Optional[dict] = None
+
+class SurveyCreate(BaseModel):
+    name: str
+    slug: str
+    description: Optional[str] = ""
+    audience: Optional[str] = ""
+    is_active: bool = True
+    is_default: bool = False
+    theme: Optional[dict] = None
+
+class SurveyUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    audience: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_default: Optional[bool] = None
+    theme: Optional[dict] = None

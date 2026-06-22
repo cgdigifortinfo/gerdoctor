@@ -27,7 +27,8 @@ from models import (
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
-    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk
+    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk,
+    SurveyCreate, SurveyUpdate
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -38,10 +39,12 @@ from helpers import (
     send_email_notification, create_audit_log, notify_partner_of_new_submission,
     notify_user_awaiting_partner, notify_user_milestone_completed,
     render_email, send_rendered_email, _partner_deep_link,
-    calculate_completion_pct, calculate_estimated_completion,
+    calculate_completion_pct, calculate_estimated_completion, calculate_user_metrics,
+    calculate_users_metrics,
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
 )
+from email_template_defaults import DEFAULT_TEMPLATES
 
 logger = logging.getLogger("server")
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +61,70 @@ partner_router = APIRouter(prefix="/partners", tags=["partners"])
 steps_router = APIRouter(prefix="/steps", tags=["steps"])
 files_router = APIRouter(prefix="/files", tags=["files"])
 cms_router = APIRouter(prefix="/cms", tags=["cms"])
+
+DEFAULT_SURVEY_SLUG = "aerzte"
+PFLEGE_SURVEY_SLUG = "pflege"
+
+def _survey_payload(s: dict) -> dict:
+    return {
+        "id": str(s["_id"]),
+        "name": s.get("name", ""),
+        "slug": s.get("slug", ""),
+        "description": s.get("description", ""),
+        "audience": s.get("audience", ""),
+        "is_active": s.get("is_active", True),
+        "is_default": s.get("is_default", False),
+        "theme": s.get("theme", {}),
+        "created_at": s.get("created_at"),
+        "updated_at": s.get("updated_at"),
+    }
+
+async def _get_default_survey() -> dict:
+    survey = await db.surveys.find_one({"is_default": True})
+    if not survey:
+        survey = await db.surveys.find_one({"slug": DEFAULT_SURVEY_SLUG})
+    if not survey:
+        now = datetime.now(timezone.utc).isoformat()
+        result = await db.surveys.insert_one({
+            "name": "Ärzte Anerkennung",
+            "slug": DEFAULT_SURVEY_SLUG,
+            "description": "Anerkennungs- und Arbeitseinstiegsprozess fuer internationale Aerztinnen und Aerzte.",
+            "audience": "Internationale Aerztinnen und Aerzte",
+            "is_active": True,
+            "is_default": True,
+            "theme": {},
+            "created_at": now,
+            "updated_at": now,
+        })
+        survey = await db.surveys.find_one({"_id": result.inserted_id})
+    return survey
+
+async def _get_survey_by_slug(slug: Optional[str]) -> dict:
+    if not slug:
+        return await _get_default_survey()
+    survey = await db.surveys.find_one({"slug": slug, "is_active": True})
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    return survey
+
+async def _get_user_survey(user: dict, survey_slug: Optional[str] = None) -> dict:
+    if survey_slug:
+        return await _get_survey_by_slug(survey_slug)
+    sid = user.get("survey_id")
+    if sid:
+        try:
+            survey = await db.surveys.find_one({"_id": ObjectId(sid)})
+            if survey:
+                return survey
+        except Exception:
+            pass
+    return await _get_default_survey()
+
+def _step_query_for_survey(survey_id: str, active_only: bool = True) -> dict:
+    query = {"survey_id": survey_id}
+    if active_only:
+        query["is_active"] = True
+    return query
 
 def _auth_cookie_kwargs(max_age: int) -> dict:
     frontend_url = os.environ.get("FRONTEND_URL", "")
@@ -80,17 +147,21 @@ async def register(data: UserRegister, response: Response):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    survey = await _get_survey_by_slug(data.survey_slug)
+    survey_id = str(survey["_id"])
     user_doc = {
         "email": email, "password_hash": hash_password(data.password),
         "name": data.name, "role": "user", "profile": {},
+        "survey_id": survey_id, "survey_slug": survey.get("slug", DEFAULT_SURVEY_SLUG),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
-    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
+    steps = await db.steps.find(_step_query_for_survey(survey_id)).sort("order", 1).to_list(100)
     for step in steps:
         await db.user_progress.insert_one({
             "user_id": user_id, "step_id": str(step["_id"]),
+            "survey_id": survey_id,
             "step_order": step.get("order"),
             "status": "pending", "data": {},
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -100,7 +171,7 @@ async def register(data: UserRegister, response: Response):
     refresh_token = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
     response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
-    return {"id": user_id, "email": email, "name": data.name, "role": "user", "access_token": access_token}
+    return {"id": user_id, "email": email, "name": data.name, "role": "user", "survey_id": survey_id, "survey_slug": survey.get("slug"), "access_token": access_token}
 
 @auth_router.post("/login")
 async def login(data: UserLogin, request: Request, response: Response):
@@ -128,7 +199,7 @@ async def login(data: UserLogin, request: Request, response: Response):
     refresh_token = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
     response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
-    return {"id": user_id, "email": user["email"], "name": user["name"], "role": user["role"], "access_token": access_token}
+    return {"id": user_id, "email": user["email"], "name": user["name"], "role": user["role"], "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug"), "access_token": access_token}
 
 @auth_router.post("/logout")
 async def logout(response: Response):
@@ -139,7 +210,7 @@ async def logout(response: Response):
 @auth_router.get("/me")
 async def get_me(request: Request):
     user = await get_current_user(request)
-    return {"id": user["_id"], "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {})}
+    return {"id": user["_id"], "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug")}
 
 @auth_router.post("/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -198,11 +269,21 @@ async def admin_impersonate_user(user_id: str, request: Request):
     tid = str(target["_id"])
     access_token = create_access_token(tid, target["email"], target["role"])
     await create_audit_log(admin_user["_id"], admin_user["email"], "impersonate", "user", tid, {"target_email": target["email"]})
-    return {"access_token": access_token, "user": {"id": tid, "email": target["email"], "name": target["name"], "role": target["role"]}}
+    return {"access_token": access_token, "user": {"id": tid, "email": target["email"], "name": target["name"], "role": target["role"], "survey_id": target.get("survey_id"), "survey_slug": target.get("survey_slug")}}
 
 # ========================
 # USER PROFILE ROUTES
 # ========================
+
+@api_router.get("/surveys/public")
+async def list_public_surveys():
+    surveys = await db.surveys.find({"is_active": True}).sort("name", 1).to_list(100)
+    return [_survey_payload(s) for s in surveys]
+
+@api_router.get("/surveys/slug/{slug}")
+async def get_public_survey(slug: str):
+    survey = await _get_survey_by_slug(slug)
+    return _survey_payload(survey)
 
 @api_router.get("/profile")
 async def get_profile(request: Request):
@@ -235,24 +316,25 @@ async def update_notification_preferences(data: NotificationPreferences, request
 # ========================
 
 @steps_router.get("")
-async def get_steps(request: Request):
+async def get_steps(request: Request, survey_slug: Optional[str] = Query(None)):
     user = await get_current_user(request)
-    steps = await db.steps.find({"is_active": True}, {"_id": 0}).sort("order", 1).to_list(100)
-    all_steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
-    for i, step in enumerate(steps):
-        step["id"] = str(all_steps[i]["_id"])
-    return steps
+    survey = await _get_user_survey(user, survey_slug)
+    query = _step_query_for_survey(str(survey["_id"]))
+    steps = await db.steps.find(query).sort("order", 1).to_list(100)
+    return [{**{key: value for key, value in step.items() if key != "_id"}, "id": str(step["_id"])} for step in steps]
 
 @steps_router.get("/progress")
-async def get_user_progress(request: Request):
+async def get_user_progress(request: Request, survey_slug: Optional[str] = Query(None)):
     user = await get_current_user(request)
-    return await db.user_progress.find({"user_id": user["_id"]}, {"_id": 0}).to_list(100)
+    survey = await _get_user_survey(user, survey_slug)
+    return await db.user_progress.find({"user_id": user["_id"], "survey_id": str(survey["_id"])}, {"_id": 0}).to_list(100)
 
 @steps_router.get("/all-data")
-async def get_all_step_data(request: Request):
+async def get_all_step_data(request: Request, survey_slug: Optional[str] = Query(None)):
     user = await get_current_user(request)
-    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(100)
-    progress = await db.user_progress.find({"user_id": user["_id"]}, {"_id": 0}).to_list(100)
+    survey = await _get_user_survey(user, survey_slug)
+    steps = await db.steps.find(_step_query_for_survey(str(survey["_id"]))).sort("order", 1).to_list(100)
+    progress = await db.user_progress.find({"user_id": user["_id"], "survey_id": str(survey["_id"])}, {"_id": 0}).to_list(100)
     progress_map = {p["step_id"]: p for p in progress}
     return [{
         "step_id": str(s["_id"]), "order": s["order"], "title": s["title"],
@@ -261,6 +343,54 @@ async def get_all_step_data(request: Request):
         "conditions": s.get("conditions", []), "field_mappings": s.get("field_mappings", []),
         "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", [])
     } for s in steps]
+
+
+@steps_router.get("/bootstrap")
+async def get_dashboard_bootstrap(request: Request, survey_slug: Optional[str] = Query(None)):
+    """Single reload payload for the user dashboard."""
+    user = await get_current_user(request)
+    survey = await _get_user_survey(user, survey_slug)
+    survey_id = str(survey["_id"])
+    steps_task = db.steps.find(_step_query_for_survey(survey_id)).sort("order", 1).to_list(100)
+    progress_task = db.user_progress.find(
+        {"user_id": user["_id"], "survey_id": survey_id}, {"_id": 0}
+    ).to_list(100)
+    history_task = db.progress_history.find(
+        {"user_id": user["_id"]}, {"_id": 0}
+    ).sort("timestamp", -1).to_list(200)
+    settings_task = db.site_settings.find_one({"_key": "global"}, {"_id": 0, "_key": 0})
+    metrics_task = calculate_user_metrics(user["_id"])
+    steps, progress, history, settings, metrics = await asyncio.gather(
+        steps_task, progress_task, history_task, settings_task, metrics_task,
+    )
+    progress_map = {row["step_id"]: row for row in progress}
+    serialized_steps = [
+        {**{key: value for key, value in step.items() if key != "_id"}, "id": str(step["_id"])}
+        for step in steps
+    ]
+    all_data = [{
+        "step_id": str(step["_id"]), "order": step["order"], "title": step["title"],
+        "step_type": step["step_type"],
+        "status": progress_map.get(str(step["_id"]), {}).get("status", "pending"),
+        "data": progress_map.get(str(step["_id"]), {}).get("data", {}),
+        "conditions": step.get("conditions", []),
+        "field_mappings": step.get("field_mappings", []),
+        "required_fields": step.get("required_fields", []),
+        "required_uploads": step.get("required_uploads", []),
+    } for step in steps]
+    return {
+        "steps": serialized_steps,
+        "progress": progress,
+        "all_step_data": all_data,
+        "notification_preferences": user.get("notification_preferences", {
+            "email_on_step_enter": True,
+            "email_on_step_edit": False,
+            "email_on_step_leave": True,
+        }),
+        "history": history,
+        "estimated_completion": metrics.get("estimated_completion"),
+        "settings": settings or {},
+    }
 
 @steps_router.put("/progress")
 async def update_user_progress(data: UserProgressUpdate, request: Request):
@@ -300,7 +430,8 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
                     raise HTTPException(status_code=400, detail=f"Mindestens ein Dokument für '{label}' ist erforderlich.")
 
     user_prefs = user.get("notification_preferences", {"email_on_step_enter": True, "email_on_step_edit": False, "email_on_step_leave": True})
-    total_steps = await db.steps.count_documents({"is_active": True})
+    survey_id = step.get("survey_id") or user.get("survey_id") or str((await _get_default_survey())["_id"])
+    total_steps = await db.steps.count_documents(_step_query_for_survey(survey_id))
     email_vars = {
         "user_name": user["name"], "user_email": user["email"],
         "step_title": step["title"], "step_order": step["order"],
@@ -326,6 +457,7 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
         update_fields["started_at"] = now_iso
     if data.status == "completed":
         update_fields["completed_at"] = now_iso
+    update_fields["survey_id"] = survey_id
     await db.user_progress.update_one({"user_id": user["_id"], "step_id": data.step_id}, {"$set": update_fields}, upsert=True)
     await db.progress_history.insert_one({"user_id": user["_id"], "step_id": data.step_id, "step_title": step["title"], "step_order": step["order"], "action": data.status, "timestamp": now_iso})
     # If this was the Stammdaten step (order=1), apply anerkennungsstatus-based block skips
@@ -479,6 +611,25 @@ async def admin_get_users(request: Request):
     ):
         partner_step_ids.add(str(s["_id"]))
 
+    partner_progress_by_user: dict[str, list[dict]] = {}
+    if partner_step_ids:
+        async for row in db.user_progress.find(
+            {"step_id": {"$in": list(partner_step_ids)}},
+            {"user_id": 1, "data": 1},
+        ):
+            partner_progress_by_user.setdefault(row.get("user_id"), []).append(row)
+    all_submissions = await db.partner_submissions.find(
+        {}, {"user_id": 1, "partner_id": 1}
+    ).to_list(20000)
+    submissions_by_partner: dict[str, list[dict]] = {}
+    partner_ids_by_user: dict[str, set[str]] = {}
+    for submission in all_submissions:
+        pid, uid = submission.get("partner_id"), submission.get("user_id")
+        if pid:
+            submissions_by_partner.setdefault(pid, []).append(submission)
+        if pid and uid:
+            partner_ids_by_user.setdefault(uid, set()).add(pid)
+
     # Precompute "Anmeldungen" count per partner_id: number of users that would
     # appear in the partner's "My Users" tab (partner_work_completed == False).
     # Mirrors the logic of /api/partner/submissions exactly.
@@ -486,24 +637,18 @@ async def admin_get_users(request: Request):
     for p in partner_docs:
         pid = str(p["_id"])
         pname = p.get("name", "")
-        submissions = await db.partner_submissions.find(
-            {"partner_id": pid}, {"user_id": 1}).to_list(5000)
+        submissions = submissions_by_partner.get(pid, [])
         candidate_ids = {s["user_id"] for s in submissions if s.get("user_id")}
         candidate_ids.update(p.get("linked_user_ids") or [])
-        count = 0
-        for candidate_uid in candidate_ids:
-            u_row = await db.users.find_one(
-                {"_id": ObjectId(candidate_uid)}, {"role": 1})
-            if not u_row or u_row.get("role") != "user":
-                # Still count non-user submissions if they don't have a role=user row
-                # (defensive — matches the submissions endpoint's tolerance)
-                if candidate_uid not in {s["user_id"] for s in submissions}:
-                    continue
-            ws = await _partner_work_status_for_user(candidate_uid, pid, pname)
-            if not ws["completed"]:
-                count += 1
-        pending_by_partner[pid] = count
+        statuses = await _partner_work_status_for_users(list(candidate_ids), pid, pname)
+        pending_by_partner[pid] = sum(
+            1 for candidate_uid in candidate_ids
+            if not statuses.get(candidate_uid, {}).get("completed", False)
+        )
 
+    metrics_by_user = await calculate_users_metrics([
+        str(row["_id"]) for row in users if row.get("role") == "user"
+    ])
     result = []
     for u in users:
         uid = str(u["_id"])
@@ -519,10 +664,7 @@ async def admin_get_users(request: Request):
                 partner_names.append(pname)
         # 3) role=user: partners chosen via partner_selection progress data
         if u.get("role") == "user" and partner_step_ids:
-            async for pr in db.user_progress.find({
-                "user_id": uid,
-                "step_id": {"$in": list(partner_step_ids)},
-            }):
+            for pr in partner_progress_by_user.get(uid, []):
                 data = pr.get("data") or {}
                 pid = data.get("selected_partner_id")
                 if pid and partner_name_by_id.get(pid):
@@ -549,20 +691,20 @@ async def admin_get_users(request: Request):
             pending_registrations = pending_by_partner.get(u["partner_id"], 0)
         elif u.get("role") == "user":
             # Collect all partner IDs this user submitted to via partner_submissions
-            user_partner_ids = set()
-            async for s in db.partner_submissions.find({"user_id": uid}, {"partner_id": 1}):
-                if s.get("partner_id"):
-                    user_partner_ids.add(s["partner_id"])
+            user_partner_ids = partner_ids_by_user.get(uid, set())
             if user_partner_ids:
                 pending_registrations = sum(
                     pending_by_partner.get(pid, 0) for pid in user_partner_ids
                 )
 
+        metrics = metrics_by_user.get(uid, {
+            "completion_pct": 0, "estimated_completion": None,
+        })
         result.append({
             "id": uid, "email": u["email"], "name": u["name"], "role": u["role"],
             "created_at": u.get("created_at"),
-            "completion_pct": await calculate_completion_pct(uid),
-            "estimated_completion": await calculate_estimated_completion(uid),
+            "completion_pct": metrics["completion_pct"],
+            "estimated_completion": metrics["estimated_completion"],
             "partner_names": partner_names,
             "pending_registrations": pending_registrations,
         })
@@ -684,17 +826,76 @@ async def admin_delete_user(user_id: str, request: Request):
     await create_audit_log(admin_user["_id"], admin_user["email"], "user_delete", "user", user_id, {"email": target["email"]})
     return {"message": "User deleted"}
 
+# Admin Surveys
+@admin_router.get("/surveys")
+async def admin_list_surveys(request: Request):
+    await require_role("admin")(request)
+    surveys = await db.surveys.find().sort("name", 1).to_list(100)
+    return [_survey_payload(s) for s in surveys]
+
+@admin_router.post("/surveys")
+async def admin_create_survey(data: SurveyCreate, request: Request):
+    admin_user = await require_role("admin")(request)
+    slug = data.slug.strip().lower().replace(" ", "-")
+    if not slug:
+        raise HTTPException(status_code=400, detail="Slug is required")
+    if await db.surveys.find_one({"slug": slug}):
+        raise HTTPException(status_code=400, detail="Survey slug already exists")
+    now = datetime.now(timezone.utc).isoformat()
+    if data.is_default:
+        await db.surveys.update_many({}, {"$set": {"is_default": False}})
+    doc = {
+        "name": data.name,
+        "slug": slug,
+        "description": data.description or "",
+        "audience": data.audience or "",
+        "is_active": data.is_active,
+        "is_default": data.is_default,
+        "theme": data.theme or {},
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await db.surveys.insert_one(doc)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "survey_create", "survey", str(result.inserted_id), {"name": data.name, "slug": slug})
+    return {"id": str(result.inserted_id), "message": "Survey created"}
+
+@admin_router.put("/surveys/{survey_id}")
+async def admin_update_survey(survey_id: str, data: SurveyUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    existing = await db.surveys.find_one({"_id": ObjectId(survey_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "slug" in update_data:
+        update_data["slug"] = update_data["slug"].strip().lower().replace(" ", "-")
+        duplicate = await db.surveys.find_one({"slug": update_data["slug"], "_id": {"$ne": ObjectId(survey_id)}})
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Survey slug already exists")
+    if update_data.get("is_default"):
+        await db.surveys.update_many({"_id": {"$ne": ObjectId(survey_id)}}, {"$set": {"is_default": False}})
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.surveys.update_one({"_id": ObjectId(survey_id)}, {"$set": update_data})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "survey_update", "survey", survey_id, {"fields_changed": list(update_data.keys())})
+    return {"message": "Survey updated"}
+
 # Admin Steps
 @admin_router.get("/steps")
-async def admin_get_steps(request: Request):
+async def admin_get_steps(request: Request, survey_id: Optional[str] = Query(None), survey_slug: Optional[str] = Query(None)):
     await require_role("admin")(request)
-    steps = await db.steps.find().sort("order", 1).to_list(100)
-    return [{"id": str(s["_id"]), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
+    query = {}
+    if survey_slug:
+        survey = await _get_survey_by_slug(survey_slug)
+        query["survey_id"] = str(survey["_id"])
+    elif survey_id:
+        query["survey_id"] = survey_id
+    steps = await db.steps.find(query).sort("order", 1).to_list(100)
+    return [{"id": str(s["_id"]), "survey_id": s.get("survey_id", ""), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
 
 @admin_router.post("/steps")
 async def admin_create_step(data: StepCreate, request: Request):
     await require_role("admin")(request)
-    step_doc = {"title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": [f.model_dump() for f in data.fields] if data.fields else [], "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": data.required_fields or [], "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    survey_id = data.survey_id or str((await _get_default_survey())["_id"])
+    step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": [f.model_dump() for f in data.fields] if data.fields else [], "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": data.required_fields or [], "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.steps.insert_one(step_doc)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
@@ -704,13 +905,16 @@ async def admin_create_step(data: StepCreate, request: Request):
 async def admin_reorder_steps(data: StepReorder, request: Request):
     admin_user = await require_role("admin")(request)
     for idx, step_id in enumerate(data.step_ids):
-        await db.steps.update_one({"_id": ObjectId(step_id)}, {"$set": {"order": idx + 1}})
+        query = {"_id": ObjectId(step_id)}
+        if data.survey_id:
+            query["survey_id"] = data.survey_id
+        await db.steps.update_one(query, {"$set": {"order": idx + 1}})
     await create_audit_log(admin_user["_id"], admin_user["email"], "steps_reorder", "step", "", {"new_order": data.step_ids})
     return {"message": "Steps reordered"}
 
 @admin_router.put("/steps/layout-bulk")
 async def admin_save_step_layout_bulk(data: StepLayoutBulk, request: Request):
-    """Persist flow_position for many steps at once. Global — affects every admin."""
+    """Persist flow_position for many steps at once."""
     admin_user = await require_role("admin")(request)
     updated = 0
     for sid, pos in (data.positions or {}).items():
@@ -759,41 +963,45 @@ async def admin_delete_step(step_id: str, request: Request):
 async def admin_get_partners(request: Request):
     await require_role("admin")(request)
     partners = await db.partners.find().to_list(100)
+    all_users = await db.users.find(
+        {}, {"password_hash": 0}
+    ).to_list(2000)
+    user_by_id = {str(row["_id"]): row for row in all_users}
+    dashboard_user_by_partner = {
+        row.get("partner_id"): row for row in all_users
+        if row.get("role") == "partner" and row.get("partner_id")
+    }
+    all_submissions = await db.partner_submissions.find(
+        {}, {"partner_id": 1, "user_id": 1}
+    ).to_list(20000)
+    submissions_by_partner: dict[str, list[dict]] = {}
+    for submission in all_submissions:
+        submissions_by_partner.setdefault(submission.get("partner_id"), []).append(submission)
 
     # Precompute pending_registrations per partner org (matches /partner/submissions logic)
     pending_by_partner: dict[str, int] = {}
     for p in partners:
         pid = str(p["_id"])
         pname = p.get("name", "")
-        submissions = await db.partner_submissions.find(
-            {"partner_id": pid}, {"user_id": 1}).to_list(5000)
+        submissions = submissions_by_partner.get(pid, [])
         candidate_ids = {s["user_id"] for s in submissions if s.get("user_id")}
         candidate_ids.update(p.get("linked_user_ids") or [])
-        count = 0
-        for candidate_uid in candidate_ids:
-            u_row = await db.users.find_one(
-                {"_id": ObjectId(candidate_uid)}, {"role": 1})
-            if (not u_row or u_row.get("role") != "user") \
-                    and candidate_uid not in {s["user_id"] for s in submissions}:
-                continue
-            ws = await _partner_work_status_for_user(candidate_uid, pid, pname)
-            if not ws["completed"]:
-                count += 1
-        pending_by_partner[pid] = count
+        statuses = await _partner_work_status_for_users(list(candidate_ids), pid, pname)
+        pending_by_partner[pid] = sum(
+            1 for candidate_uid in candidate_ids
+            if not statuses.get(candidate_uid, {}).get("completed", False)
+        )
 
     result = []
     for p in partners:
         pid = str(p["_id"])
-        dashboard_user = await db.users.find_one({"partner_id": pid}, {"_id": 1, "name": 1, "email": 1})
+        dashboard_user = dashboard_user_by_partner.get(pid)
         linked_ids = p.get("linked_user_ids", [])
         linked_users = []
         for uid in linked_ids:
-            try:
-                u = await db.users.find_one({"_id": ObjectId(uid)}, {"_id": 1, "name": 1, "email": 1})
-                if u:
-                    linked_users.append({"id": str(u["_id"]), "name": u["name"], "email": u["email"]})
-            except Exception:
-                pass
+            u = user_by_id.get(uid)
+            if u:
+                linked_users.append({"id": uid, "name": u["name"], "email": u["email"]})
         if dashboard_user:
             du_id = str(dashboard_user["_id"])
             if du_id not in linked_ids:
@@ -980,8 +1188,10 @@ async def get_partner_insights(request: Request):
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     now = datetime.now(timezone.utc)
+    now_ts = now.isoformat()
     cutoff_7 = (now - timedelta(days=7)).isoformat()
-    cutoff_30 = (now - timedelta(days=30)).isoformat()
+    timeline_start = datetime.combine((now - timedelta(days=29)).date(), datetime.min.time(), tzinfo=timezone.utc)
+    cutoff_30 = timeline_start.isoformat()
 
     partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
     linked_user_ids = set((partner_doc or {}).get("linked_user_ids", []))
@@ -993,8 +1203,8 @@ async def get_partner_insights(request: Request):
 
     target_user_ids = set(s.get("user_id") for s in submissions if s.get("user_id")) | linked_user_ids
 
-    new_7 = sum(1 for s in submissions if _ts(s) >= cutoff_7)
-    new_30 = sum(1 for s in submissions if _ts(s) >= cutoff_30)
+    new_7 = sum(1 for s in submissions if cutoff_7 <= _ts(s) <= now_ts)
+    new_30 = sum(1 for s in submissions if cutoff_30 <= _ts(s) <= now_ts)
 
     # Group counts by user's step-1 profile data
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
@@ -1014,14 +1224,18 @@ async def get_partner_insights(request: Request):
         }, {"user_id": 1}):
             accepted_user_ids.add(prog["user_id"])
 
+    profiles_by_user = {}
+    if step1_id and target_user_ids:
+        async for row in db.user_progress.find({
+            "user_id": {"$in": list(target_user_ids)}, "step_id": step1_id,
+        }, {"user_id": 1, "data": 1}):
+            profiles_by_user[row["user_id"]] = row.get("data") or {}
     for uid in target_user_ids:
-        if step1_id:
-            prog = await db.user_progress.find_one({"user_id": uid, "step_id": step1_id})
-            profile = (prog or {}).get("data", {}) or {}
-            fach = profile.get("fachrichtung_gewuenscht") or profile.get("fachrichtung_praktiziert") or profile.get("field_of_study") or "Unbekannt"
-            bl = profile.get("anerkennungsverfahren_bundesland") or "Unbekannt"
-            by_fach[fach] = by_fach.get(fach, 0) + 1
-            by_bl[bl] = by_bl.get(bl, 0) + 1
+        profile = profiles_by_user.get(uid, {})
+        fach = profile.get("fachrichtung_gewuenscht") or profile.get("fachrichtung_praktiziert") or profile.get("field_of_study") or "Unbekannt"
+        bl = profile.get("anerkennungsverfahren_bundesland") or "Unbekannt"
+        by_fach[fach] = by_fach.get(fach, 0) + 1
+        by_bl[bl] = by_bl.get(bl, 0) + 1
 
     funnel = {"received": 0, "accepted": 0, "completed": 0}
     timeline: dict[str, int] = {}
@@ -1035,7 +1249,7 @@ async def get_partner_insights(request: Request):
         if s.get("partner_work_completed") is True or s.get("status") == "completed":
             funnel["completed"] += 1
         ts = _ts(s)
-        if ts >= cutoff_30:
+        if cutoff_30 <= ts <= now_ts:
             day = ts[:10]
             timeline[day] = timeline.get(day, 0) + 1
 
@@ -1072,8 +1286,15 @@ async def _partner_work_status_for_user(user_id: str, partner_id: str, partner_n
     completed_at timestamp (for the Partner Dashboard "Completed On" column).
     `milestone_step_id` = the most recent managed milestone (used for Re-open).
     """
-    all_steps = await db.steps.find({"is_active": True}, {"_id": 1, "order": 1, "step_type": 1}).sort("order", 1).to_list(200)
-    progs = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    statuses = await _partner_work_status_for_users([user_id], partner_id, partner_name)
+    return statuses.get(user_id, {
+        "completed": False, "completed_at": None, "milestone_step_id": None,
+    })
+
+
+def _partner_work_status_from_context(
+    all_steps: list[dict], progs: list[dict], partner_id: str, partner_name: str,
+) -> dict:
     prog_by_step = {p.get("step_id"): p for p in progs}
 
     managed_milestone_ids: list[str] = []
@@ -1116,6 +1337,43 @@ async def _partner_work_status_for_user(user_id: str, partner_id: str, partner_n
     }
 
 
+async def _partner_work_status_for_users(
+    user_ids: list[str], partner_id: str, partner_name: str,
+) -> dict[str, dict]:
+    """Bulk partner milestone state with three queries regardless of user count."""
+    unique_ids = list(dict.fromkeys(uid for uid in user_ids if uid))
+    if not unique_ids:
+        return {}
+    object_ids = [ObjectId(uid) for uid in unique_ids if ObjectId.is_valid(uid)]
+    users = await db.users.find(
+        {"_id": {"$in": object_ids}}, {"survey_id": 1}
+    ).to_list(len(object_ids) or 1)
+    survey_by_user = {str(user["_id"]): user.get("survey_id") for user in users}
+    survey_ids = {sid for sid in survey_by_user.values() if sid}
+    steps = await db.steps.find(
+        {"is_active": True, "survey_id": {"$in": list(survey_ids)}},
+        {"_id": 1, "survey_id": 1, "order": 1, "step_type": 1},
+    ).sort([("survey_id", 1), ("order", 1)]).to_list(1000)
+    steps_by_survey: dict[str, list[dict]] = {}
+    for step in steps:
+        steps_by_survey.setdefault(step.get("survey_id"), []).append(step)
+    progress = await db.user_progress.find(
+        {"user_id": {"$in": unique_ids}}, {"_id": 0}
+    ).to_list(max(1000, len(unique_ids) * 100))
+    progress_by_user: dict[str, list[dict]] = {}
+    for row in progress:
+        progress_by_user.setdefault(row.get("user_id"), []).append(row)
+    return {
+        uid: _partner_work_status_from_context(
+            steps_by_survey.get(survey_by_user.get(uid), []),
+            progress_by_user.get(uid, []),
+            partner_id,
+            partner_name,
+        )
+        for uid in unique_ids
+    }
+
+
 @api_router.get("/partner/submissions")
 async def get_partner_submissions(request: Request):
     user = await require_role("partner")(request)
@@ -1127,44 +1385,56 @@ async def get_partner_submissions(request: Request):
     linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
-    seen_user_ids = set()
+    seen_user_ids = {sub.get("user_id") for sub in submissions if sub.get("user_id")}
+    target_user_ids = seen_user_ids | linked_user_ids
+    metrics_by_user = await calculate_users_metrics(list(target_user_ids))
+    work_by_user = await _partner_work_status_for_users(
+        list(target_user_ids), partner_id, partner_name,
+    )
+    step1_by_user = {}
+    if step1 and target_user_ids:
+        async for row in db.user_progress.find({
+            "user_id": {"$in": list(target_user_ids)},
+            "step_id": str(step1["_id"]),
+        }, {"user_id": 1, "data": 1}):
+            step1_by_user[row["user_id"]] = row.get("data") or {}
     for sub in submissions:
         uid = sub.get("user_id")
         if uid:
-            seen_user_ids.add(uid)
-            sub["estimated_completion"] = await calculate_estimated_completion(uid)
-            sub["completion_pct"] = await calculate_completion_pct(uid)
-            ws = await _partner_work_status_for_user(uid, partner_id, partner_name)
+            metrics = metrics_by_user.get(uid, {})
+            sub["estimated_completion"] = metrics.get("estimated_completion")
+            sub["completion_pct"] = metrics.get("completion_pct", 0)
+            ws = work_by_user.get(uid, {})
             sub["partner_work_completed"] = ws["completed"]
             sub["partner_work_completed_at"] = ws["completed_at"]
             sub["partner_milestone_step_id"] = ws["milestone_step_id"]
-            if step1:
-                prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-                s1data = (prog or {}).get("data", {}) or {}
-                sub["field_of_study"] = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
-                sub["bundesland"] = s1data.get("anerkennungsverfahren_bundesland", "")
-            else:
-                sub["field_of_study"] = ""
-                sub["bundesland"] = ""
-    for uid in linked_user_ids:
+            s1data = step1_by_user.get(uid, {})
+            sub["field_of_study"] = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
+            sub["bundesland"] = s1data.get("anerkennungsverfahren_bundesland", "")
+    missing_linked_ids = linked_user_ids - seen_user_ids
+    linked_users_by_id = {}
+    if missing_linked_ids:
+        object_ids = [ObjectId(uid) for uid in missing_linked_ids if ObjectId.is_valid(uid)]
+        linked_users = await db.users.find(
+            {"_id": {"$in": object_ids}, "role": "user"}, {"password_hash": 0}
+        ).to_list(len(object_ids) or 1)
+        linked_users_by_id = {str(row["_id"]): row for row in linked_users}
+    for uid in missing_linked_ids:
         if uid in seen_user_ids:
             continue
-        u = await db.users.find_one({"_id": ObjectId(uid)}, {"password_hash": 0})
-        if not u or u.get("role") != "user":
+        u = linked_users_by_id.get(uid)
+        if not u:
             continue
-        field_of_study = ""
-        bundesland = ""
-        if step1:
-            prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-            s1data = (prog or {}).get("data", {}) or {}
-            field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
-            bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
-        ws = await _partner_work_status_for_user(uid, partner_id, partner_name)
+        s1data = step1_by_user.get(uid, {})
+        field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
+        bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
+        ws = work_by_user.get(uid, {})
+        metrics = metrics_by_user.get(uid, {})
         submissions.append({
             "user_id": uid, "user_name": u["name"], "user_email": u["email"],
             "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked",
-            "completion_pct": await calculate_completion_pct(uid),
-            "estimated_completion": await calculate_estimated_completion(uid),
+            "completion_pct": metrics.get("completion_pct", 0),
+            "estimated_completion": metrics.get("estimated_completion"),
             "field_of_study": field_of_study, "bundesland": bundesland,
             "partner_work_completed": ws["completed"],
             "partner_work_completed_at": ws["completed_at"],
@@ -1220,19 +1490,21 @@ async def get_partner_other_users(request: Request):
     my_user_ids = {sub["user_id"] for sub in submissions} | linked_user_ids
     all_users = await db.users.find({"role": "user"}, {"password_hash": 0}).to_list(1000)
     step1 = await db.steps.find_one({"order": 1, "is_active": True})
+    other_users = [u for u in all_users if str(u["_id"]) not in my_user_ids]
+    other_ids = [str(u["_id"]) for u in other_users]
+    metrics_by_user = await calculate_users_metrics(other_ids)
+    step1_by_user = {}
+    if step1 and other_ids:
+        async for row in db.user_progress.find({
+            "user_id": {"$in": other_ids}, "step_id": str(step1["_id"]),
+        }, {"user_id": 1, "data": 1}):
+            step1_by_user[row["user_id"]] = row.get("data") or {}
     result = []
-    for u in all_users:
+    for u in other_users:
         uid = str(u["_id"])
-        if uid in my_user_ids:
-            continue
-        field_of_study = ""
-        bundesland = ""
-        if step1:
-            prog = await db.user_progress.find_one({"user_id": uid, "step_id": str(step1["_id"])})
-            s1data = (prog or {}).get("data", {}) or {}
-            field_of_study = s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", "")
-            bundesland = s1data.get("anerkennungsverfahren_bundesland", "")
-        result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": await calculate_completion_pct(uid), "estimated_completion": await calculate_estimated_completion(uid), "field_of_study": field_of_study, "bundesland": bundesland, "created_at": u.get("created_at", "")})
+        s1data = step1_by_user.get(uid, {})
+        metrics = metrics_by_user.get(uid, {})
+        result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": metrics.get("completion_pct", 0), "estimated_completion": metrics.get("estimated_completion"), "field_of_study": s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", ""), "bundesland": s1data.get("anerkennungsverfahren_bundesland", ""), "created_at": u.get("created_at", "")})
     return result
 
 @api_router.get("/partner/users/{user_id}")
@@ -1392,24 +1664,46 @@ async def get_user_estimated_completion(user_id: str, request: Request):
 # CMS ROUTES
 # ========================
 
+def _normalize_cms_payload(content: dict | None, translations: dict | None) -> tuple[dict, dict]:
+    """Flatten legacy response-shaped CMS data accidentally written into content."""
+    normalized_content = content if isinstance(content, dict) else {}
+    normalized_translations = translations if isinstance(translations, dict) else {}
+    while isinstance(normalized_content.get("content"), dict):
+        wrapper = normalized_content
+        nested_content = wrapper["content"]
+        outer_content = {
+            key: value for key, value in wrapper.items()
+            if key not in {"content", "translations", "section"}
+        }
+        normalized_content = {**nested_content, **outer_content}
+        nested_translations = wrapper.get("translations")
+        if isinstance(nested_translations, dict):
+            normalized_translations = {**nested_translations, **normalized_translations}
+    return normalized_content, normalized_translations
+
 @cms_router.get("")
 async def get_cms_content():
     content = await db.cms_content.find({}, {"_id": 0}).to_list(100)
-    return {c["section"]: {"content": c.get("content", {}), "translations": c.get("translations", {})} for c in content}
+    return {
+        c["section"]: dict(zip(("content", "translations"), _normalize_cms_payload(c.get("content"), c.get("translations"))))
+        for c in content
+    }
 
 @cms_router.get("/{section}")
 async def get_cms_section(section: str):
     content = await db.cms_content.find_one({"section": section}, {"_id": 0})
     if not content:
         return {"content": {}, "translations": {}}
-    return {"content": content.get("content", {}), "translations": content.get("translations", {})}
+    normalized_content, normalized_translations = _normalize_cms_payload(content.get("content"), content.get("translations"))
+    return {"content": normalized_content, "translations": normalized_translations}
 
 @cms_router.put("/{section}")
 async def update_cms_content(section: str, data: CMSContentUpdate, request: Request):
     admin_user = await require_role("admin")(request)
-    update_fields = {"section": section, "content": data.content, "updated_at": datetime.now(timezone.utc).isoformat()}
+    normalized_content, normalized_translations = _normalize_cms_payload(data.content, data.translations)
+    update_fields = {"section": section, "content": normalized_content, "updated_at": datetime.now(timezone.utc).isoformat()}
     if data.translations is not None:
-        update_fields["translations"] = data.translations
+        update_fields["translations"] = normalized_translations
     await db.cms_content.update_one({"section": section}, {"$set": update_fields}, upsert=True)
     await create_audit_log(admin_user["_id"], admin_user["email"], "cms_update", "cms", section, {"section": section})
     return {"message": "Content updated"}
@@ -1498,28 +1792,30 @@ async def admin_save_step_as_template(step_id: str, request: Request, name: str 
 
 
 @admin_router.post("/step-templates/{template_id}/apply")
-async def admin_apply_template(template_id: str, request: Request, order: int = Query(...)):
+async def admin_apply_template(template_id: str, request: Request, order: int = Query(...), survey_id: Optional[str] = Query(None)):
     """Instantiate a new step from a template at the given order.
     All existing steps with order >= given are shifted by +1 to make room."""
     admin_user = await require_role("admin")(request)
     tpl = await db.step_templates.find_one({"_id": ObjectId(template_id)})
     if not tpl:
         raise HTTPException(status_code=404, detail="Template not found")
-    # Shift existing steps
-    await db.steps.update_many({"order": {"$gte": order}}, {"$inc": {"order": 1}})
+    target_survey_id = survey_id or str((await _get_default_survey())["_id"])
+    # Shift existing steps only inside the target survey.
+    await db.steps.update_many({"survey_id": target_survey_id, "order": {"$gte": order}}, {"$inc": {"order": 1}})
     cfg = _sanitize_template_config(tpl.get("config", {}))
+    cfg["survey_id"] = target_survey_id
     cfg["order"] = order
     cfg["is_active"] = True
     cfg["created_at"] = datetime.now(timezone.utc).isoformat()
     result = await db.steps.insert_one(cfg)
     new_sid = str(result.inserted_id)
     # Create pending progress entries for all users (upsert to avoid duplicates)
-    users = await db.users.find({"role": "user"}, {"_id": 1}).to_list(1000)
+    users = await db.users.find({"role": "user", "survey_id": target_survey_id}, {"_id": 1}).to_list(1000)
     for u in users:
         await db.user_progress.update_one(
             {"user_id": str(u["_id"]), "step_id": new_sid},
             {"$setOnInsert": {
-                "user_id": str(u["_id"]), "step_id": new_sid,
+                "user_id": str(u["_id"]), "step_id": new_sid, "survey_id": target_survey_id,
                 "status": "pending", "data": {},
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }},
@@ -1610,7 +1906,6 @@ async def admin_reset_email_template(key: str, request: Request):
     """Reset a single template back to the seeded default. Re-runs the seed
     logic for this specific key only."""
     admin_user = await require_role("admin")(request)
-    from seed_email_templates import DEFAULT_TEMPLATES
     if key not in DEFAULT_TEMPLATES:
         raise HTTPException(status_code=404, detail="No default for this template key")
     tpl = DEFAULT_TEMPLATES[key]
@@ -1754,21 +2049,68 @@ app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
+    await db.surveys.create_index("slug", unique=True)
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
     await db.login_attempts.create_index("identifier")
+    # Reload hotpaths: all dashboard lists and metrics use these compound keys.
+    await db.users.create_index([("role", 1), ("survey_id", 1)])
+    await db.users.create_index("partner_id")
+    await db.steps.create_index([("survey_id", 1), ("is_active", 1), ("order", 1)])
+    await db.steps.create_index([("is_active", 1), ("order", 1)])
+    await db.user_progress.create_index([("user_id", 1), ("step_id", 1)], unique=True)
+    await db.user_progress.create_index([("user_id", 1), ("survey_id", 1)])
+    await db.user_progress.create_index([("step_id", 1), ("status", 1)])
+    await db.user_progress.create_index([("user_id", 1), ("status", 1), ("step_order", 1)])
+    await db.partner_submissions.create_index([("partner_id", 1), ("user_id", 1)])
+    await db.partner_submissions.create_index([("user_id", 1), ("partner_id", 1)])
+    await db.partner_submissions.create_index([("partner_id", 1), ("created_at", -1)])
+    await db.files.create_index("id", unique=True)
+    await db.partners.create_index("name")
+    await db.progress_history.create_index([("user_id", 1), ("timestamp", -1)])
+    await db.audit_logs.create_index([("timestamp", -1)])
     try:
         init_storage()
     except Exception as e:
         logger.warning(f"Storage init failed: {e}")
+    now = datetime.now(timezone.utc).isoformat()
+    # Seed surveys and backfill existing single-survey data. The current medical
+    # flow remains the default; Pflege is prepared for URL-scoped rollout.
+    default_survey = await _get_default_survey()
+    default_survey_id = str(default_survey["_id"])
+    if not await db.surveys.find_one({"slug": PFLEGE_SURVEY_SLUG}):
+        await db.surveys.insert_one({
+            "name": "FSP Pflege",
+            "slug": PFLEGE_SURVEY_SLUG,
+            "description": "Anerkennung, Fachsprache und Arbeitseinstieg fuer internationale Pflegekraefte in Deutschland.",
+            "audience": "Internationale Pflegekraefte, Altenpflege, Gesundheits- und Krankenpflege",
+            "is_active": True,
+            "is_default": False,
+            "theme": {
+                "primary": "#004856",
+                "secondary": "#7ed9c6",
+                "accent": "#ff6b6b",
+                "font_heading": "Varela Round",
+                "font_body": "Montserrat",
+                "logo_url": "https://fsp-pflege.de/wp-content/uploads/2025/02/FSPP-Logo-Final.png",
+                "icon_url": "https://fsp-pflege.de/wp-content/uploads/2025/03/FSPP-Icon-Vektor.svg",
+            },
+            "created_at": now,
+            "updated_at": now,
+        })
+    await db.steps.update_many({"survey_id": {"$exists": False}}, {"$set": {"survey_id": default_survey_id}})
+    await db.users.update_many({"role": "user", "survey_id": {"$exists": False}}, {"$set": {"survey_id": default_survey_id, "survey_slug": DEFAULT_SURVEY_SLUG}})
+    await db.user_progress.update_many({"survey_id": {"$exists": False}}, {"$set": {"survey_id": default_survey_id}})
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({"email": admin_email, "password_hash": hash_password(admin_password), "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc).isoformat()})
+        await db.login_attempts.delete_many({"identifier": {"$regex": f":{admin_email}$"}})
         logger.info(f"Admin user created: {admin_email}")
     elif not verify_password(admin_password, existing["password_hash"]):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password), "role": "admin"}})
+        await db.login_attempts.delete_many({"identifier": {"$regex": f":{admin_email}$"}})
         logger.info("Admin password updated")
     elif existing.get("role") != "admin":
         await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
@@ -1786,6 +2128,8 @@ async def startup():
             {"title": "Service Weiterbildung", "description": "Waehlen Sie einen Partner", "order": 7, "step_type": "partner_selection", "fields": [], "filter_tag": "Weiterbildung", "skippable": True, "skip_label": "Vorerst ueberspringen", "duration_value": 0, "duration_unit": "days", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()},
             {"title": "Meilenstein Job finden", "description": "Hier koennen wir Ihnen helfen!", "order": 8, "step_type": "display", "fields": [], "duration_value": 2, "duration_unit": "weeks", "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
         ]
+        for step in default_steps:
+            step["survey_id"] = default_survey_id
         await db.steps.insert_many(default_steps)
         logger.info("Default steps created")
     # Seed partners if none
@@ -1818,6 +2162,72 @@ async def startup():
             "title": "Unsere Partner unterstuetzen dich",
             "description": "Arbeiten Sie mit branchenfuehrenden Partnern zusammen.",
         },
+        "landing_pages": {
+            "pages": [
+                {
+                    "id": "aerzte",
+                    "title": "Ärzte Anerkennung",
+                    "path": "/",
+                    "survey_slug": "aerzte",
+                    "partner_tags": "Antragstellung,Kenntnisprüfung,Weiterbildung",
+                    "eyebrow": "Praktizieren in Deutschland",
+                    "hero_title": "IHCA - dein persoenlicher Weg zum Facharzt in Deutschland",
+                    "hero_subtitle": "Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich",
+                    "hero_cta": "Jetzt starten",
+                    "learn_more_label": "Mehr erfahren",
+                    "hero_image_url": "https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png",
+                    "stat_value": "100%",
+                    "stat_label": "Der schnellste Weg zur Approbation",
+                    "box1_title": "Begleitetes Onboarding",
+                    "box1_description": "Schritt-für-Schritt durch den Anerkennungsprozess mit individueller Begleitung.",
+                    "box2_title": "Partner-Netzwerk",
+                    "box2_description": "Zugang zu geprüften Partnern für Approbation, Fachsprachenprüfung, Kenntnisprüfung und Weiterbildung.",
+                    "box3_title": "Fortschritts-Tracking",
+                    "box3_description": "Behalte jederzeit den Überblick - Meilensteine, Fristen und voraussichtliches Approbationsdatum.",
+                    "about_eyebrow": "Who We Are",
+                    "about_title": "Ueber uns",
+                    "about_description": "Erhalte die Arbeitserlaubnis zum Praktizieren in Deutschland.",
+                    "about_mission": "Der einfache Weg zur deutschen Approbation",
+                    "partners_eyebrow": "Our Network",
+                    "partners_title": "Unsere Partner unterstuetzen dich",
+                    "partners_description": "Arbeiten Sie mit branchenfuehrenden Partnern zusammen.",
+                    "cta_title": "Ready to Start Your Journey?",
+                    "cta_description": "Create your account and follow a guided recognition process.",
+                    "footer_text": "© 2026 FSP Pflege. Alle Rechte vorbehalten.",
+                },
+                {
+                    "id": "pflege",
+                    "title": "FSP Pflege",
+                    "path": "/pflege",
+                    "survey_slug": "pflege",
+                    "partner_tags": "Pflege Sprachschulung,Pflege Anerkennung,Pflege Arbeitgeber",
+                    "eyebrow": "Pflege in Deutschland",
+                    "hero_title": "Anerkennung als Pflegefachkraft in Deutschland",
+                    "hero_subtitle": "Wir begleiten internationale Pflegekräfte von Registrierung, Fachsprache und Anerkennung bis zum Arbeitseinstieg in Deutschland.",
+                    "hero_cta": "Jetzt registrieren",
+                    "learn_more_label": "Mehr zur Pflege-Anerkennung",
+                    "hero_image_url": "https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png",
+                    "stat_value": "100%",
+                    "stat_label": "Von der Anerkennung bis zum Pflegejob",
+                    "box1_title": "Geführte Anerkennung",
+                    "box1_description": "Alle Schritte von Unterlagen, Sprache und Bescheid bleiben sichtbar.",
+                    "box2_title": "Partner für Sprache und Einstieg",
+                    "box2_description": "Sprachschulen, Vorbereitungspartner und Arbeitgeber können passend eingebunden werden.",
+                    "box3_title": "Planbarer Fortschritt",
+                    "box3_description": "Nutzer sehen, was erledigt ist und welcher Schritt als nächstes ansteht.",
+                    "about_eyebrow": "Für internationale Pflegekräfte",
+                    "about_title": "Ihr Weg in die Pflege in Deutschland",
+                    "about_description": "Die Plattform begleitet Pflegekräfte aus dem Ausland bei Registrierung, Fachsprache, Dokumenten und passenden nächsten Schritten.",
+                    "about_mission": "Unser Ziel: ein verständlicher, planbarer und digital begleiteter Einstieg in den deutschen Pflegeberuf.",
+                    "partners_eyebrow": "Partner & Vorbereitung",
+                    "partners_title": "Unterstützung für Prüfung, Anerkennung und Einstieg",
+                    "partners_description": "Pflege-Surveys können eigene Partner, Prüfungsorte und Vorbereitungsschritte erhalten.",
+                    "cta_title": "Bereit für Ihren Pflegeweg in Deutschland?",
+                    "cta_description": "Registrieren Sie sich und starten Sie den passenden Prozess für Anerkennung, Fachsprache und Arbeitseinstieg.",
+                    "footer_text": "© 2026 FSP Pflege. Alle Rechte vorbehalten.",
+                },
+            ],
+        },
     }
     _default_cms_en = {
         "home": {
@@ -1841,16 +2251,18 @@ async def startup():
             await db.cms_content.insert_one(doc)
         else:
             # Back-fill any missing keys so existing installs get new feature boxes
-            content = existing.get("content") or {}
+            content, translations = _normalize_cms_payload(
+                existing.get("content"), existing.get("translations")
+            )
             added = {k: v for k, v in defaults.items() if k not in content}
             update = {}
-            if added:
+            if added or content != (existing.get("content") or {}):
                 update["content"] = {**content, **added}
             if section in _default_cms_en:
-                trans = existing.get("translations") or {}
+                trans = translations
                 en = trans.get("en") or {}
                 added_en = {k: v for k, v in _default_cms_en[section].items() if k not in en}
-                if added_en:
+                if added_en or trans != (existing.get("translations") or {}):
                     update["translations"] = {**trans, "en": {**en, **added_en}}
             if update:
                 await db.cms_content.update_one({"section": section}, {"$set": update})
@@ -1859,9 +2271,8 @@ async def startup():
         await db.site_settings.insert_one({"_key": "global", "site_title": "IHCA", "logo_text": "IHCA", "logo_bold_part": "IH", "logo_light_part": "CA", "contact_email": "", "footer_text": "", "primary_color": "#114f55", "meta_description": "IHCA — international health connect association. Praktizieren in Deutschland.", "created_at": datetime.now(timezone.utc).isoformat()})
     # Seed email templates (idempotent — won't overwrite admin edits)
     try:
-        from seed_email_templates import DEFAULT_TEMPLATES as _EMAIL_DEFAULTS
         _now = datetime.now(timezone.utc).isoformat()
-        for _key, _tpl in _EMAIL_DEFAULTS.items():
+        for _key, _tpl in DEFAULT_TEMPLATES.items():
             _existing = await db.email_templates.find_one({"key": _key})
             _doc = {
                 "key": _key,

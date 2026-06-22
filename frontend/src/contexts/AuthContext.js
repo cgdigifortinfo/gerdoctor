@@ -66,8 +66,8 @@ export function AuthProvider({ children }) {
         return response.data;
     };
 
-    const register = async (email, password, name) => {
-        const response = await axios.post(`${API}/auth/register`, { email, password, name }, { withCredentials: true });
+    const register = async (email, password, name, survey_slug) => {
+        const response = await axios.post(`${API}/auth/register`, { email, password, name, survey_slug }, { withCredentials: true });
         if (response.data.access_token) {
             tokenRef.current = response.data.access_token;
             setAuthToken(response.data.access_token);

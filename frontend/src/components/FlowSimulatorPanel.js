@@ -20,7 +20,7 @@ export default function FlowSimulatorPanel({ value, onChange }) {
             className="inline-flex items-center gap-2 bg-card border border-border rounded-sm shadow px-2 py-1"
             data-testid="flow-simulator-panel"
         >
-            <Play size={14} className={active ? 'text-emerald-600' : 'text-[#114f55]'} weight={active ? 'fill' : 'regular'} />
+            <Play size={14} className={active ? 'text-emerald-600' : 'text-[var(--brand-primary)]'} weight={active ? 'fill' : 'regular'} />
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Simulator
             </label>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { stepsAPI, partnersAPI, filesAPI, notificationAPI, settingsAPI, formatApiError } from '../lib/api';
+import { stepsAPI, partnersAPI, filesAPI, notificationAPI, formatApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -153,21 +153,19 @@ export default function UserDashboard() {
 
     const loadData = useCallback(async () => {
         try {
-            const [stepsRes, progressRes, allDataRes, notifRes, historyRes, estRes, settingsRes] = await Promise.all([
-                stepsAPI.getAll(), stepsAPI.getProgress(), stepsAPI.getAllData(),
-                notificationAPI.getPreferences().catch(() => ({ data: { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true } })),
-                stepsAPI.getHistory().catch(() => ({ data: [] })),
-                stepsAPI.getEstimatedCompletion().catch(() => ({ data: { estimated_completion: null } })),
-                settingsAPI.get().catch(() => ({ data: {} })),
-            ]);
-            setSteps(stepsRes.data);
-            setProgress(progressRes.data);
-            setAllStepData(allDataRes.data);
-            setNotifPrefs(notifRes.data);
-            setHistory(historyRes.data);
-            setEstimatedCompletion(estRes.data?.estimated_completion || null);
+            const response = await stepsAPI.getBootstrap();
+            const payload = response.data || {};
+            const loadedSteps = payload.steps || [];
+            const loadedProgress = payload.progress || [];
+            const loadedAllData = payload.all_step_data || [];
+            setSteps(loadedSteps);
+            setProgress(loadedProgress);
+            setAllStepData(loadedAllData);
+            setNotifPrefs(payload.notification_preferences || { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
+            setHistory(payload.history || []);
+            setEstimatedCompletion(payload.estimated_completion || null);
             // UI feature-flags — only explicit `false` disables; unset/null keeps default ON
-            const s = settingsRes.data || {};
+            const s = payload.settings || {};
             setUiFlags({
                 ui_show_journey_indicator: s.ui_show_journey_indicator !== false,
                 ui_show_eta_header: s.ui_show_eta_header !== false,
@@ -175,10 +173,10 @@ export default function UserDashboard() {
             });
 
             const progressMap = {};
-            progressRes.data.forEach(p => { progressMap[p.step_id] = p; });
+            loadedProgress.forEach(p => { progressMap[p.step_id] = p; });
 
             // Work on the visible subset
-            const visible = stepsRes.data.filter(s => !isStepHidden(s, allDataRes.data));
+            const visible = loadedSteps.filter(s => !isStepHidden(s, loadedAllData));
 
             let currentIdx = 0;
             for (let i = 0; i < visible.length; i++) {
@@ -193,7 +191,7 @@ export default function UserDashboard() {
             if (currentProgress?.data && Object.keys(currentProgress.data).length > 0) {
                 setFormData(currentProgress.data);
             } else {
-                const prefilled = applyFieldMappings(visible[currentIdx] || {}, allDataRes.data);
+                const prefilled = applyFieldMappings(visible[currentIdx] || {}, loadedAllData);
                 setFormData(prefilled);
             }
 
@@ -491,7 +489,7 @@ export default function UserDashboard() {
                                 ) : (
                                     <div className="relative">
                                         <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => e.target.files[0] && handleMultiuploadFileChange(field.name, idx, e.target.files[0])} />
-                                        <div className="flex items-center gap-2 h-9 px-3 border border-dashed border-border rounded-sm text-sm text-muted-foreground cursor-pointer hover:border-[#114f55]"><CloudArrowUp size={16} /> Datei auswählen</div>
+                                        <div className="flex items-center gap-2 h-9 px-3 border border-dashed border-border rounded-sm text-sm text-muted-foreground cursor-pointer hover:border-[var(--brand-primary)]"><CloudArrowUp size={16} /> Datei auswählen</div>
                                     </div>
                                 )}
                             </div>
@@ -506,7 +504,7 @@ export default function UserDashboard() {
             return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Textarea value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm min-h-[100px] ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
         }
         if (field.field_type === 'file') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone p-6 rounded-sm text-center cursor-pointer"><input type="file" id={field.name} className="hidden" onChange={(e) => e.target.files[0] && handleFileUpload(field.name, e.target.files[0])} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{uploadedFiles[field.name] ? <div className="flex items-center justify-center gap-2 text-[#114f55]"><Check size={20} /><span>{uploadedFiles[field.name].filename}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>Klicken zum Hochladen</span></div>}</label></div></div>);
+            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone p-6 rounded-sm text-center cursor-pointer"><input type="file" id={field.name} className="hidden" onChange={(e) => e.target.files[0] && handleFileUpload(field.name, e.target.files[0])} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{uploadedFiles[field.name] ? <div className="flex items-center justify-center gap-2 text-[var(--brand-primary)]"><Check size={20} /><span>{uploadedFiles[field.name].filename}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>Klicken zum Hochladen</span></div>}</label></div></div>);
         }
         if (field.field_type === 'date') {
             return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type="date" value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
@@ -555,8 +553,8 @@ export default function UserDashboard() {
                 if (previewOption) {
                     return (
                         <div className="space-y-6" data-testid="decision-step-info">
-                            <div className="p-8 rounded-sm border-2 border-[#114f55] bg-gradient-to-br from-[#114f55]/8 via-card to-card shadow-md">
-                                <h3 className="text-xl font-semibold text-[#114f55] mb-3">{previewOption.info_title || previewOption.label}</h3>
+                            <div className="p-8 rounded-sm border-2 border-[var(--brand-primary)] bg-gradient-to-br from-[var(--brand-primary)]/8 via-card to-card shadow-md">
+                                <h3 className="text-xl font-semibold text-[var(--brand-primary)] mb-3">{previewOption.info_title || previewOption.label}</h3>
                                 <div className="prose prose-sm dark:prose-invert max-w-none text-foreground" dangerouslySetInnerHTML={{ __html: previewOption.info_body || '' }} />
                             </div>
                             <div className="flex gap-3 pt-2">
@@ -599,15 +597,15 @@ export default function UserDashboard() {
                                         disabled={submitting}
                                         className={`group relative text-left p-6 rounded-sm border-2 transition-all duration-200 overflow-hidden
                                             ${isPrimary
-                                                ? 'border-[#114f55] bg-gradient-to-br from-[#114f55] via-[#114f55] to-[#0d3d42] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                                                ? 'border-[var(--brand-primary)] bg-gradient-to-br from-[var(--brand-primary)] via-[var(--brand-primary)] to-[var(--brand-primary-hover)] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
                                                 : isActive
-                                                    ? 'border-[#114f55] bg-[#114f55]/5 shadow-md'
-                                                    : 'border-border bg-card hover:border-[#114f55]/40 hover:shadow-sm'}
+                                                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 shadow-md'
+                                                    : 'border-border bg-card hover:border-[var(--brand-primary)]/40 hover:shadow-sm'}
                                             ${submitting ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                                         data-testid={`decision-option-${scope === 'desktop' ? i : `mobile-${i}`}`}
                                     >
                                         {isPrimary && (
-                                            <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm bg-yellow-300 text-[#114f55] shadow-sm" data-testid={`decision-option-badge-${i}`}>
+                                            <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm bg-yellow-300 text-[var(--brand-primary)] shadow-sm" data-testid={`decision-option-badge-${i}`}>
                                                 Empfohlen
                                             </span>
                                         )}
@@ -616,12 +614,12 @@ export default function UserDashboard() {
                                                 ${isPrimary
                                                     ? 'bg-white/20 text-white'
                                                     : isActive
-                                                        ? 'bg-[#114f55] text-white'
-                                                        : 'bg-muted text-muted-foreground group-hover:bg-[#114f55]/10 group-hover:text-[#114f55]'}`}>
+                                                        ? 'bg-[var(--brand-primary)] text-white'
+                                                        : 'bg-muted text-muted-foreground group-hover:bg-[var(--brand-primary)]/10 group-hover:text-[var(--brand-primary)]'}`}>
                                                 {isActive ? <Check size={18} weight="bold" /> : <ArrowRight size={18} />}
                                             </div>
                                             <div className="flex-1">
-                                                <p className={`font-semibold ${isPrimary ? 'text-white' : isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{opt.label}</p>
+                                                <p className={`font-semibold ${isPrimary ? 'text-white' : isActive ? 'text-[var(--brand-primary)]' : 'text-foreground'}`}>{opt.label}</p>
                                                 {isPrimary && opt.info_title && (
                                                     <p className="text-sm text-white/80 mt-1">{opt.info_title}</p>
                                                 )}
@@ -658,7 +656,7 @@ export default function UserDashboard() {
                             <Button
                                 onClick={() => handleStepSubmit(true)}
                                 disabled={submitting || missingRequiredUpload}
-                                className="bg-[#114f55] hover:bg-[#0d3d42] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 data-testid="complete-step-btn"
                                 title={missingRequiredUpload ? 'Bitte laden Sie mindestens ein Dokument hoch' : undefined}
                             >
@@ -698,9 +696,9 @@ export default function UserDashboard() {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPartners.map(partner => (
-                                <div key={partner.id} onClick={() => handlePartnerSelect(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${selectedPartner?.id === partner.id ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[#114f55]/20' : ''}`} data-testid={`partner-select-${partner.id}`}>
+                                <div key={partner.id} onClick={() => handlePartnerSelect(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${selectedPartner?.id === partner.id ? 'border-[var(--brand-primary)] border-2 bg-[var(--brand-primary)]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[var(--brand-primary)]/20' : ''}`} data-testid={`partner-select-${partner.id}`}>
                                     {partner._score > 0 && (
-                                        <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[#114f55] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
+                                        <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[var(--brand-primary)] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
                                             ★ {t('recommended_for_you') || 'Empfohlen für dich'}
                                         </span>
                                     )}
@@ -711,14 +709,14 @@ export default function UserDashboard() {
                                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
                                             {partner.tags?.map(tag => <span key={tag} className="inline-block mt-2 mr-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded-sm">{tag}</span>)}
                                         </div>
-                                        {selectedPartner?.id === partner.id && <Check size={24} className="text-[#114f55]" />}
+                                        {selectedPartner?.id === partner.id && <Check size={24} className="text-[var(--brand-primary)]" />}
                                     </div>
                                 </div>
                             ))}
                             {filteredPartners.length === 0 && <div className="col-span-2 text-center py-8 text-muted-foreground">Keine Partner verfuegbar</div>}
                         </div>
                         <div className="flex flex-wrap gap-3 pt-4">
-                            <Button onClick={handlePartnerSubmission} disabled={!selectedPartner || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-partner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
+                            <Button onClick={handlePartnerSubmission} disabled={!selectedPartner || submitting} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="confirm-partner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
                             {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {loc(currentStep, 'skip_label') || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
@@ -752,9 +750,9 @@ export default function UserDashboard() {
                             {filteredMultiPartners.map(partner => {
                                 const isSelected = selectedPartners.some(p => p.id === partner.id);
                                 return (
-                                    <div key={partner.id} onClick={() => handleToggleMultiPartner(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${isSelected ? 'border-[#114f55] border-2 bg-[#114f55]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[#114f55]/20' : ''}`} data-testid={`partner-multiselect-${partner.id}`}>
+                                    <div key={partner.id} onClick={() => handleToggleMultiPartner(partner)} className={`partner-card relative p-6 rounded-sm cursor-pointer transition-all ${isSelected ? 'border-[var(--brand-primary)] border-2 bg-[var(--brand-primary)]/5' : 'bg-card'} ${partner._score > 0 ? 'ring-1 ring-[var(--brand-primary)]/20' : ''}`} data-testid={`partner-multiselect-${partner.id}`}>
                                         {partner._score > 0 && (
-                                            <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[#114f55] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
+                                            <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold bg-[var(--brand-primary)] text-white rounded-sm shadow-sm" data-testid={`recommended-badge-${partner.id}`}>
                                                 ★ {t('recommended_for_you') || 'Empfohlen für dich'}
                                             </span>
                                         )}
@@ -765,7 +763,7 @@ export default function UserDashboard() {
                                                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
                                                 {partner.tags?.map(tag => <span key={tag} className="inline-block mt-2 mr-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded-sm">{tag}</span>)}
                                             </div>
-                                            {isSelected && <Check size={24} className="text-[#114f55]" />}
+                                            {isSelected && <Check size={24} className="text-[var(--brand-primary)]" />}
                                         </div>
                                     </div>
                                 );
@@ -776,7 +774,7 @@ export default function UserDashboard() {
                             <div className="text-sm text-muted-foreground">{selectedPartners.length} Partner ausgewaehlt: {selectedPartners.map(p => p.name).join(', ')}</div>
                         )}
                         <div className="flex flex-wrap gap-3 pt-4">
-                            <Button onClick={handleMultiPartnerSubmission} disabled={selectedPartners.length === 0 || submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="confirm-multipartner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
+                            <Button onClick={handleMultiPartnerSubmission} disabled={selectedPartners.length === 0 || submitting} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="confirm-multipartner-btn">{submitting ? t('dash_saving') : t('dash_confirm_selection')} <ArrowRight className="ml-2" size={16} /></Button>
                             {currentStep.skippable && <Button variant="outline" onClick={handleSkipStep} disabled={submitting} className="border-border text-muted-foreground" data-testid="skip-step-btn"><SkipForward size={16} className="mr-1" /> {loc(currentStep, 'skip_label') || 'Ueberspringen'}</Button>}
                         </div>
                     </div>
@@ -789,7 +787,7 @@ export default function UserDashboard() {
                             <div className="p-8 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm text-center">
                                 <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
                                 <p className="text-lg font-semibold text-green-800 dark:text-green-300">{loc(currentStep, 'complete_message') || t('dash_all_done')}</p>
-                                <Button onClick={() => { if (currentStepIndex < visibleSteps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => { if (currentStepIndex < visibleSteps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             </div>
                         ) : (
                             <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm text-center">
@@ -808,7 +806,7 @@ export default function UserDashboard() {
                         )}
                         {loc(currentStep, 'pending_message') && !loc(currentStep, 'content') && <div className="p-6 bg-muted rounded-sm border border-border"><p className="text-foreground">{loc(currentStep, 'pending_message')}</p></div>}
                         {currentStep.link_url && (
-                            <a href={currentStep.link_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-[#114f55]/10 text-[#114f55] rounded-sm hover:bg-[#114f55]/20 transition-colors font-medium text-sm" data-testid="step-external-link">
+                            <a href={currentStep.link_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm hover:bg-[var(--brand-primary)]/20 transition-colors font-medium text-sm" data-testid="step-external-link">
                                 {loc(currentStep, 'link_label') || currentStep.link_url}
                                 <ArrowRight size={14} />
                             </a>
@@ -825,9 +823,9 @@ export default function UserDashboard() {
                         )}
                         <div className="flex flex-wrap gap-3">
                             {loc(currentStep, 'action_label') ? (
-                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-action-btn">{loc(currentStep, 'action_label')} <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="display-action-btn">{loc(currentStep, 'action_label')} <ArrowRight className="ml-2" size={16} /></Button>
                             ) : (
-                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="display-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
+                                <Button onClick={() => handleStepSubmit(true)} disabled={submitting} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="display-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             )}
                         </div>
                     </div>
@@ -856,7 +854,7 @@ export default function UserDashboard() {
                             {(estimatedCompletion && (uiFlags.ui_show_eta_header || uiFlags.ui_show_progress_percentage)) && (
                                 <div className="hidden sm:flex items-center gap-2" data-testid="header-progress-wrapper">
                                     {uiFlags.ui_show_eta_header && (
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary)] text-white rounded-full cursor-default" data-testid="estimated-completion-banner" title="Voraussichtliche Approbation">
                                             <CalendarCheck size={16} weight="bold" />
                                             <span className="text-sm font-bold" data-testid="estimated-completion-date">
                                                 {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -864,10 +862,10 @@ export default function UserDashboard() {
                                         </div>
                                     )}
                                     {uiFlags.ui_show_progress_percentage && (
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#114f55]/10 text-[#114f55] rounded-full cursor-default" data-testid="header-completion-pct-wrapper" title={t('progress_title') || 'Fortschritt'}>
-                                            <div className="w-14 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-full cursor-default" data-testid="header-completion-pct-wrapper" title={t('progress_title') || 'Fortschritt'}>
+                                            <div className="w-14 h-1.5 bg-[var(--brand-primary)]/20 rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-[#114f55] rounded-full transition-all"
+                                                    className="h-full bg-[var(--brand-primary)] rounded-full transition-all"
                                                     style={{ width: `${getProgressPercentage()}%` }}
                                                 />
                                             </div>
@@ -895,18 +893,18 @@ export default function UserDashboard() {
                         <div className="sm:hidden flex items-center gap-3 pb-3 -mt-1">
                             {uiFlags.ui_show_eta_header && (
                                 <div className="flex items-center gap-2" data-testid="estimated-completion-banner-mobile" title="Voraussichtliche Approbation">
-                                    <CalendarCheck size={14} className="text-[#114f55]" />
-                                    <span className="text-xs font-bold text-[#114f55]" data-testid="estimated-completion-date-mobile">
+                                    <CalendarCheck size={14} className="text-[var(--brand-primary)]" />
+                                    <span className="text-xs font-bold text-[var(--brand-primary)]" data-testid="estimated-completion-date-mobile">
                                         {new Date(estimatedCompletion).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </span>
                                 </div>
                             )}
                             {uiFlags.ui_show_progress_percentage && (
                                 <div className="flex items-center gap-2" data-testid="header-completion-pct-mobile-wrapper">
-                                    <div className="w-10 h-1.5 bg-[#114f55]/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#114f55] rounded-full transition-all" style={{ width: `${getProgressPercentage()}%` }} />
+                                    <div className="w-10 h-1.5 bg-[var(--brand-primary)]/20 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${getProgressPercentage()}%` }} />
                                     </div>
-                                    <span className="text-xs font-bold text-[#114f55] tabular-nums" data-testid="header-completion-pct-mobile">
+                                    <span className="text-xs font-bold text-[var(--brand-primary)] tabular-nums" data-testid="header-completion-pct-mobile">
                                         {getProgressPercentage()}%
                                     </span>
                                 </div>
@@ -943,7 +941,7 @@ export default function UserDashboard() {
                                         className={`relative text-left transition-all duration-200
                                             ${index < visibleSteps.length - 1 ? 'border-r border-border' : ''}
                                             ${isBlocked ? 'opacity-40 cursor-not-allowed bg-card' :
-                                            isActive ? 'bg-[#114f55]/5' :
+                                            isActive ? 'bg-[var(--brand-primary)]/5' :
                                             isCompleted ? 'bg-green-50/50 dark:bg-green-900/10' :
                                             'bg-card hover:bg-muted/50'}
                                             ${navigable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
@@ -957,7 +955,7 @@ export default function UserDashboard() {
                                                     width: animateProgress ? `${stepProg}%` : '0%',
                                                     transitionDuration: '0.35s',
                                                     transitionDelay: `${index * 0.35}s`,
-                                                    backgroundColor: isCompleted ? '#22c55e' : '#114f55',
+                                                    backgroundColor: isCompleted ? '#22c55e' : 'var(--brand-primary)',
                                                 }}
                                             />
                                         </div>
@@ -965,11 +963,11 @@ export default function UserDashboard() {
                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors duration-300
                                                 ${isBlocked ? 'bg-muted text-muted-foreground' :
                                                 isCompleted ? 'bg-green-500 text-white' :
-                                                isActive ? 'bg-[#114f55] text-white' :
+                                                isActive ? 'bg-[var(--brand-primary)] text-white' :
                                                 'bg-muted text-muted-foreground'}`}>
                                                 {isBlocked ? <Lock size={11} /> : isCompleted ? <Check size={11} weight="bold" /> : index + 1}
                                             </div>
-                                            <span className={`text-sm font-semibold ${isActive ? 'text-[#114f55]' : 'text-foreground'}`}>{loc(step, 'title')}</span>
+                                            <span className={`text-sm font-semibold ${isActive ? 'text-[var(--brand-primary)]' : 'text-foreground'}`}>{loc(step, 'title')}</span>
                                         </div>
                                     </button>
                                 );
@@ -984,7 +982,7 @@ export default function UserDashboard() {
                         {/* Vertical progress line */}
                         <div className="absolute left-[19px] top-4 bottom-4 w-[3px] bg-border rounded-full overflow-hidden">
                             <div
-                                className="w-full bg-[#114f55] rounded-full transition-all ease-out"
+                                className="w-full bg-[var(--brand-primary)] rounded-full transition-all ease-out"
                                 style={{
                                     height: animateProgress ? `${mobileProgress}%` : '0%',
                                     transitionDuration: '1.4s',
@@ -1022,14 +1020,14 @@ export default function UserDashboard() {
                                             <div className={`relative z-20 w-[38px] h-[38px] rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-[3px] transition-all duration-300
                                                 ${isBlocked ? 'border-border bg-muted text-muted-foreground' :
                                                 isCompleted ? 'border-green-500 bg-green-500 text-white' :
-                                                isActive ? 'border-[#114f55] bg-[#114f55] text-white ring-4 ring-[#114f55]/20' :
+                                                isActive ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white ring-4 ring-[var(--brand-primary)]/20' :
                                                 'border-border bg-card text-muted-foreground'}`}
                                             >
                                                 {isBlocked ? <Lock size={12} /> : isCompleted ? <Check size={14} weight="bold" /> : index + 1}
                                             </div>
 
                                             <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#114f55]' : isCompleted ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
+                                                <p className={`text-sm font-semibold truncate ${isActive ? 'text-[var(--brand-primary)]' : isCompleted ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
                                                     {loc(step, 'title')}
                                                 </p>
                                                 {!isExpanded && (
@@ -1073,10 +1071,10 @@ export default function UserDashboard() {
                             <>
                                 <div className="mb-6">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-8 h-8 rounded-full bg-[#114f55] text-white flex items-center justify-center text-sm font-bold">
+                                        <div className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">
                                             {currentStepIndex + 1}
                                         </div>
-                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">{loc(visibleSteps[currentStepIndex], 'title')}</h1>
+                                        <h1 className="text-2xl font-bold text-foreground">{loc(visibleSteps[currentStepIndex], 'title')}</h1>
                                     </div>
                                     <p className="text-muted-foreground ml-11">{loc(visibleSteps[currentStepIndex], 'description')}</p>
                                 </div>
@@ -1094,7 +1092,7 @@ export default function UserDashboard() {
                 {/* Settings panel */}
                 {showSettings && (
                     <div className="mt-6 bg-card border border-border rounded-lg p-6 sm:p-8 animate-fadeIn">
-                        <div className="flex items-center gap-3 mb-6"><Bell size={24} className="text-[#114f55]" /><h2 className="text-xl font-bold tracking-tight text-foreground">{t('notif_title')}</h2></div>
+                        <div className="flex items-center gap-3 mb-6"><Bell size={24} className="text-[var(--brand-primary)]" /><h2 className="text-xl font-bold text-foreground">{t('notif_title')}</h2></div>
                         <p className="text-sm text-muted-foreground mb-6">{t('notif_desc')}</p>
                         <div className="space-y-4">
                             {[['email_on_step_enter', 'notif_step_enter', 'notif_step_enter_desc'], ['email_on_step_edit', 'notif_step_edit', 'notif_step_edit_desc'], ['email_on_step_leave', 'notif_step_leave', 'notif_step_leave_desc']].map(([key, tKey, dKey]) => (
@@ -1104,7 +1102,7 @@ export default function UserDashboard() {
                                 </div>
                             ))}
                         </div>
-                        <div className="mt-6"><Button onClick={async () => { try { await notificationAPI.updatePreferences(notifPrefs); toast.success('Gespeichert'); } catch { toast.error('Fehler'); } }} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="save-notif-prefs-btn">{t('notif_save')}</Button></div>
+                        <div className="mt-6"><Button onClick={async () => { try { await notificationAPI.updatePreferences(notifPrefs); toast.success('Gespeichert'); } catch { toast.error('Fehler'); } }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-notif-prefs-btn">{t('notif_save')}</Button></div>
                     </div>
                 )}
 
@@ -1112,8 +1110,8 @@ export default function UserDashboard() {
                 {showTimeline && (
                     <div className="mt-6 bg-card border border-border rounded-lg p-6 sm:p-8 animate-fadeIn" data-testid="timeline-panel">
                         <div className="flex items-center gap-3 mb-6">
-                            <ClockCounterClockwise size={24} className="text-[#114f55]" />
-                            <h2 className="text-xl font-bold tracking-tight text-foreground">Verlauf</h2>
+                            <ClockCounterClockwise size={24} className="text-[var(--brand-primary)]" />
+                            <h2 className="text-xl font-bold text-foreground">Verlauf</h2>
                         </div>
                         {history.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-6">Noch keine Aktivitäten vorhanden. Starten Sie mit dem ersten Schritt!</p>
@@ -1127,7 +1125,7 @@ export default function UserDashboard() {
                                         return (
                                             <div key={idx} className="relative flex items-start gap-4 py-3" data-testid={`timeline-entry-${idx}`}>
                                                 <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                                    isCompleted ? 'bg-green-500 text-white' : isInProgress ? 'bg-[#114f55] text-white' : 'bg-muted text-muted-foreground'
+                                                    isCompleted ? 'bg-green-500 text-white' : isInProgress ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'
                                                 }`}>
                                                     {isCompleted ? <Check size={14} /> : isInProgress ? <ArrowRight size={14} /> : <ClockCounterClockwise size={14} />}
                                                 </div>

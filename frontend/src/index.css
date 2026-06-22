@@ -1,4 +1,4 @@
-@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&f[]=satoshi@400,500,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Varela+Round&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,7 @@
 
 body {
     margin: 0;
-    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -16,7 +16,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Cabinet Grotesk', sans-serif;
+    font-family: 'Varela Round', 'Montserrat', sans-serif;
 }
 
 code {
@@ -25,27 +25,32 @@ code {
 
 @layer base {
     :root {
+        --brand-primary: #004856;
+        --brand-secondary: #7ed9c6;
+        --brand-accent: #ff6b6b;
+        --brand-primary-hover: #003845;
+        --brand-soft: #e6faf6;
         --background: 0 0% 98%;
         --foreground: 0 0% 4%;
         --card: 0 0% 100%;
         --card-foreground: 0 0% 4%;
         --popover: 0 0% 100%;
         --popover-foreground: 0 0% 4%;
-        --primary: 174 66% 20%;
+        --primary: 190 100% 17%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 147 30% 70%;
+        --secondary: 168 57% 67%;
         --secondary-foreground: 0 0% 4%;
         --muted: 0 0% 96%;
         --muted-foreground: 240 4% 36%;
-        --accent: 147 30% 70%;
+        --accent: 0 100% 71%;
         --accent-foreground: 0 0% 4%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
         --border: 0 0% 90%;
         --input: 0 0% 90%;
-        --ring: 174 66% 20%;
-        --chart-1: 174 66% 20%;
-        --chart-2: 147 30% 70%;
+        --ring: 190 100% 17%;
+        --chart-1: 190 100% 17%;
+        --chart-2: 168 57% 67%;
         --chart-3: 197 37% 24%;
         --chart-4: 43 74% 66%;
         --chart-5: 27 87% 67%;
@@ -58,7 +63,7 @@ code {
         --card-foreground: 0 0% 93%;
         --popover: 0 0% 10%;
         --popover-foreground: 0 0% 93%;
-        --primary: 174 50% 35%;
+        --primary: 190 70% 30%;
         --primary-foreground: 0 0% 100%;
         --secondary: 147 20% 22%;
         --secondary-foreground: 0 0% 93%;
@@ -101,12 +106,12 @@ code {
 
 /* Stepper styles */
 .step-active {
-    background-color: #114f55;
+    background-color: var(--brand-primary);
     color: white;
 }
 
 .step-completed {
-    background-color: #114f55;
+    background-color: var(--brand-primary);
     color: white;
 }
 
@@ -141,8 +146,8 @@ code {
 }
 
 .dropzone:hover {
-    border-color: #114f55;
-    background-color: rgba(17, 79, 85, 0.02);
+    border-color: var(--brand-primary);
+    background-color: rgba(126, 217, 198, 0.12);
 }
 
 /* Animation utilities */

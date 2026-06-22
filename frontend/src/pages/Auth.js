@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI, formatApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 export function Login() {
     const navigate = useNavigate();
+    const { surveySlug } = useParams();
     const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -53,16 +54,16 @@ export function Login() {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
                 <div className="w-full max-w-md">
-                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
+                    <Link to={surveySlug ? `/s/${surveySlug}` : '/'} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                         <ArrowLeft size={16} className="mr-2" />
                         Back to Home
                     </Link>
 
-                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-foreground mb-2">
-                        Welcome back
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                        Willkommen zurück
                     </h1>
                     <p className="text-muted-foreground mb-8">
-                        Sign in to continue your journey
+                        Melden Sie sich an, um Ihren Anerkennungsprozess fortzusetzen.
                     </p>
 
                     {error && (
@@ -80,7 +81,7 @@ export function Login() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[var(--brand-primary)] rounded-sm"
                                 required
                                 data-testid="login-email-input"
                             />
@@ -89,8 +90,8 @@ export function Login() {
                         <div>
                             <div className="flex justify-between items-center">
                                 <Label htmlFor="password" className="text-foreground">Password</Label>
-                                <Link to="/forgot-password" className="text-sm text-[#114f55] hover:underline">
-                                    Forgot password?
+                                <Link to="/forgot-password" className="text-sm text-[var(--brand-primary)] hover:underline">
+                                    Passwort vergessen?
                                 </Link>
                             </div>
                             <div className="relative mt-2">
@@ -100,7 +101,7 @@ export function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="border-border focus:ring-[#114f55] rounded-sm pr-10"
+                                    className="border-border focus:ring-[var(--brand-primary)] rounded-sm pr-10"
                                     required
                                     data-testid="login-password-input"
                                 />
@@ -116,18 +117,18 @@ export function Login() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                            className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="login-submit-btn"
                         >
-                            {loading ? 'Signing in...' : 'Sign In'}
+                            {loading ? 'Anmeldung...' : 'Anmelden'}
                         </Button>
                     </form>
 
                     <p className="mt-6 text-center text-muted-foreground">
-                        Don't have an account?{' '}
-                        <Link to="/register" className="text-[#114f55] hover:underline font-medium">
-                            Create one
+                        Noch kein Konto?{' '}
+                        <Link to={surveySlug ? `/s/${surveySlug}/register` : '/register'} className="text-[var(--brand-primary)] hover:underline font-medium">
+                            Jetzt registrieren
                         </Link>
                     </p>
                 </div>
@@ -138,6 +139,7 @@ export function Login() {
 
 export function Register() {
     const navigate = useNavigate();
+    const { surveySlug } = useParams();
     const { register } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -163,7 +165,7 @@ export function Register() {
 
         setLoading(true);
         try {
-            await register(email, password, name);
+            await register(email, password, name, surveySlug);
             toast.success('Account created successfully!');
             navigate('/dashboard');
         } catch (err) {
@@ -188,16 +190,16 @@ export function Register() {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
                 <div className="w-full max-w-md">
-                    <Link to="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
+                    <Link to={surveySlug ? `/s/${surveySlug}` : '/'} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                         <ArrowLeft size={16} className="mr-2" />
                         Back to Home
                     </Link>
 
-                    <h1 className="text-2xl sm:text-3xl tracking-tight font-bold text-foreground mb-2">
-                        Create your account
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                        Konto für den Anerkennungsprozess erstellen
                     </h1>
                     <p className="text-muted-foreground mb-8">
-                        Start your journey with us today
+                        Starten Sie Ihren Weg als Pflegefachkraft in Deutschland.
                     </p>
 
                     {error && (
@@ -215,7 +217,7 @@ export function Register() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="John Doe"
-                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[var(--brand-primary)] rounded-sm"
                                 required
                                 data-testid="register-name-input"
                             />
@@ -229,7 +231,7 @@ export function Register() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
-                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[var(--brand-primary)] rounded-sm"
                                 required
                                 data-testid="register-email-input"
                             />
@@ -244,7 +246,7 @@ export function Register() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="At least 6 characters"
-                                    className="border-border focus:ring-[#114f55] rounded-sm pr-10"
+                                    className="border-border focus:ring-[var(--brand-primary)] rounded-sm pr-10"
                                     required
                                     data-testid="register-password-input"
                                 />
@@ -266,7 +268,7 @@ export function Register() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Confirm your password"
-                                className="mt-2 border-border focus:ring-[#114f55] rounded-sm"
+                                className="mt-2 border-border focus:ring-[var(--brand-primary)] rounded-sm"
                                 required
                                 data-testid="register-confirm-password-input"
                             />
@@ -274,7 +276,7 @@ export function Register() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                            className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white py-3 rounded-sm"
                             disabled={loading}
                             data-testid="register-submit-btn"
                         >
@@ -284,7 +286,7 @@ export function Register() {
 
                     <p className="mt-6 text-center text-muted-foreground">
                         Already have an account?{' '}
-                        <Link to="/login" className="text-[#114f55] hover:underline font-medium">
+                        <Link to="/login" className="text-[var(--brand-primary)] hover:underline font-medium">
                             Sign in
                         </Link>
                     </p>
@@ -323,7 +325,7 @@ export function ForgotPassword() {
                         If an account exists for {email}, you'll receive a password reset link.
                     </p>
                     <Link to="/login">
-                        <Button className="bg-[#114f55] hover:bg-[#0d3d42] text-white">
+                        <Button className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white">
                             Return to Login
                         </Button>
                     </Link>
@@ -368,7 +370,7 @@ export function ForgotPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                        className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="forgot-submit-btn"
                     >
@@ -421,7 +423,7 @@ export function ResetPassword() {
                 <div className="text-center">
                     <h1 className="text-2xl font-bold text-foreground mb-4">Invalid Reset Link</h1>
                     <Link to="/forgot-password">
-                        <Button className="bg-[#114f55] hover:bg-[#0d3d42] text-white">
+                        <Button className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white">
                             Request New Link
                         </Button>
                     </Link>
@@ -475,7 +477,7 @@ export function ResetPassword() {
 
                     <Button
                         type="submit"
-                        className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white py-3 rounded-sm"
+                        className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white py-3 rounded-sm"
                         disabled={loading}
                         data-testid="reset-submit-btn"
                     >

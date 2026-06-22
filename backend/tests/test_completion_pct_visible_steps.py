@@ -65,7 +65,7 @@ def admin_session():
 
 @pytest.fixture(scope="module")
 def steps(admin_session):
-    r = admin_session.get(f"{API}/admin/steps")
+    r = admin_session.get(f"{API}/admin/steps?survey_slug=aerzte")
     return sorted(r.json(), key=lambda s: s["order"])
 
 
@@ -94,7 +94,7 @@ def cleanup():
             await db.progress_history.delete_many({"user_id": {"$in": ids}})
         await db.users.delete_many({"email": {"$regex": f"^{RUN}-"}})
         client.close()
-    asyncio.get_event_loop().run_until_complete(_())
+    asyncio.run(_())
 
 
 def test_fresh_user_pct_is_zero(admin_session):

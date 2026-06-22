@@ -315,7 +315,7 @@ export function EmailTemplateEditor() {
                                     <Button variant="outline" size="sm" onClick={handleReset} disabled={saving} data-testid="email-template-reset-btn">
                                         <ArrowClockwise size={14} className="mr-1" /> Zurücksetzen
                                     </Button>
-                                    <Button onClick={handleSave} disabled={saving} size="sm" className="bg-[#114f55] hover:bg-[#0e4248]" data-testid="email-template-save-btn">
+                                    <Button onClick={handleSave} disabled={saving} size="sm" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]" data-testid="email-template-save-btn">
                                         <FloppyDisk size={14} className="mr-1" /> Speichern
                                     </Button>
                                 </div>
@@ -341,7 +341,7 @@ export function EmailTemplateEditor() {
                                     <button
                                         type="button"
                                         onClick={() => setShowSource((s) => !s)}
-                                        className="text-xs text-[#114f55] hover:underline flex items-center gap-1"
+                                        className="text-xs text-[var(--brand-primary)] hover:underline flex items-center gap-1"
                                         data-testid="email-template-toggle-source"
                                     >
                                         <Code size={12} /> {showSource ? 'WYSIWYG' : 'HTML-Code'}
@@ -386,7 +386,7 @@ export function EmailTemplateEditor() {
                                                 type="button"
                                                 onClick={() => insertVariable(v)}
                                                 data-testid={`email-template-var-${v}`}
-                                                className="text-xs bg-muted hover:bg-[#114f55] hover:text-white border border-border px-2 py-0.5 rounded font-mono transition-colors inline-flex items-center gap-1"
+                                                className="text-xs bg-muted hover:bg-[var(--brand-primary)] hover:text-white border border-border px-2 py-0.5 rounded font-mono transition-colors inline-flex items-center gap-1"
                                             >
                                                 <CopySimple size={10} /> {`{{${v}}}`}
                                             </button>
@@ -400,7 +400,7 @@ export function EmailTemplateEditor() {
                         <div className="bg-card border border-border rounded-lg p-4" data-testid="email-template-preview">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                    <Eye size={16} className="text-[#114f55]" />
+                                    <Eye size={16} className="text-[var(--brand-primary)]" />
                                     <h3 className="font-semibold text-foreground">Live-Vorschau</h3>
                                     {category !== 'layout' && (
                                         <span className="text-xs text-muted-foreground">(Header + Body + Footer)</span>
@@ -492,7 +492,7 @@ export function EmailTemplateEditor() {
                         <Button variant="outline" onClick={() => setTestDialogOpen(false)} disabled={testSending} data-testid="email-test-cancel-btn">
                             Abbrechen
                         </Button>
-                        <Button onClick={handleSendTest} disabled={testSending} className="bg-[#114f55] hover:bg-[#0e4248]" data-testid="email-test-send-btn">
+                        <Button onClick={handleSendTest} disabled={testSending} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]" data-testid="email-test-send-btn">
                             <PaperPlaneTilt size={14} className="mr-1" />
                             {testSending ? 'Sende…' : 'Jetzt senden'}
                         </Button>

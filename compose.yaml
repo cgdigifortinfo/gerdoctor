@@ -1,0 +1,42 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: gerdoctor-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+
+  backend:
+    image: gerdoctor-backend-local
+    container_name: gerdoctor-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8001:8001"
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: test_database
+      JWT_SECRET: gerdoctor-local-dev-secret
+      FRONTEND_URL: http://localhost:3000
+      LOCAL_STORAGE_ROOT: /var/lib/gerdoctor/uploads
+      TMPDIR: /tmp
+    volumes:
+      - .:/app
+      - uploads:/var/lib/gerdoctor/uploads
+      - backend_tmp:/tmp
+
+volumes:
+  mongo_data:
+    name: gerdoctor-mongo-data
+  mongo_config:
+    name: gerdoctor-mongo-config
+  uploads:
+    name: gerdoctor-uploads
+  backend_tmp:
+    name: gerdoctor-backend-tmp

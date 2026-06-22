@@ -34,7 +34,7 @@ function formatDays(days) {
 
 // ---- Step type → icon + accent color ----
 const TYPE_STYLES = {
-    form: { label: 'Formular', color: '#114f55', bg: '#114f55' },
+    form: { label: 'Formular', color: 'var(--brand-primary)', bg: 'var(--brand-primary)' },
     decision: { label: 'Entscheidung', color: '#8b5a00', bg: '#d97706' },
     partner_selection: { label: 'Partner', color: '#2563eb', bg: '#2563eb' },
     partner_multiselection: { label: 'Partner (Multi)', color: '#7c3aed', bg: '#7c3aed' },
@@ -46,7 +46,7 @@ const ACTION_LABELS = {
     hide: { label: 'Ausblenden', color: '#94a3b8', icon: EyeSlash },
     block: { label: 'Blockieren', color: '#dc2626', icon: LockSimple },
     auto_complete: { label: 'Auto-Abschluss', color: '#059669', icon: CheckCircle },
-    allow_next: { label: 'Weiter', color: '#114f55', icon: CaretRight },
+    allow_next: { label: 'Weiter', color: 'var(--brand-primary)', icon: CaretRight },
     redirect: { label: 'Weiterleiten', color: '#2563eb', icon: ArrowsClockwise },
 };
 
@@ -59,7 +59,7 @@ function StepNode({ data }) {
     if (sim === 'hidden') { overlay = 'versteckt'; ring = 'ring-2 ring-slate-400'; extraClass = 'opacity-40 grayscale'; }
     else if (sim === 'blocked') { overlay = 'blockiert'; ring = 'ring-2 ring-red-500'; }
     else if (sim === 'auto_complete') { overlay = 'auto-abgeschlossen'; ring = 'ring-2 ring-emerald-500'; }
-    else if (sim === 'visible') { ring = 'ring-2 ring-teal-400'; }
+    else if (sim === 'visible') { ring = 'ring-2 ring-[var(--brand-secondary)]'; }
     if (isPlayback) { ring = 'ring-4 ring-amber-400'; extraClass = `${extraClass} animate-pulse`.trim(); }
 
     return (
@@ -347,7 +347,7 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={onCancel} data-testid="condition-cancel-btn">Abbrechen</Button>
-                        <Button size="sm" onClick={() => onConfirm(form)} className="bg-[#114f55] hover:bg-[#0d3d42] text-white" data-testid="condition-confirm-btn">Speichern</Button>
+                        <Button size="sm" onClick={() => onConfirm(form)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="condition-confirm-btn">Speichern</Button>
                     </div>
                 </div>
             </div>
@@ -569,7 +569,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
             <Palette />
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center">
-                    <Button size="sm" onClick={() => onAddStep?.()} className="bg-[#114f55] hover:bg-[#0d3d42] text-white shadow" data-testid="flow-add-step-btn">
+                    <Button size="sm" onClick={() => onAddStep?.()} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
                         <Plus size={14} className="mr-1" /> Step
                     </Button>
                     <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
@@ -644,6 +644,25 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         </span>
                     ))}
                 </div>
+                {steps.length === 0 && (
+                    <div
+                        className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+                        data-testid="flow-empty-state"
+                    >
+                        <div className="pointer-events-auto bg-card border border-border rounded-sm shadow-sm p-5 text-center max-w-sm">
+                            <p className="text-sm font-semibold text-foreground">Keine Steps in diesem Survey</p>
+                            <p className="text-xs text-muted-foreground mt-1">Erstelle den ersten Step oder ziehe einen Step-Typ auf den Canvas.</p>
+                            <Button
+                                size="sm"
+                                onClick={() => onAddStep?.()}
+                                className="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                data-testid="flow-empty-add-step-btn"
+                            >
+                                <Plus size={14} className="mr-1" /> Step erstellen
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 <ReactFlow
                     nodes={nodes} edges={edges}
                     onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}

@@ -36,7 +36,7 @@ api.interceptors.request.use((config) => {
 // Auth APIs
 export const authAPI = {
     login: (email, password) => api.post('/auth/login', { email, password }),
-    register: (email, password, name) => api.post('/auth/register', { email, password, name }),
+    register: (email, password, name, survey_slug) => api.post('/auth/register', { email, password, name, survey_slug }),
     logout: () => api.post('/auth/logout'),
     me: () => api.get('/auth/me'),
     forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
@@ -51,9 +51,10 @@ export const profileAPI = {
 
 // Steps APIs
 export const stepsAPI = {
-    getAll: () => api.get('/steps'),
-    getProgress: () => api.get('/steps/progress'),
-    getAllData: () => api.get('/steps/all-data'),
+    getBootstrap: (surveySlug) => api.get(`/steps/bootstrap${surveySlug ? `?survey_slug=${encodeURIComponent(surveySlug)}` : ''}`),
+    getAll: (surveySlug) => api.get(`/steps${surveySlug ? `?survey_slug=${encodeURIComponent(surveySlug)}` : ''}`),
+    getProgress: (surveySlug) => api.get(`/steps/progress${surveySlug ? `?survey_slug=${encodeURIComponent(surveySlug)}` : ''}`),
+    getAllData: (surveySlug) => api.get(`/steps/all-data${surveySlug ? `?survey_slug=${encodeURIComponent(surveySlug)}` : ''}`),
     getHistory: () => api.get('/steps/history'),
     getEstimatedCompletion: () => api.get('/steps/estimated-completion'),
     updateProgress: (step_id, status, data) => api.put('/steps/progress', { step_id, status, data }),
@@ -99,11 +100,15 @@ export const adminAPI = {
     exportUsersCsv: () => api.get('/admin/export/users', { responseType: 'blob' }),
     
     // Steps
-    getSteps: () => api.get('/admin/steps'),
+    getSurveys: () => api.get('/admin/surveys'),
+    createSurvey: (data) => api.post('/admin/surveys', data),
+    updateSurvey: (id, data) => api.put(`/admin/surveys/${id}`, data),
+
+    getSteps: (surveyId) => api.get(`/admin/steps${surveyId ? `?survey_id=${encodeURIComponent(surveyId)}` : ''}`),
     createStep: (data) => api.post('/admin/steps', data),
     updateStep: (id, data) => api.put(`/admin/steps/${id}`, data),
     deleteStep: (id) => api.delete(`/admin/steps/${id}`),
-    reorderSteps: (step_ids) => api.put('/admin/steps/reorder', { step_ids }),
+    reorderSteps: (step_ids, survey_id) => api.put('/admin/steps/reorder', { step_ids, survey_id }),
     saveStepLayout: (positions) => api.put('/admin/steps/layout-bulk', { positions }),
     
     // Partners
@@ -140,8 +145,8 @@ export const adminAPI = {
     deleteStepTemplate: (id) => api.delete(`/admin/step-templates/${id}`),
     saveStepAsTemplate: (stepId, name, description = '') =>
         api.post(`/admin/step-templates/from-step/${stepId}?name=${encodeURIComponent(name)}&description=${encodeURIComponent(description)}`),
-    applyStepTemplate: (templateId, order) =>
-        api.post(`/admin/step-templates/${templateId}/apply?order=${order}`),
+    applyStepTemplate: (templateId, order, surveyId) =>
+        api.post(`/admin/step-templates/${templateId}/apply?order=${order}${surveyId ? `&survey_id=${encodeURIComponent(surveyId)}` : ''}`),
 
     // Email Templates
     listEmailTemplates: () => api.get('/admin/email-templates'),
@@ -150,6 +155,11 @@ export const adminAPI = {
     resetEmailTemplate: (key) => api.post(`/admin/email-templates/${key}/reset`),
     previewEmailTemplate: (key, payload) => api.post(`/admin/email-templates/${key}/preview`, payload),
     sendTestEmail: (key, payload) => api.post(`/admin/email-templates/${key}/send-test`, payload),
+};
+
+export const surveysAPI = {
+    listPublic: () => api.get('/surveys/public'),
+    getBySlug: (slug) => api.get(`/surveys/slug/${encodeURIComponent(slug)}`),
 };
 
 // Notification Preferences APIs

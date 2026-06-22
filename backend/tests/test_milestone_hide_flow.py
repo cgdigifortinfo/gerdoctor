@@ -48,7 +48,7 @@ def admin_token():
 
 @pytest.fixture(scope="module")
 def step_maps(admin_token):
-    steps = requests.get(f"{API}/admin/steps", headers={"Authorization": f"Bearer {admin_token}"}).json()
+    steps = requests.get(f"{API}/admin/steps?survey_slug=aerzte", headers={"Authorization": f"Bearer {admin_token}"}).json()
     return {
         "steps": steps,
         "id2order": {s["id"]: s["order"] for s in steps},
@@ -341,7 +341,7 @@ class TestJobangeboteMultiPartner:
 # ---------- 5. Sanity: hide conditions are present on all milestones ----------
 def test_all_milestones_have_hide_when_decision_empty_condition(admin_token):
     """Guards against someone re-seeding without the new hide condition."""
-    steps = requests.get(f"{API}/admin/steps",
+    steps = requests.get(f"{API}/admin/steps?survey_slug=aerzte",
                          headers={"Authorization": f"Bearer {admin_token}"}).json()
     expected = {6: 3, 10: 7, 14: 11, 18: 15, 21: 19, 25: 22}
     for ms_order, dec_order in expected.items():

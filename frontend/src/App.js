@@ -28,11 +28,23 @@ function App() {
                     <Login />
                   </PublicRoute>
                 } />
+                <Route path="/s/:surveySlug/login" element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                } />
                 <Route path="/register" element={
                   <PublicRoute>
                     <Register />
                   </PublicRoute>
                 } />
+                <Route path="/s/:surveySlug/register" element={
+                  <PublicRoute>
+                    <Register />
+                  </PublicRoute>
+                } />
+                <Route path="/s/:surveySlug" element={<Landing />} />
+                <Route path="/:landingSlug" element={<Landing />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 

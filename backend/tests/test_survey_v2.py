@@ -146,7 +146,7 @@ def _cleanup_users():
             await db.progress_history.delete_many({"user_id": {"$in": ids}})
         await db.users.delete_many({"email": {"$in": emails}})
         client.close()
-    asyncio.get_event_loop().run_until_complete(_())
+    asyncio.run(_())
 
 
 # ---------- module-scoped fixtures ----------

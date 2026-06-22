@@ -66,7 +66,7 @@ def reset_user_progress(email, pw="Demo123!"):
 
 def fast_forward_to_jobangebote_decision(email, pw="Demo123!"):
     """Reset + use the anerkennungsstatus shortcut to skip Antragstellung+Fachsprachen+Gleichwert+Kenntnis.
-    Leaves the user right at the Jobangebote decision (order 18)."""
+    Leaves the user right at the Jobangebote decision (order 19)."""
     reset_user_progress(email, pw)
     token = login(email, pw)
     steps = get_steps(token)
@@ -97,23 +97,23 @@ def main():
     steps = get_steps(token)
     step_by_order = {s["order"]: s for s in steps}
 
-    jobangebote_decision = step_by_order[18]
-    jobangebote_partner = step_by_order[19]
-    jobangebote_milestone = step_by_order[20]
+    jobangebote_decision = step_by_order[19]
+    jobangebote_partner = step_by_order[20]
+    jobangebote_milestone = step_by_order[21]
 
     assert jobangebote_decision["id"] not in vis["hidden_step_ids"], "Jobangebote decision must be visible"
     assert jobangebote_decision["id"] not in vis["blocked_step_ids"], "Jobangebote decision must not be blocked"
     print(f"  ✓ Jobangebote decision visible + unblocked")
 
-    # Step 19 (partner_multiselection) should be HIDDEN until selbst choice
+    # Step 20 (partner_multiselection) should be hidden until the partner path is chosen.
     assert jobangebote_partner["id"] in vis["hidden_step_ids"], "Partner step should be hidden before decision"
     print(f"  ✓ Partner multiselect hidden before decision")
 
     # Simulate user choosing 'selbst'
     set_progress(token, jobangebote_decision["id"], "completed", {"decision": "selbst"})
     vis = get_visibility(token)
-    assert jobangebote_partner["id"] not in vis["hidden_step_ids"], "Partner step should now be visible"
-    print(f"  ✓ After 'Selbst suchen': partner_multiselection now visible")
+    assert jobangebote_partner["id"] in vis["hidden_step_ids"], "Partner step should stay hidden for selbst path"
+    print(f"  ✓ After 'Selbst suchen': partner_multiselection stays hidden")
 
     # Milestone should NOT auto-complete yet (decision=selbst, auto triggers on selbst, but only on update)
     # Actually decision=selbst matches the auto_complete condition (value='selbst')
@@ -135,14 +135,14 @@ def main():
     vis = get_visibility(token)
     steps = get_steps(token)
     step_by_order = {s["order"]: s for s in steps}
-    dec = step_by_order[18]
-    partner = step_by_order[19]
-    ms = step_by_order[20]
+    dec = step_by_order[19]
+    partner = step_by_order[20]
+    ms = step_by_order[21]
 
     set_progress(token, dec["id"], "completed", {"decision": "partner_nutzen"})
     vis = get_visibility(token)
-    assert partner["id"] in vis["hidden_step_ids"], "Partner step should stay hidden after partner_nutzen"
-    print(f"  ✓ After 'Partner nutzen': partner_multiselection stays HIDDEN")
+    assert partner["id"] not in vis["hidden_step_ids"], "Partner step should be visible after partner_nutzen"
+    print(f"  ✓ After 'Partner nutzen': partner_multiselection is visible")
 
     prog = get_progress(token)
     prog_map = {p["step_id"]: p for p in prog}
@@ -162,20 +162,27 @@ def main():
     schmidt_steps = get_steps(schmidt_token)
     schmidt_steps_by_order = {s["order"]: s for s in schmidt_steps}
 
-    # dr.schmidt plan: step2=upload (→ step3 visible, step4 hidden)
-    #                  step6=partner (→ step7 hidden, step8 visible)
-    step3_id = schmidt_steps_by_order[3]["id"]  # Dokumente Antragstellung
-    step4_id = schmidt_steps_by_order[4]["id"]  # Service Antragstellung
-    step7_id = schmidt_steps_by_order[7]["id"]  # Dokumente Fachsprachen
-    step8_id = schmidt_steps_by_order[8]["id"]  # Service Fachsprachen
+    # Current linear chain: the next block decision is visible, branch-specific
+    # upload/partner substeps stay hidden until that decision is made.
+    step3_id = schmidt_steps_by_order[3]["id"]  # Antragstellung decision
+    step4_id = schmidt_steps_by_order[4]["id"]  # Dokumente Antragstellung
+    step5_id = schmidt_steps_by_order[5]["id"]  # Service Antragstellung
+    step7_id = schmidt_steps_by_order[7]["id"]  # Fachsprachen decision
+    step8_id = schmidt_steps_by_order[8]["id"]  # Dokumente Fachsprachen
+    step9_id = schmidt_steps_by_order[9]["id"]  # Service Fachsprachen
+    step11_id = schmidt_steps_by_order[11]["id"]  # Gleichwertigkeitsprüfung decision
 
     print(f"  schmidt hidden: {len(schmidt_vis['hidden_step_ids'])} steps")
-    assert step4_id in schmidt_vis["hidden_step_ids"], "Service Antragstellung should be hidden"
-    assert step3_id not in schmidt_vis["hidden_step_ids"], "Dokumente Antragstellung should be visible"
-    assert step7_id in schmidt_vis["hidden_step_ids"], "Dokumente Fachsprachen should be hidden"
-    assert step8_id not in schmidt_vis["hidden_step_ids"], "Service Fachsprachen should be visible"
-    print(f"  ✓ step3 visible, step4 hidden (upload path)")
-    print(f"  ✓ step7 hidden, step8 visible (partner path)")
+    assert step3_id not in schmidt_vis["hidden_step_ids"], "Antragstellung decision should be visible"
+    assert step4_id in schmidt_vis["hidden_step_ids"], "Dokumente Antragstellung should be hidden until decision"
+    assert step5_id in schmidt_vis["hidden_step_ids"], "Service Antragstellung should be hidden until decision"
+    assert step7_id not in schmidt_vis["hidden_step_ids"], "Fachsprachen decision should be visible"
+    assert step8_id in schmidt_vis["hidden_step_ids"], "Dokumente Fachsprachen should be hidden until decision"
+    assert step9_id in schmidt_vis["hidden_step_ids"], "Service Fachsprachen should be hidden until decision"
+    assert step11_id in schmidt_vis["hidden_step_ids"], "Future Gleichwertigkeitsprüfung block should be hidden"
+    assert step11_id in schmidt_vis["blocked_step_ids"], "Future Gleichwertigkeitsprüfung block should be blocked"
+    print(f"  ✓ current block decision visible, branch substeps hidden")
+    print(f"  ✓ future block hidden + blocked")
 
     # Now verify partner can view schmidt and sees the same visibility
     ptok = login("partner-example@chrizz1001.de", "Partner123!")

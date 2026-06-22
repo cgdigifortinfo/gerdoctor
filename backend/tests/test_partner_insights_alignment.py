@@ -12,9 +12,10 @@ import pytest
 from dotenv import load_dotenv
 
 load_dotenv("/app/backend/.env")
+load_dotenv("/app/frontend/.env")
 
 BASE_URL = os.environ.get(
-    "REACT_APP_BACKEND_URL", "https://guided-journey-5.preview.emergentagent.com"
+    "REACT_APP_BACKEND_URL", "http://localhost:8001"
 ).rstrip("/")
 API = f"{BASE_URL}/api"
 

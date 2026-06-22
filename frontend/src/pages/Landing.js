@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { cmsAPI, partnersAPI } from '../lib/api';
+import { cmsAPI, partnersAPI, surveysAPI } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { List, X, ArrowRight, Buildings, Users, CheckCircle } from '@phosphor-icons/react';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
@@ -10,6 +10,8 @@ import { Logo } from '../components/Logo';
 
 export default function Landing() {
     const { user, loading } = useAuth();
+    const { surveySlug, landingSlug } = useParams();
+    const location = useLocation();
     const { t, localizeCms, lang } = useLanguage();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -19,17 +21,22 @@ export default function Landing() {
     const [aboutTrans, setAboutTrans] = useState({});
     const [partnersContent, setPartnersContent] = useState({});
     const [partnersTrans, setPartnersTrans] = useState({});
+    const [landingPages, setLandingPages] = useState([]);
+    const [landingTrans, setLandingTrans] = useState({});
     const [partners, setPartners] = useState([]);
+    const [survey, setSurvey] = useState(null);
 
     useEffect(() => {
         // Load CMS content
         const loadContent = async () => {
             try {
-                const [homeRes, aboutRes, partnersRes, partnersListRes] = await Promise.all([
+                const [homeRes, aboutRes, partnersRes, landingRes, partnersListRes, surveyRes] = await Promise.all([
                     cmsAPI.get('home'),
                     cmsAPI.get('about'),
                     cmsAPI.get('partners'),
-                    partnersAPI.getAll()
+                    cmsAPI.get('landing_pages'),
+                    partnersAPI.getAll(),
+                    surveySlug ? surveysAPI.getBySlug(surveySlug).catch(() => ({ data: null })) : Promise.resolve({ data: null })
                 ]);
                 setHomeContent(homeRes.data.content || {});
                 setHomeTrans(homeRes.data.translations || {});
@@ -37,13 +44,16 @@ export default function Landing() {
                 setAboutTrans(aboutRes.data.translations || {});
                 setPartnersContent(partnersRes.data.content || {});
                 setPartnersTrans(partnersRes.data.translations || {});
+                setLandingPages(landingRes.data.content?.pages || []);
+                setLandingTrans(landingRes.data.translations || {});
                 setPartners(partnersListRes.data || []);
+                setSurvey(surveyRes.data);
             } catch (error) {
                 console.error('Failed to load content:', error);
             }
         };
         loadContent();
-    }, []);
+    }, [surveySlug]);
 
     useEffect(() => {
         // Redirect if logged in
@@ -65,6 +75,57 @@ export default function Landing() {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
         setMobileMenuOpen(false);
     };
+    const normalizePath = (value) => {
+        if (!value || value === '/') return '/';
+        return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/^\/+|\/+$/g, '')}`;
+    };
+    const fallbackLandingPages = [
+        { id: 'aerzte', path: '/', survey_slug: 'aerzte' },
+        {
+            id: 'pflege',
+            title: 'FSP Pflege',
+            path: '/pflege',
+            survey_slug: 'pflege',
+            partner_tags: 'Pflege Sprachschulung,Pflege Anerkennung,Pflege Arbeitgeber',
+            eyebrow: 'Pflege in Deutschland',
+            hero_title: 'Anerkennung als Pflegefachkraft in Deutschland',
+            hero_subtitle: 'Wir begleiten internationale Pflegekräfte von Registrierung, Fachsprache und Anerkennung bis zum Arbeitseinstieg in Deutschland.',
+            hero_cta: 'Jetzt registrieren',
+            learn_more_label: 'Mehr zur Pflege-Anerkennung',
+            stat_label: 'Von der Anerkennung bis zum Pflegejob',
+            box1_title: 'Geführte Anerkennung',
+            box1_description: 'Alle Schritte von Unterlagen, Sprache und Bescheid bleiben sichtbar.',
+            box2_title: 'Partner für Sprache und Einstieg',
+            box2_description: 'Sprachschulen, Vorbereitungspartner und Arbeitgeber können passend eingebunden werden.',
+            box3_title: 'Planbarer Fortschritt',
+            box3_description: 'Nutzer sehen, was erledigt ist und welcher Schritt als nächstes ansteht.',
+            about_eyebrow: 'Für internationale Pflegekräfte',
+            about_title: 'Ihr Weg in die Pflege in Deutschland',
+            about_description: 'Die Plattform begleitet Pflegekräfte aus dem Ausland bei Registrierung, Fachsprache, Dokumenten und passenden nächsten Schritten.',
+            about_mission: 'Unser Ziel: ein verständlicher, planbarer und digital begleiteter Einstieg in den deutschen Pflegeberuf.',
+            partners_eyebrow: 'Partner & Vorbereitung',
+            partners_title: 'Unterstützung für Prüfung, Anerkennung und Einstieg',
+            partners_description: 'Pflege-Surveys können eigene Partner, Prüfungsorte und Vorbereitungsschritte erhalten.',
+            cta_title: 'Bereit für Ihren Pflegeweg in Deutschland?',
+            cta_description: 'Registrieren Sie sich und starten Sie den passenden Prozess für Anerkennung, Fachsprache und Arbeitseinstieg.',
+        },
+    ];
+    const effectiveLandingPages = landingPages.length ? landingPages : fallbackLandingPages;
+    const currentPath = normalizePath(location.pathname);
+    const currentLanding = effectiveLandingPages.find(page => normalizePath(page.path) === currentPath)
+        || effectiveLandingPages.find(page => surveySlug && page.survey_slug === surveySlug)
+        || effectiveLandingPages.find(page => landingSlug && normalizePath(page.path) === `/${landingSlug}`)
+        || (surveySlug ? null : effectiveLandingPages.find(page => normalizePath(page.path) === '/'));
+    const landingTranslation = currentLanding?.id ? landingTrans?.[lang]?.[currentLanding.id] : null;
+    const lp = (field, fallback = '') => landingTranslation?.[field] || currentLanding?.[field] || fallback;
+    const activeSurveySlug = currentLanding?.survey_slug || surveySlug || survey?.slug || '';
+    const loginPath = activeSurveySlug ? `/s/${activeSurveySlug}/login` : '/login';
+    const registerPath = activeSurveySlug ? `/s/${activeSurveySlug}/register` : '/register';
+    const partnerTags = (lp('partner_tags') || 'Antragstellung,Kenntnisprüfung,Weiterbildung')
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean);
+    const isCustomLanding = Boolean(currentLanding);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -99,9 +160,9 @@ export default function Landing() {
                                 {t('nav_partners')}
                             </button>
                             <ThemeLangToggle />
-                            <Link to="/login">
+                            <Link to={loginPath}>
                                 <Button 
-                                    className="bg-[#114f55] hover:bg-[#0d3d42] text-white text-sm font-medium px-6"
+                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-medium px-6"
                                     data-testid="nav-login-btn"
                                 >
                                     {t('nav_login')}
@@ -148,9 +209,9 @@ export default function Landing() {
                             <div className="flex items-center gap-2 py-2">
                                 <ThemeLangToggle />
                             </div>
-                            <Link to="/login" className="block">
+                            <Link to={loginPath} className="block">
                                 <Button 
-                                    className="w-full bg-[#114f55] hover:bg-[#0d3d42] text-white"
+                                    className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
                                     data-testid="mobile-nav-login-btn"
                                 >
                                     {t('nav_login')}
@@ -166,22 +227,22 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="animate-fadeIn">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
-                                Praktizieren in Deutschland
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                                {lp('eyebrow', 'Praktizieren in Deutschland')}
                             </p>
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl tracking-tighter leading-none font-black text-foreground mb-6">
-                                {hc('hero_title') || 'IHCA - dein persönlicher Weg zum Facharzt in Deutschland'}
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl leading-none font-black text-foreground mb-6">
+                                {lp('hero_title', hc('hero_title') || 'IHCA - dein persönlicher Weg zum Facharzt in Deutschland')}
                             </h1>
                             <p className="text-base leading-relaxed text-muted-foreground mb-8 max-w-lg">
-                                {hc('hero_subtitle') || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich'}
+                                {lp('hero_subtitle', hc('hero_subtitle') || 'Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich')}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
-                                <Link to="/register">
+                                <Link to={registerPath}>
                                     <Button 
-                                        className="w-full sm:w-auto bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
+                                        className="w-full sm:w-auto bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-8 py-3 text-sm font-medium"
                                         data-testid="hero-cta-btn"
                                     >
-                                        {hc('hero_cta') || 'Jetzt starten'}
+                                        {lp('hero_cta', hc('hero_cta') || 'Jetzt starten')}
                                         <ArrowRight className="ml-2" size={16} />
                                     </Button>
                                 </Link>
@@ -191,24 +252,24 @@ export default function Landing() {
                                     onClick={() => scrollToSection('about')}
                                     data-testid="hero-learn-more-btn"
                                 >
-                                    Mehr erfahren
+                                    {lp('learn_more_label', 'Mehr erfahren')}
                                 </Button>
                             </div>
                         </div>
                         <div className="relative">
                             <img 
-                                src="https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png" 
-                                alt="Fachärzte in Deutschland"
+                                src={lp('hero_image_url', 'https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png')}
+                                alt={lp('hero_image_alt', lp('hero_title', 'Anerkennungsprozess in Deutschland'))}
                                 className="rounded-sm shadow-2xl max-h-[60vh] w-full object-cover"
                             />
                             <div className="absolute -bottom-6 -left-6 bg-card p-6 shadow-lg rounded-sm border border-border">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center">
                                         <CheckCircle size={24} className="text-white" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-black text-foreground">100%</p>
-                                        <p className="text-sm text-muted-foreground">Der schnellste Weg zur Approbation</p>
+                                        <p className="text-2xl font-black text-foreground">{lp('stat_value', '100%')}</p>
+                                        <p className="text-sm text-muted-foreground">{lp('stat_label', 'Der schnellste Weg zur Approbation')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -222,36 +283,36 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-3 gap-8">
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-1">
-                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
                                 <Users size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
-                                {localizeCms(homeContent, 'box1_title', homeTrans) || 'Guided Onboarding'}
+                            <h3 className="text-xl font-semibold text-foreground mb-3">
+                                {lp('box1_title', localizeCms(homeContent, 'box1_title', homeTrans) || 'Guided Onboarding')}
                             </h3>
                             <p className="text-muted-foreground">
-                                {localizeCms(homeContent, 'box1_description', homeTrans) || 'Step-by-step process to complete your profile and find the perfect partner match.'}
+                                {lp('box1_description', localizeCms(homeContent, 'box1_description', homeTrans) || 'Step-by-step process to complete your profile and find the perfect partner match.')}
                             </p>
                         </div>
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-2">
-                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
                                 <Buildings size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
-                                {localizeCms(homeContent, 'box2_title', homeTrans) || 'Partner Network'}
+                            <h3 className="text-xl font-semibold text-foreground mb-3">
+                                {lp('box2_title', localizeCms(homeContent, 'box2_title', homeTrans) || 'Partner Network')}
                             </h3>
                             <p className="text-muted-foreground">
-                                {localizeCms(homeContent, 'box2_description', homeTrans) || 'Access our curated network of industry-leading partners across multiple sectors.'}
+                                {lp('box2_description', localizeCms(homeContent, 'box2_description', homeTrans) || 'Access our curated network of industry-leading partners across multiple sectors.')}
                             </p>
                         </div>
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-3">
-                            <div className="w-12 h-12 bg-[#114f55] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
                                 <CheckCircle size={24} className="text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight text-foreground mb-3">
-                                {localizeCms(homeContent, 'box3_title', homeTrans) || 'Progress Tracking'}
+                            <h3 className="text-xl font-semibold text-foreground mb-3">
+                                {lp('box3_title', localizeCms(homeContent, 'box3_title', homeTrans) || 'Progress Tracking')}
                             </h3>
                             <p className="text-muted-foreground">
-                                {localizeCms(homeContent, 'box3_description', homeTrans) || 'Monitor your journey with real-time progress updates and status notifications.'}
+                                {lp('box3_description', localizeCms(homeContent, 'box3_description', homeTrans) || 'Monitor your journey with real-time progress updates and status notifications.')}
                             </p>
                         </div>
                     </div>
@@ -270,17 +331,17 @@ export default function Landing() {
                             />
                         </div>
                         <div className="order-1 md:order-2">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
-                                Who We Are
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                                {lp('about_eyebrow', 'Who We Are')}
                             </p>
-                            <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-6">
-                                {ac('title') || 'About Us'}
+                            <h2 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-foreground mb-6">
+                                {lp('about_title', ac('title') || 'About Us')}
                             </h2>
                             <p className="text-base leading-relaxed text-muted-foreground mb-6">
-                                {ac('description') || 'We help connect international doctors with the right partners.'}
+                                {lp('about_description', ac('description') || 'We help connect international professionals with the right partners.')}
                             </p>
                             <p className="text-base leading-relaxed text-muted-foreground">
-                                {ac('mission') || 'The easy way to your German medical license.'}
+                                {lp('about_mission', ac('mission') || 'The easy way to your German recognition process.')}
                             </p>
                         </div>
                     </div>
@@ -291,21 +352,20 @@ export default function Landing() {
             <section id="partners" className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#114f55] mb-4">
-                            Our Network
+                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                            {lp('partners_eyebrow', 'Our Network')}
                         </p>
-                        <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-foreground mb-4">
-                            {pc('title') || 'Our Partners'}
+                        <h2 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-foreground mb-4">
+                            {lp('partners_title', pc('title') || 'Our Partners')}
                         </h2>
                         <p className="text-muted-foreground max-w-2xl mx-auto">
-                            {pc('description') || 'Work with industry-leading partners.'}
+                            {lp('partners_description', pc('description') || 'Work with industry-leading partners.')}
                         </p>
                     </div>
                     
                     <div className="grid md:grid-cols-3 gap-6">
                         {(() => {
-                            const allowedTags = ['Antragstellung', 'Kenntnisprüfung', 'Weiterbildung'];
-                            const filtered = partners.filter(p => (p.tags || []).some(t => allowedTags.includes(t)));
+                            const filtered = partners.filter(p => (p.tags || []).some(t => partnerTags.includes(t)));
                             return filtered.length > 0 ? filtered.slice(0, 9).map((partner) => (
                             <div 
                                 key={partner.id} 
@@ -340,18 +400,18 @@ export default function Landing() {
             {/* CTA Section */}
             <section className="py-20 px-4 sm:px-6 lg:px-8 bg-foreground">
                 <div className="max-w-3xl mx-auto text-center">
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight font-bold text-white mb-6">
-                        Ready to Start Your Journey?
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-white mb-6">
+                        {lp('cta_title', 'Ready to Start Your Journey?')}
                     </h2>
                     <p className="text-[#A1A1AA] mb-8">
-                        Join hundreds of businesses that have found their perfect partners through our platform.
+                        {lp('cta_description', 'Create your account and follow a guided recognition process.')}
                     </p>
-                    <Link to="/register">
+                    <Link to={registerPath}>
                         <Button 
-                            className="bg-[#114f55] hover:bg-[#0d3d42] text-white px-8 py-3 text-sm font-medium"
+                            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-8 py-3 text-sm font-medium"
                             data-testid="cta-register-btn"
                         >
-                            Create Your Account
+                            {lp('hero_cta', 'Create Your Account')}
                             <ArrowRight className="ml-2" size={16} />
                         </Button>
                     </Link>
@@ -362,12 +422,11 @@ export default function Landing() {
             <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-baseline">
-                            <span className="font-black text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>GER</span>
-                            <span className="font-light text-lg text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif", letterSpacing: '-0.02em' }}>doctor</span>
-                            <span className="text-[10px] font-medium text-muted-foreground ml-1.5">by digiFORT</span>
+                        <div className="flex items-center gap-2">
+                            <img src={lp('footer_logo_url', 'https://fsp-pflege.de/wp-content/uploads/2025/02/FSPP-Logo-Final.png')} alt={lp('title', 'FSP Pflege')} className="h-9 w-auto object-contain" />
+                            <span className="text-[10px] font-medium text-muted-foreground">Powered by DigiFORT</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">&copy; 2026 IHCA — international health connect association. All rights reserved.</p>
+                        <p className="text-sm text-muted-foreground">{lp('footer_text', isCustomLanding ? '' : '© 2026 FSP Pflege. Alle Rechte vorbehalten.')}</p>
                     </div>
                 </div>
             </footer>

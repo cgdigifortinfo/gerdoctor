@@ -2,6 +2,8 @@
 import os
 import logging
 import asyncio
+from collections import defaultdict
+from pathlib import Path
 import requests
 import smtplib
 import socket
@@ -22,12 +24,27 @@ logger = logging.getLogger("server")
 # ========================
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+LOCAL_STORAGE_ROOT = os.environ.get("LOCAL_STORAGE_ROOT", "").strip()
 APP_NAME = "guided-journey"
 storage_key = None
+
+
+def _local_storage_path(path: str) -> Path:
+    """Resolve an object path below LOCAL_STORAGE_ROOT without path traversal."""
+    root = Path(LOCAL_STORAGE_ROOT).resolve()
+    target = (root / path.lstrip("/")).resolve()
+    if target != root and root not in target.parents:
+        raise HTTPException(status_code=400, detail="Invalid storage path")
+    return target
 
 def init_storage():
     global storage_key
     if storage_key:
+        return storage_key
+    if LOCAL_STORAGE_ROOT:
+        Path(LOCAL_STORAGE_ROOT).mkdir(parents=True, exist_ok=True)
+        storage_key = "local"
+        logger.info("Local persistent storage initialized at %s", LOCAL_STORAGE_ROOT)
         return storage_key
     if not EMERGENT_KEY:
         logger.warning("EMERGENT_LLM_KEY not set, file uploads will not work")
@@ -46,6 +63,11 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
     key = init_storage()
     if not key:
         raise HTTPException(status_code=500, detail="Storage not configured")
+    if LOCAL_STORAGE_ROOT:
+        target = _local_storage_path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        return {"path": path, "size": len(data)}
     resp = requests.put(
         f"{STORAGE_URL}/objects/{path}",
         headers={"X-Storage-Key": key, "Content-Type": content_type},
@@ -58,6 +80,11 @@ def get_object(path: str) -> tuple:
     key = init_storage()
     if not key:
         raise HTTPException(status_code=500, detail="Storage not configured")
+    if LOCAL_STORAGE_ROOT:
+        target = _local_storage_path(path)
+        if not target.is_file():
+            raise HTTPException(status_code=404, detail="Stored file not found")
+        return target.read_bytes(), "application/octet-stream"
     resp = requests.get(
         f"{STORAGE_URL}/objects/{path}",
         headers={"X-Storage-Key": key}, timeout=60
@@ -318,6 +345,30 @@ def add_duration(start_date, value, unit):
         return start_date + relativedelta(years=value)
     return start_date
 
+
+def _is_progress_gate_condition(cond: dict) -> bool:
+    if isinstance(cond.get("all_of"), list):
+        return all(_is_progress_gate_condition(c) for c in cond["all_of"])
+    if isinstance(cond.get("any_of"), list):
+        return all(_is_progress_gate_condition(c) for c in cond["any_of"])
+    return cond.get("operator") in ("status_is", "status_not") and not cond.get("field")
+
+
+def _completion_denominator_steps(steps: list, hidden_ids: set) -> list:
+    denominator_steps = []
+    for step in steps:
+        sid = str(step["_id"])
+        if sid not in hidden_ids:
+            denominator_steps.append(step)
+            continue
+        hide_conditions = [
+            cond for cond in (step.get("conditions") or [])
+            if cond.get("action") == "hide"
+        ]
+        if hide_conditions and all(_is_progress_gate_condition(cond) for cond in hide_conditions):
+            denominator_steps.append(step)
+    return denominator_steps
+
 # ========================
 # CONDITION EVALUATION (server-side, mirrors frontend)
 # ========================
@@ -384,8 +435,15 @@ def _evaluate_condition(cond: dict, order_map: dict) -> bool:
 
 async def _get_step_context(user_id: str):
     """Return (steps_sorted, order_map, hidden_step_ids, blocked_step_ids) for a user."""
-    steps = await db.steps.find({"is_active": True}).sort("order", 1).to_list(200)
-    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    survey_id = user.get("survey_id") if user else None
+    step_query = {"is_active": True}
+    progress_query = {"user_id": user_id}
+    if survey_id:
+        step_query["survey_id"] = survey_id
+        progress_query["survey_id"] = survey_id
+    steps = await db.steps.find(step_query).sort("order", 1).to_list(200)
+    progress = await db.user_progress.find(progress_query, {"_id": 0}).to_list(500)
     progress_map = {p["step_id"]: p for p in progress}
     order_map = {}
     for s in steps:
@@ -443,6 +501,7 @@ async def apply_auto_completes(user_id: str):
         update_fields = {
             "status": "completed",
             "data": (existing or {}).get("data") or {"auto_completed": True},
+            "survey_id": step.get("survey_id") if step else None,
             "updated_at": now_iso,
             "completed_at": now_iso,
         }
@@ -556,25 +615,181 @@ async def apply_anerkennungsstatus_skips(user_id: str, status: str):
 async def calculate_completion_pct(user_id: str) -> int:
     """Percentage of the user's journey that is complete.
 
-    Counts every visible (non-hidden) active step the user has finished against
-    the total visible step count. Hidden steps (e.g. the upload-path is hidden
-    when the user picked the partner-path) are excluded so the denominator
-    matches what the user actually sees in their UI.
+    Counts completed steps against the user's survey journey. Branch-hidden
+    steps (e.g. upload vs. partner path) are excluded from the denominator, but
+    future steps that are merely hidden until a previous milestone completes
+    still count. Otherwise the linear journey would jump to 33% after the first
+    of three initially visible steps.
 
     Steps that are skipped via `apply_anerkennungsstatus_skips` come back as
     status=completed in user_progress, so they're correctly counted as done.
     """
     steps, _, hidden_ids, _ = await _get_step_context(user_id)
-    visible_steps = [s for s in steps if str(s["_id"]) not in hidden_ids]
-    if not visible_steps:
+
+    denominator_steps = _completion_denominator_steps(steps, hidden_ids)
+    if not denominator_steps:
         return 0
-    visible_ids = {str(s["_id"]) for s in visible_steps}
+    denominator_ids = {str(s["_id"]) for s in denominator_steps}
     completed = await db.user_progress.count_documents({
         "user_id": user_id,
         "status": "completed",
-        "step_id": {"$in": list(visible_ids)},
+        "step_id": {"$in": list(denominator_ids)},
     })
-    return round((completed / len(visible_steps) * 100))
+    return round((completed / len(denominator_steps) * 100))
+
+
+async def calculate_user_metrics(user_id: str) -> dict:
+    """Calculate completion percentage and ETA with one step-context lookup."""
+    steps, _, hidden_ids, _ = await _get_step_context(user_id)
+    progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    progress_map = {p["step_id"]: p for p in progress}
+
+    denominator_steps = _completion_denominator_steps(steps, hidden_ids)
+    if denominator_steps:
+        denominator_ids = {str(s["_id"]) for s in denominator_steps}
+        completed = sum(
+            1 for step_id, progress_doc in progress_map.items()
+            if step_id in denominator_ids and progress_doc.get("status") == "completed"
+        )
+        completion_pct = round((completed / len(denominator_steps) * 100))
+    else:
+        completion_pct = 0
+
+    if not steps:
+        estimated_completion = None
+    else:
+        last_completed_at = None
+        for step in steps:
+            sid = str(step["_id"])
+            if sid in hidden_ids:
+                continue
+            progress_doc = progress_map.get(sid, {})
+            if progress_doc.get("status") == "completed" and progress_doc.get("completed_at"):
+                try:
+                    completed_at = datetime.fromisoformat(progress_doc["completed_at"])
+                    if last_completed_at is None or completed_at > last_completed_at:
+                        last_completed_at = completed_at
+                except Exception:
+                    pass
+        current = last_completed_at or datetime.now(timezone.utc)
+        for step in steps:
+            sid = str(step["_id"])
+            if sid in hidden_ids:
+                continue
+            progress_doc = progress_map.get(sid, {})
+            if progress_doc.get("status") != "completed":
+                current = add_duration(current, step.get("duration_value", 0), step.get("duration_unit", "days"))
+        estimated_completion = current.date().isoformat()
+
+    return {
+        "completion_pct": completion_pct,
+        "estimated_completion": estimated_completion,
+    }
+
+
+def _metrics_from_loaded_context(steps: list, progress: list) -> dict:
+    """Pure bulk-friendly counterpart of calculate_user_metrics."""
+    progress_map = {p["step_id"]: p for p in progress}
+    order_map = {}
+    for step in steps:
+        sid = str(step["_id"])
+        row = progress_map.get(sid, {})
+        order_map[step["order"]] = {
+            "data": row.get("data", {}),
+            "status": row.get("status", "pending"),
+        }
+
+    hidden_ids = set()
+    for step in steps:
+        sid = str(step["_id"])
+        for condition in step.get("conditions") or []:
+            if condition.get("action") == "hide" and _evaluate_condition(condition, order_map):
+                hidden_ids.add(sid)
+
+    denominator_steps = _completion_denominator_steps(steps, hidden_ids)
+    denominator_ids = {str(step["_id"]) for step in denominator_steps}
+    completed = sum(
+        1 for sid, row in progress_map.items()
+        if sid in denominator_ids and row.get("status") == "completed"
+    )
+    completion_pct = round(completed / len(denominator_steps) * 100) if denominator_steps else 0
+
+    if not steps:
+        estimated_completion = None
+    else:
+        last_completed_at = None
+        for step in steps:
+            sid = str(step["_id"])
+            if sid in hidden_ids:
+                continue
+            row = progress_map.get(sid, {})
+            timestamp = row.get("completed_at") if row.get("status") == "completed" else None
+            if not timestamp:
+                continue
+            try:
+                parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                if last_completed_at is None or parsed > last_completed_at:
+                    last_completed_at = parsed
+            except (ValueError, AttributeError):
+                pass
+        current = last_completed_at or datetime.now(timezone.utc)
+        for step in steps:
+            sid = str(step["_id"])
+            if sid in hidden_ids:
+                continue
+            if progress_map.get(sid, {}).get("status") != "completed":
+                current = add_duration(
+                    current,
+                    step.get("duration_value", 0),
+                    step.get("duration_unit", "days"),
+                )
+        estimated_completion = current.date().isoformat()
+
+    return {
+        "completion_pct": completion_pct,
+        "estimated_completion": estimated_completion,
+    }
+
+
+async def calculate_users_metrics(user_ids: list[str]) -> dict[str, dict]:
+    """Calculate metrics for many users with three MongoDB queries total."""
+    unique_ids = list(dict.fromkeys(uid for uid in user_ids if uid))
+    if not unique_ids:
+        return {}
+    object_ids = []
+    for uid in unique_ids:
+        try:
+            object_ids.append(ObjectId(uid))
+        except Exception:
+            continue
+    users = await db.users.find(
+        {"_id": {"$in": object_ids}}, {"survey_id": 1, "role": 1}
+    ).to_list(len(object_ids) or 1)
+    survey_by_user = {str(user["_id"]): user.get("survey_id") for user in users}
+    survey_ids = {sid for sid in survey_by_user.values() if sid}
+    step_query = {"is_active": True}
+    if survey_ids:
+        step_query["survey_id"] = {"$in": list(survey_ids)}
+    steps = await db.steps.find(step_query).sort([("survey_id", 1), ("order", 1)]).to_list(1000)
+    steps_by_survey = defaultdict(list)
+    for step in steps:
+        steps_by_survey[step.get("survey_id")].append(step)
+    progress = await db.user_progress.find(
+        {"user_id": {"$in": unique_ids}}, {"_id": 0}
+    ).to_list(max(1000, len(unique_ids) * 100))
+    progress_by_user = defaultdict(list)
+    for row in progress:
+        progress_by_user[row.get("user_id")].append(row)
+
+    empty = {"completion_pct": 0, "estimated_completion": None}
+    return {
+        uid: _metrics_from_loaded_context(
+            steps_by_survey.get(survey_by_user.get(uid), []),
+            progress_by_user.get(uid, []),
+        ) if survey_by_user.get(uid) else empty.copy()
+        for uid in unique_ids
+    }
+
 
 async def calculate_estimated_completion(user_id: str) -> Optional[str]:
     steps, _, hidden_ids, _ = await _get_step_context(user_id)

@@ -1,15 +1,25 @@
 # GERdoctor - Praktizieren in Deutschland
 
+> Hinweis zum Verlauf: Die datierten Einträge weiter unten dokumentieren den
+> damaligen Entwicklungsstand und nennen deshalb inzwischen entfernte Seeds.
+> Für den aktuellen Betrieb gilt ausschließlich `backend/seed_baseline.py`.
+
 ## Architecture
 ```
-/app/backend/
+/home/chrizz1001/apps/gerdoctor/backend/
   server.py, database.py, models.py, auth.py, helpers.py
-  seed_survey_v2.py (24-step survey seeder, resets progress on run)
-  tests/  (4+ suites incl. test_survey_v2.py)
-/app/frontend/src/
+  seed_baseline.py (einziger kanonischer Seed; DB- und Upload-Snapshot)
+  email_template_defaults.py
+  tests/  (Unit-, Performance- und Playwright-E2E-Suiten)
+/home/chrizz1001/apps/gerdoctor/frontend/src/
   pages/  (Landing, Auth, UserDashboard, PartnerDashboard, AdminDashboard)
   lib/    (api.js, stepVisibility.js)
+/home/chrizz1001/apps/gerdoctor/compose.yaml
+  persistente MongoDB-, Upload- und Temp-Volumes
 ```
+
+Aktueller Betriebs-, Seed- und Performance-Stand: siehe
+[`session-2026-06-22-operations-performance.md`](session-2026-06-22-operations-performance.md).
 
 ## Survey v2 - Step Engine (2026-04-20)
 24 seeded steps covering 7 themes. Each theme (except Jobangebote) follows the pattern:
@@ -49,7 +59,7 @@
   - **Frontend-UX**: Click auf primary-Option zeigt **inline Info-Panel** (kein neuer Step!) mit Werbe-Text + nur **Zurück**-Button (kein Weiter). Click auf Selbststart speichert decision="selber" und schreitet zum nächsten Step. Primary-Option ist visuell hervorgehoben (dunkles Teal-Background, gelbes "EMPFOHLEN"-Badge).
   - **Migration `migrate_add_ueberholspur_step.py`** (idempotent): Shifted alle bestehenden Steps mit `order >= 2` um +1, alle `source_step_order` Konditionen entsprechend angepasst (rekursiv durch `all_of`/`any_of`), ebenso `step_order` in 7896 user_progress + progress_history Rows. Pending-Stub für 300 demo-User eingefügt.
   - **Backfill `migrate_backfill_ueberholspur_decision.py`**: Markiert Step #2 als completed mit `decision: "selber"` für alle User mit fertigem Stammdaten — sodass der Demo-Datenstand nahtlos weiterläuft (300 Rows aktualisiert).
-  - **Seed-Updates**: `seed_300_demo_users.py` BLOCKS + UPLOAD_FILENAMES + PARTNER_PROOF_FILENAMES alle um +1 verschoben. `seed_survey_v2.py` enthält jetzt den neuen Step #2 als Teil der kanonischen Survey. `helpers.py` BLOCK_DEFINITIONS aktualisiert. Künftige Re-Seeds bleiben konsistent.
+  - **Historische Seed-Updates**: Die damaligen Einzel-Seeds wurden angepasst; sie sind inzwischen entfernt und durch `seed_baseline.py` ersetzt. `helpers.py` BLOCK_DEFINITIONS wurde aktualisiert.
   - **Tests-Update**: 6 Test-Files an die neue Order-Map angepasst (`test_survey_v2`, `test_milestone_hide_flow`, `test_completion_pct_visible_steps`, `test_partner_completed_users_split`, `test_partner_milestone_complete`, `test_new_features_iter33`). Bonus: nebenbei `test_cms_home_update_persists` gegen rekursive Content-Verschachtelung gehärtet (defensive cleanup von vorigen polluted runs).
   - **End-to-End verifiziert**: Playwright-Smoke-Test: Login → Step 2 → Schnellstart-Decision sichtbar, primary-Option Klick → Info-Panel + Zurück sichtbar (kein Weiter), Zurück → Decision-View, Selbststart-Klick → schreitet zu Step 3 (Antragstellung Approbation). 26 aktive Steps in DB.
   - Tests: 116/117 PASS (1 Cleanup-Side-Effect bereinigt). Survey hat jetzt 26 Steps inkl. Congrats.

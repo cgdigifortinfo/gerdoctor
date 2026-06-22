@@ -139,13 +139,13 @@ function JourneyProgressIndicatorImpl({ visibleSteps, currentIndex, allSteps }) 
 
     return (
         <div
-            className="bg-gradient-to-r from-[#114f55]/5 to-transparent border border-[#114f55]/20 rounded-sm p-4 mb-4"
+            className="bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20 rounded-sm p-4 mb-4"
             data-testid="journey-progress-indicator"
         >
             {/* Counter + current step title */}
             <div className="flex flex-wrap items-center gap-3">
                 <span
-                    className="text-xs uppercase tracking-wider font-medium bg-[#114f55] text-white px-2 py-1 rounded"
+                    className="text-xs uppercase tracking-wider font-medium bg-[var(--brand-primary)] text-white px-2 py-1 rounded"
                     data-testid="journey-step-counter"
                 >
                     Schritt {position} von {total}
@@ -174,7 +174,7 @@ function JourneyProgressIndicatorImpl({ visibleSteps, currentIndex, allSteps }) 
                             data-testid={`journey-branch-${b.value}`}
                         >
                             <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                                <span className="w-5 h-5 rounded-full bg-[#114f55] text-white flex items-center justify-center text-[10px] font-bold">
+                                <span className="w-5 h-5 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-[10px] font-bold">
                                     {idx === 0 ? 'A' : 'B'}
                                 </span>
                                 <span>Wenn „{b.label}"</span>

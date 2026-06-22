@@ -16,8 +16,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
 load_dotenv("/app/backend/.env")
+load_dotenv("/app/frontend/.env")
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://guided-journey-5.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN = {"email": "admin@example.com", "password": "Admin123!"}
@@ -62,7 +63,7 @@ def admin_session():
 
 @pytest.fixture(scope="module")
 def steps_by_order(admin_session):
-    r = admin_session.get(f"{API}/admin/steps")
+    r = admin_session.get(f"{API}/admin/steps?survey_slug=aerzte")
     assert r.status_code == 200
     steps = r.json()
     return {s["order"]: s for s in steps}
@@ -87,7 +88,7 @@ def ephemeral_users():
             await db.progress_history.delete_many({"user_id": {"$in": ids}})
         await db.users.delete_many({"email": {"$in": emails}})
         client.close()
-    asyncio.get_event_loop().run_until_complete(_cleanup())
+    asyncio.run(_cleanup())
 
 
 def reset_user_progress(admin_session, email):
@@ -96,7 +97,7 @@ def reset_user_progress(admin_session, email):
     user = next((u for u in users if u["email"] == email), None)
     assert user, f"user {email} not found"
     user_id = user["id"]
-    steps = admin_session.get(f"{API}/admin/steps").json()
+    steps = admin_session.get(f"{API}/admin/steps?survey_slug=aerzte").json()
     for s in steps:
         admin_session.put(
             f"{API}/admin/users/{user_id}/progress",
@@ -247,6 +248,23 @@ def test_cms_home_update_persists(admin_session):
     )
 
 
+def test_cms_landing_pages_define_default_and_pflege_pages():
+    r = requests.get(f"{API}/cms/landing_pages")
+    assert r.status_code == 200, r.text
+    content = r.json().get("content", {})
+    pages = content.get("pages", [])
+    assert isinstance(pages, list) and pages, "landing_pages CMS must contain a pages list"
+    by_path = {page.get("path"): page for page in pages}
+
+    assert by_path["/"]["survey_slug"] == "aerzte"
+    assert by_path["/"]["hero_title"]
+
+    pflege = by_path["/pflege"]
+    assert pflege["survey_slug"] == "pflege"
+    assert "Pflege" in pflege["hero_title"]
+    assert pflege["hero_cta"]
+
+
 # ==========================================================
 # Feature 3 — Step Template library
 # ==========================================================
@@ -311,7 +329,7 @@ def test_template_from_step_and_apply_and_cleanup(admin_session, steps_by_order)
         assert r.status_code == 200, r.text
         new_step_id = r.json()["id"]
 
-        all_steps = admin_session.get(f"{API}/admin/steps").json()
+        all_steps = admin_session.get(f"{API}/admin/steps?survey_slug=aerzte").json()
         new_step = next((s for s in all_steps if s["id"] == new_step_id), None)
         assert new_step is not None, "applied step not found"
         assert new_step["order"] == target_order
