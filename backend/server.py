@@ -703,6 +703,8 @@ async def admin_get_users(request: Request):
         result.append({
             "id": uid, "email": u["email"], "name": u["name"], "role": u["role"],
             "created_at": u.get("created_at"),
+            "survey_id": u.get("survey_id"),
+            "survey_slug": u.get("survey_slug"),
             "completion_pct": metrics["completion_pct"],
             "estimated_completion": metrics["estimated_completion"],
             "partner_names": partner_names,
@@ -724,18 +726,63 @@ async def admin_search_users(request: Request, q: str = "", role: str = ""):
 @admin_router.post("/users")
 async def admin_create_user(data: AdminUserCreate, request: Request):
     admin_user = await require_role("admin")(request)
-    existing = await db.users.find_one({"email": data.email})
+    email = data.email.lower()
+    existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    user_doc = {"email": data.email, "password_hash": bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode(), "name": data.name, "role": data.role, "profile": {}, "created_at": datetime.now(timezone.utc).isoformat()}
+
+    survey = None
+    if data.role == "user":
+        if data.survey_id:
+            try:
+                survey = await db.surveys.find_one({"_id": ObjectId(data.survey_id), "is_active": True})
+            except Exception:
+                survey = None
+            if not survey:
+                raise HTTPException(status_code=400, detail="Invalid or inactive survey")
+        else:
+            survey = await _get_default_survey()
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_doc = {
+        "email": email,
+        "password_hash": hash_password(data.password),
+        "name": data.name,
+        "role": data.role,
+        "profile": {},
+        "created_at": now,
+    }
+    if survey:
+        user_doc["survey_id"] = str(survey["_id"])
+        user_doc["survey_slug"] = survey.get("slug", DEFAULT_SURVEY_SLUG)
     if data.partner_id:
         user_doc["partner_id"] = data.partner_id
     result = await db.users.insert_one(user_doc)
     uid = str(result.inserted_id)
+    if survey:
+        steps = await db.steps.find(_step_query_for_survey(str(survey["_id"]))).sort("order", 1).to_list(100)
+        if steps:
+            await db.user_progress.insert_many([{
+                "user_id": uid,
+                "step_id": str(step["_id"]),
+                "survey_id": str(survey["_id"]),
+                "step_order": step.get("order"),
+                "status": "pending",
+                "data": {},
+                "created_at": now,
+                "updated_at": now,
+            } for step in steps])
     if data.role == "partner" and data.partner_id:
         await db.partners.update_one({"_id": ObjectId(data.partner_id)}, {"$set": {"user_id": uid}})
-    await create_audit_log(admin_user["_id"], admin_user["email"], "user_create", "user", uid, {"email": data.email, "role": data.role})
-    return {"id": uid, "message": "User created"}
+    await create_audit_log(admin_user["_id"], admin_user["email"], "user_create", "user", uid, {
+        "email": email, "role": data.role, "survey_id": str(survey["_id"]) if survey else None,
+    })
+    return {
+        "id": uid,
+        "survey_id": str(survey["_id"]) if survey else None,
+        "survey_slug": survey.get("slug") if survey else None,
+        "message": "User created",
+    }
 
 @admin_router.get("/users/{user_id}")
 async def admin_get_user(user_id: str, request: Request):
@@ -746,7 +793,7 @@ async def admin_get_user(user_id: str, request: Request):
     progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     submissions = await db.partner_submissions.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     history = await db.progress_history.find({"user_id": user_id}, {"_id": 0}).sort("timestamp", -1).to_list(200)
-    return {"id": str(user["_id"]), "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "created_at": user.get("created_at"), "progress": progress, "submissions": submissions, "history": history, "completion_pct": await calculate_completion_pct(user_id)}
+    return {"id": str(user["_id"]), "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug"), "created_at": user.get("created_at"), "progress": progress, "submissions": submissions, "history": history, "completion_pct": await calculate_completion_pct(user_id)}
 
 @admin_router.put("/users/{user_id}/progress")
 async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):

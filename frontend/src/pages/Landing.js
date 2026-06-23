@@ -12,6 +12,7 @@ export default function Landing() {
     const { user, loading } = useAuth();
     const { surveySlug, landingSlug } = useParams();
     const location = useLocation();
+    const isSurveyPreview = new URLSearchParams(location.search).get('preview') === '1';
     const { t, localizeCms, lang } = useLanguage();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -57,7 +58,7 @@ export default function Landing() {
 
     useEffect(() => {
         // Redirect if logged in
-        if (!loading && user) {
+        if (!isSurveyPreview && !loading && user) {
             if (user.role === 'admin') {
                 navigate('/admin');
             } else if (user.role === 'partner') {
@@ -66,7 +67,7 @@ export default function Landing() {
                 navigate('/dashboard');
             }
         }
-    }, [user, loading, navigate]);
+    }, [user, loading, navigate, isSurveyPreview]);
 
     const hc = (field) => localizeCms(homeContent, field, homeTrans);
     const ac = (field) => localizeCms(aboutContent, field, aboutTrans);

@@ -870,7 +870,11 @@ export default function AdminDashboard() {
                                         </SelectContent>
                                     </Select>
                                     {surveys.find(s => s.id === activeSurveyId)?.slug && (
-                                        <Link to={`/admin?tab=steps&survey=${encodeURIComponent(surveys.find(s => s.id === activeSurveyId)?.slug)}&step=1`} target="_blank">
+                                        <Link
+                                            to={`/s/${encodeURIComponent(surveys.find(s => s.id === activeSurveyId)?.slug)}?preview=1`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
                                             <Button variant="outline" className="h-9 border-border" data-testid="open-survey-url-btn">
                                                 URL öffnen
                                             </Button>
@@ -1685,6 +1689,8 @@ export default function AdminDashboard() {
                 onClose={() => setShowCreateUserDialog(false)}
                 onSave={handleCreateUser}
                 partners={partners}
+                surveys={surveys}
+                defaultSurveyId={activeSurveyId || surveys.find(s => s.is_default)?.id || surveys[0]?.id || ''}
                 t={t}
             />
             {/* Confirm Dialog */}
@@ -2633,17 +2639,18 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
     );
 }
 
-function CreateUserDialog({ open, onClose, onSave, partners, t }) {
-    const [formData, setFormData] = useState({ email: '', password: '', name: '', role: 'user', partner_id: 'none' });
+function CreateUserDialog({ open, onClose, onSave, partners, surveys, defaultSurveyId, t }) {
+    const [formData, setFormData] = useState(() => ({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '' }));
 
     useEffect(() => {
-        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: 'none' });
-    }, [open]);
+        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '' });
+    }, [open, defaultSurveyId]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const data = { ...formData };
         if (data.partner_id === 'none') delete data.partner_id;
+        if (data.role !== 'user') delete data.survey_id;
         onSave(data);
     };
 
@@ -2667,6 +2674,21 @@ function CreateUserDialog({ open, onClose, onSave, partners, t }) {
                             </SelectContent>
                         </Select>
                     </div>
+                    {formData.role === 'user' && (
+                        <div>
+                            <Label>Survey</Label>
+                            <Select value={formData.survey_id} onValueChange={val => setFormData({ ...formData, survey_id: val })} required>
+                                <SelectTrigger className="mt-1" data-testid="create-user-survey">
+                                    <SelectValue placeholder="Survey auswählen" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {surveys.filter(s => s.is_active).map(s => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name} /s/{s.slug}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     {formData.role === 'partner' && (
                         <div>
                             <Label>{t('create_user_partner')}</Label>
@@ -2681,7 +2703,7 @@ function CreateUserDialog({ open, onClose, onSave, partners, t }) {
                     )}
                     <div className="flex justify-end gap-3 pt-2">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
+                        <Button type="submit" disabled={formData.role === 'user' && !formData.survey_id} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
                     </div>
                 </form>
             </DialogContent>

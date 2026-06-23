@@ -14,6 +14,8 @@ Diese Datei ist der Einstiegspunkt fuer spaetere Sessions. Die Detailnotizen sin
 - Die Pflege-Landingpage ist lokal unter `/s/pflege` aufrufbar.
 - Registrierung ueber `/s/pflege/register` speichert den Nutzer mit `survey_slug=pflege`.
 - Admin kann Surveys verwalten und Steps nach Survey filtern.
+- Beim Anlegen eines normalen Nutzers im Adminbereich kann der sichtbare Survey
+  ausgewählt werden; Progress wird nur für diesen Survey initialisiert.
 
 ## Detaildateien
 

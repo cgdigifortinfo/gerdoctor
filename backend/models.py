@@ -188,6 +188,7 @@ class AdminUserCreate(BaseModel):
     name: str
     role: str = "user"
     partner_id: Optional[str] = None
+    survey_id: Optional[str] = None
 
 class SiteSettingsUpdate(BaseModel):
     site_title: Optional[str] = None

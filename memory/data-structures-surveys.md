@@ -107,6 +107,16 @@ Auth:
 - `POST /api/auth/login` gibt Survey-Informationen im User-Payload zurueck.
 - `GET /api/auth/me` gibt Survey-Informationen im User-Payload zurueck.
 
+Admin Users:
+
+- `POST /api/admin/users` akzeptiert für `role=user` optional `survey_id`.
+- Der Admin-Dialog zeigt für normale Nutzer eine verpflichtende Auswahl aller
+  aktiven Surveys.
+- Das Backend validiert den Survey, speichert `survey_id` und `survey_slug` und
+  erzeugt ausschließlich für dessen aktive Steps Pending-Progress-Einträge.
+- Fehlt `survey_id` bei älteren API-Aufrufern, wird der Default-Survey verwendet.
+- Partnerkonten erhalten keine Survey-Zuordnung über diesen Dialog.
+
 Admin Surveys:
 
 - `GET /api/admin/surveys`
