@@ -11,8 +11,8 @@ import logging
 import secrets
 import uuid
 import asyncio
-import bcrypt
 import jwt
+from pathlib import PurePath
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ from bson import ObjectId
 # Shared modules
 from database import db, client
 from models import (
-    UserRegister, UserLogin, ForgotPassword, ResetPassword, UserResponse, ProfileUpdate,
+    UserRegister, UserLogin, ForgotPassword, ResetPassword, ProfileUpdate,
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
@@ -39,8 +39,8 @@ from helpers import (
     send_email_notification, create_audit_log, notify_partner_of_new_submission,
     notify_user_awaiting_partner, notify_user_milestone_completed,
     render_email, send_rendered_email, _partner_deep_link,
-    calculate_completion_pct, calculate_estimated_completion, calculate_user_metrics,
-    calculate_users_metrics,
+    calculate_completion_pct, calculate_estimated_completion,
+    calculate_users_metrics, calculate_metrics_from_loaded_context,
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
 )
@@ -64,6 +64,15 @@ cms_router = APIRouter(prefix="/cms", tags=["cms"])
 
 DEFAULT_SURVEY_SLUG = "aerzte"
 PFLEGE_SURVEY_SLUG = "pflege"
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+ALLOWED_UPLOAD_EXTENSIONS = {
+    "pdf", "png", "jpg", "jpeg", "webp", "gif",
+    "doc", "docx", "xls", "xlsx", "csv", "txt", "zip",
+}
+BLOCKED_UPLOAD_CONTENT_TYPES = {
+    "text/html", "application/xhtml+xml", "image/svg+xml",
+    "application/javascript", "text/javascript",
+}
 
 def _survey_payload(s: dict) -> dict:
     return {
@@ -137,6 +146,37 @@ def _auth_cookie_kwargs(max_age: int) -> dict:
         "path": "/",
     }
 
+def _safe_object_id(value: str, label: str = "Invalid id") -> ObjectId:
+    if not ObjectId.is_valid(value):
+        raise HTTPException(status_code=400, detail=label)
+    return ObjectId(value)
+
+def _safe_upload_extension(filename: str) -> str:
+    basename = PurePath(filename or "").name
+    ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
+    if not ext or ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    return ext
+
+async def _can_access_file(user: dict, file_doc: dict) -> bool:
+    owner_id = file_doc.get("user_id")
+    if not owner_id:
+        return False
+    if user.get("role") == "admin" or user.get("_id") == owner_id:
+        return True
+    if user.get("role") != "partner" or not user.get("partner_id"):
+        return False
+    partner = await db.partners.find_one(
+        {"_id": _safe_object_id(user["partner_id"], "Invalid partner id")},
+        {"linked_user_ids": 1},
+    )
+    if owner_id in set((partner or {}).get("linked_user_ids", [])):
+        return True
+    return bool(await db.partner_submissions.find_one({
+        "partner_id": user["partner_id"],
+        "user_id": owner_id,
+    }, {"_id": 1}))
+
 # ========================
 # AUTH ROUTES
 # ========================
@@ -158,15 +198,18 @@ async def register(data: UserRegister, response: Response):
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
     steps = await db.steps.find(_step_query_for_survey(survey_id)).sort("order", 1).to_list(100)
-    for step in steps:
-        await db.user_progress.insert_one({
-            "user_id": user_id, "step_id": str(step["_id"]),
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if steps:
+        await db.user_progress.insert_many([{
+            "user_id": user_id,
+            "step_id": str(step["_id"]),
             "survey_id": survey_id,
             "step_order": step.get("order"),
-            "status": "pending", "data": {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        })
+            "status": "pending",
+            "data": {},
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        } for step in steps])
     access_token = create_access_token(user_id, email, "user")
     refresh_token = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
@@ -359,10 +402,10 @@ async def get_dashboard_bootstrap(request: Request, survey_slug: Optional[str] =
         {"user_id": user["_id"]}, {"_id": 0}
     ).sort("timestamp", -1).to_list(200)
     settings_task = db.site_settings.find_one({"_key": "global"}, {"_id": 0, "_key": 0})
-    metrics_task = calculate_user_metrics(user["_id"])
-    steps, progress, history, settings, metrics = await asyncio.gather(
-        steps_task, progress_task, history_task, settings_task, metrics_task,
+    steps, progress, history, settings = await asyncio.gather(
+        steps_task, progress_task, history_task, settings_task,
     )
+    metrics = calculate_metrics_from_loaded_context(steps, progress)
     progress_map = {row["step_id"]: row for row in progress}
     serialized_steps = [
         {**{key: value for key, value in step.items() if key != "_id"}, "id": str(step["_id"])}
@@ -560,14 +603,29 @@ async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Req
 @files_router.post("/upload")
 async def upload_file(file: UploadFile = File(...), request: Request = None):
     user = await get_current_user(request)
-    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    ext = _safe_upload_extension(file.filename)
+    content_type = file.content_type or "application/octet-stream"
+    if content_type.lower() in BLOCKED_UPLOAD_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
     file_id = str(uuid.uuid4())
     path = f"{APP_NAME}/uploads/{user['_id']}/{file_id}.{ext}"
-    data = await file.read()
-    result = put_object(path, data, file.content_type or "application/octet-stream")
-    file_doc = {"id": file_id, "user_id": user["_id"], "storage_path": result["path"], "original_filename": file.filename, "content_type": file.content_type, "size": result.get("size", len(data)), "is_deleted": False, "created_at": datetime.now(timezone.utc).isoformat()}
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large")
+    original_filename = PurePath(file.filename or f"{file_id}.{ext}").name
+    result = put_object(path, data, content_type)
+    file_doc = {
+        "id": file_id,
+        "user_id": user["_id"],
+        "storage_path": result["path"],
+        "original_filename": original_filename,
+        "content_type": content_type,
+        "size": result.get("size", len(data)),
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
     await db.files.insert_one(file_doc)
-    return {"id": file_id, "filename": file.filename, "path": result["path"]}
+    return {"id": file_id, "filename": original_filename, "path": result["path"]}
 
 @files_router.get("/{file_id}")
 async def get_file(file_id: str, request: Request, auth: str = Query(None)):
@@ -580,6 +638,8 @@ async def get_file(file_id: str, request: Request, auth: str = Query(None)):
     file_doc = await db.files.find_one({"id": file_id, "is_deleted": False})
     if not file_doc:
         raise HTTPException(status_code=404, detail="File not found")
+    if not await _can_access_file(user, file_doc):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     data, content_type = get_object(file_doc["storage_path"])
     from fastapi.responses import Response as FastAPIResponse
     return FastAPIResponse(content=data, media_type=file_doc.get("content_type", content_type))
@@ -1253,9 +1313,6 @@ async def get_partner_insights(request: Request):
     new_7 = sum(1 for s in submissions if cutoff_7 <= _ts(s) <= now_ts)
     new_30 = sum(1 for s in submissions if cutoff_30 <= _ts(s) <= now_ts)
 
-    # Group counts by user's step-1 profile data
-    step1 = await db.steps.find_one({"order": 1, "is_active": True})
-    step1_id = str(step1["_id"]) if step1 else None
     by_fach: dict[str, int] = {}
     by_bl: dict[str, int] = {}
 
@@ -1272,9 +1329,9 @@ async def get_partner_insights(request: Request):
             accepted_user_ids.add(prog["user_id"])
 
     profiles_by_user = {}
-    if step1_id and target_user_ids:
+    if target_user_ids:
         async for row in db.user_progress.find({
-            "user_id": {"$in": list(target_user_ids)}, "step_id": step1_id,
+            "user_id": {"$in": list(target_user_ids)}, "step_order": 1,
         }, {"user_id": 1, "data": 1}):
             profiles_by_user[row["user_id"]] = row.get("data") or {}
     for uid in target_user_ids:
@@ -1431,7 +1488,6 @@ async def get_partner_submissions(request: Request):
     partner_name = (partner or {}).get("name") or ""
     linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
-    step1 = await db.steps.find_one({"order": 1, "is_active": True})
     seen_user_ids = {sub.get("user_id") for sub in submissions if sub.get("user_id")}
     target_user_ids = seen_user_ids | linked_user_ids
     metrics_by_user = await calculate_users_metrics(list(target_user_ids))
@@ -1439,10 +1495,10 @@ async def get_partner_submissions(request: Request):
         list(target_user_ids), partner_id, partner_name,
     )
     step1_by_user = {}
-    if step1 and target_user_ids:
+    if target_user_ids:
         async for row in db.user_progress.find({
             "user_id": {"$in": list(target_user_ids)},
-            "step_id": str(step1["_id"]),
+            "step_order": 1,
         }, {"user_id": 1, "data": 1}):
             step1_by_user[row["user_id"]] = row.get("data") or {}
     for sub in submissions:
@@ -1536,14 +1592,13 @@ async def get_partner_other_users(request: Request):
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"user_id": 1}).to_list(1000)
     my_user_ids = {sub["user_id"] for sub in submissions} | linked_user_ids
     all_users = await db.users.find({"role": "user"}, {"password_hash": 0}).to_list(1000)
-    step1 = await db.steps.find_one({"order": 1, "is_active": True})
     other_users = [u for u in all_users if str(u["_id"]) not in my_user_ids]
     other_ids = [str(u["_id"]) for u in other_users]
     metrics_by_user = await calculate_users_metrics(other_ids)
     step1_by_user = {}
-    if step1 and other_ids:
+    if other_ids:
         async for row in db.user_progress.find({
-            "user_id": {"$in": other_ids}, "step_id": str(step1["_id"]),
+            "user_id": {"$in": other_ids}, "step_order": 1,
         }, {"user_id": 1, "data": 1}):
             step1_by_user[row["user_id"]] = row.get("data") or {}
     result = []
@@ -2102,17 +2157,22 @@ async def startup():
     # Reload hotpaths: all dashboard lists and metrics use these compound keys.
     await db.users.create_index([("role", 1), ("survey_id", 1)])
     await db.users.create_index("partner_id")
+    await db.users.create_index([("role", 1), ("created_at", -1)])
+    await db.surveys.create_index([("is_active", 1), ("is_default", 1)])
     await db.steps.create_index([("survey_id", 1), ("is_active", 1), ("order", 1)])
     await db.steps.create_index([("is_active", 1), ("order", 1)])
     await db.user_progress.create_index([("user_id", 1), ("step_id", 1)], unique=True)
     await db.user_progress.create_index([("user_id", 1), ("survey_id", 1)])
+    await db.user_progress.create_index([("user_id", 1), ("step_order", 1)])
     await db.user_progress.create_index([("step_id", 1), ("status", 1)])
     await db.user_progress.create_index([("user_id", 1), ("status", 1), ("step_order", 1)])
     await db.partner_submissions.create_index([("partner_id", 1), ("user_id", 1)])
     await db.partner_submissions.create_index([("user_id", 1), ("partner_id", 1)])
     await db.partner_submissions.create_index([("partner_id", 1), ("created_at", -1)])
     await db.files.create_index("id", unique=True)
+    await db.files.create_index([("user_id", 1), ("created_at", -1)])
     await db.partners.create_index("name")
+    await db.partners.create_index([("is_active", 1), ("tags", 1)])
     await db.progress_history.create_index([("user_id", 1), ("timestamp", -1)])
     await db.audit_logs.create_index([("timestamp", -1)])
     try:

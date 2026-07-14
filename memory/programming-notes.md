@@ -1,6 +1,6 @@
 # Programmierung und lokaler Betrieb
 
-Stand: 2026-06-22
+Stand: 2026-06-23
 
 ## Arbeitsverzeichnis
 
@@ -134,6 +134,22 @@ docker exec -e REACT_APP_BACKEND_URL=http://localhost:8001 \
   gerdoctor-backend pytest -q tests/test_reload_performance.py
 ```
 
+Gezielte Tests fuer den lokalen Performance-/Security-Endstand vom 2026-06-23:
+
+```bash
+docker exec -e REACT_APP_BACKEND_URL=http://localhost:8001 \
+  gerdoctor-backend pytest -q \
+  tests/test_reload_performance.py \
+  tests/test_file_access_security.py \
+  tests/test_admin_user_survey_assignment.py \
+  tests/test_partner_insights_alignment.py \
+  tests/test_new_features_iter34.py \
+  tests/test_partner_completed_users_split.py \
+  tests/test_partner_milestone_complete.py
+```
+
+Letztes Ergebnis: `24 passed`.
+
 Frontend:
 
 ```bash
@@ -198,11 +214,28 @@ eindeutig.
 ## Reload-Architektur
 
 - UserDashboard: `GET /api/steps/bootstrap` als initialer Einzelrequest.
+- Backend-Bootstrap berechnet Completion/ETA aus bereits geladenen Steps und
+  Progress-Daten; kein separater `calculate_user_metrics`-DB-Roundtrip mehr.
 - PartnerDashboard: vier unabhängige Ressourcen parallel per `Promise.all`.
 - AdminDashboard: ein initialer paralleler Batch; Survey-State löst keinen
   zweiten vollständigen Batch aus.
 - Backend: Bulk-Metriken und Bulk-Partnerstatus, keine seriellen N+1-Queries.
 - MongoDB-Indizes werden bei jedem Backend-Startup idempotent sichergestellt.
+
+## Aktueller lokaler Arbeitsstand 2026-06-23 Session-Ende
+
+- Letzter GitHub-/Ruecksetzpunkt vor der lokalen Performance-/Security-Runde:
+  `b8d55c2c5a9ffec39a6ec0cc72fc71d2aabe0bd0`.
+- Lokale, noch nicht committete Aenderungen:
+  - `backend/server.py`
+  - `backend/helpers.py`
+  - `backend/tests/test_reload_performance.py`
+  - `backend/tests/test_file_access_security.py`
+- Backend wurde neu gestartet; neue Startup-Indizes sind in der laufenden DB
+  angelegt.
+- Nicht automatisch geaendert: `JWT_SECRET` ist laut Log nur 26 Bytes lang;
+  fuer HS256 sollte die Deployment-Config auf mindestens 32 Bytes erhoeht
+  werden.
 
 Details und Messwerte stehen in
 [`session-2026-06-22-operations-performance.md`](session-2026-06-22-operations-performance.md).

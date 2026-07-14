@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="560" viewBox="0 0 1400 560" role="img" aria-labelledby="title desc">
+  <title id="title">Step Engine</title>
+  <desc id="desc">Decision-Step verzweigt in Upload-Step oder Partner-Step. Beide führen zum Meilenstein und danach zum nächsten Block.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#004856"/>
+    </marker>
+    <style>
+      .box { fill: #f6fbfa; stroke: #004856; stroke-width: 3; rx: 14; }
+      .decision { fill: #fff5f5; stroke: #ff6b6b; stroke-width: 3; }
+      .line { stroke: #004856; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .label { font-family: "DejaVu Sans", sans-serif; font-size: 27px; font-weight: 600; fill: #12343b; text-anchor: middle; }
+      .small { font-family: "DejaVu Sans", sans-serif; font-size: 20px; font-weight: 500; fill: #345; text-anchor: middle; }
+      .edge { font-family: "DejaVu Sans", sans-serif; font-size: 20px; font-weight: 500; fill: #004856; text-anchor: middle; }
+      .title { font-family: "DejaVu Sans", sans-serif; font-size: 34px; font-weight: 700; fill: #004856; }
+    </style>
+  </defs>
+  <rect width="1400" height="560" fill="#ffffff"/>
+  <text x="60" y="58" class="title">Step Engine: typisches Muster</text>
+
+  <polygon points="190,210 330,280 190,350 50,280" class="decision"/>
+  <text x="190" y="273" class="label">Decision</text>
+  <text x="190" y="305" class="small">Pfadwahl</text>
+
+  <rect x="480" y="120" width="230" height="95" class="box"/>
+  <text x="595" y="158" class="label">Upload-Step</text>
+  <text x="595" y="190" class="small">Dokumente</text>
+
+  <rect x="480" y="345" width="230" height="95" class="box"/>
+  <text x="595" y="383" class="label">Partner-Step</text>
+  <text x="595" y="415" class="small">Auswahl</text>
+
+  <rect x="890" y="232" width="230" height="95" class="box"/>
+  <text x="1005" y="272" class="label">Meilenstein</text>
+  <text x="1005" y="304" class="small">Auto oder Partner</text>
+
+  <rect x="1210" y="232" width="160" height="95" class="box"/>
+  <text x="1290" y="272" class="label">Nächster</text>
+  <text x="1290" y="304" class="label">Block</text>
+
+  <path d="M295,245 C365,195 415,170 480,168" class="line"/>
+  <text x="395" y="170" class="edge">upload</text>
+  <path d="M295,315 C365,365 415,390 480,392" class="line"/>
+  <text x="395" y="410" class="edge">partner</text>
+  <path d="M710,168 C790,185 835,225 890,260" class="line"/>
+  <path d="M710,392 C790,375 835,335 890,300" class="line"/>
+  <path d="M1120,280 L1210,280" class="line"/>
+</svg>

@@ -1,6 +1,6 @@
 # Datenstrukturen und API fuer Surveys
 
-Stand: 2026-06-22
+Stand: 2026-06-23
 
 Diese Notiz beschreibt den aktuell vorbereiteten Multi-Survey-Stand.
 
@@ -201,6 +201,58 @@ idempotent angelegt. Dazu gehören insbesondere `users(role,survey_id)`,
 `steps(survey_id,is_active,order)`, der eindeutige Index
 `user_progress(user_id,step_id)` sowie Indizes für Partner-Submissions,
 Progress-History, Files und Audit-Logs.
+
+Erweiterter Index-Stand nach der Performance-/Security-Runde vom 2026-06-23:
+
+- `users.email` eindeutig
+- `users(role,survey_id)`
+- `users.partner_id`
+- `users(role,created_at)`
+- `surveys.slug` eindeutig
+- `surveys(is_active,is_default)`
+- `steps(survey_id,is_active,order)`
+- `steps(is_active,order)`
+- `user_progress(user_id,step_id)` eindeutig
+- `user_progress(user_id,survey_id)`
+- `user_progress(user_id,step_order)`
+- `user_progress(step_id,status)`
+- `user_progress(user_id,status,step_order)`
+- `partner_submissions(partner_id,user_id)`
+- `partner_submissions(user_id,partner_id)`
+- `partner_submissions(partner_id,created_at)`
+- `files.id` eindeutig
+- `files(user_id,created_at)`
+- `partners.name`
+- `partners(is_active,tags)`
+- `progress_history(user_id,timestamp)`
+- `audit_logs(timestamp)`
+
+## Upload-/Dateizugriff-Security
+
+Dateiuploads wurden am 2026-06-23 gehaertet:
+
+- `MAX_UPLOAD_BYTES` begrenzt Uploads, Default: 20 MB.
+- Erlaubte Erweiterungen: `pdf`, `png`, `jpg`, `jpeg`, `webp`, `gif`, `doc`,
+  `docx`, `xls`, `xlsx`, `csv`, `txt`, `zip`.
+- Aktive Inhalte mit Content Types `text/html`, `application/xhtml+xml`,
+  `image/svg+xml`, `application/javascript`, `text/javascript` werden blockiert.
+- Dateinamen werden mit `PurePath(...).name` auf Basename reduziert.
+- Download von `/api/files/{file_id}` ist nur erlaubt fuer Datei-Owner, Admin
+  oder Partner, wenn der Datei-Owner ueber `linked_user_ids` oder
+  `partner_submissions` diesem Partner zugeordnet ist.
+
+Regressionstest: `backend/tests/test_file_access_security.py`.
+
+## Aktueller lokaler Stand am Session-Ende 2026-06-23
+
+- GitHub-/Ruecksetzpunkt vor aktueller lokaler Optimierungsrunde:
+  `b8d55c2c5a9ffec39a6ec0cc72fc71d2aabe0bd0`.
+- Danach lokale, noch nicht committete Aenderungen:
+  - `backend/server.py`
+  - `backend/helpers.py`
+  - `backend/tests/test_reload_performance.py`
+  - `backend/tests/test_file_access_security.py`
+- Gezielte Tests am Ende: `24 passed`.
 
 ## Bekannte Grenzen
 

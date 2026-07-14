@@ -1,6 +1,6 @@
 # GERdoctor Memory Index
 
-Stand: 2026-06-22
+Stand: 2026-06-23
 
 Diese Datei ist der Einstiegspunkt fuer spaetere Sessions. Die Detailnotizen sind thematisch getrennt, damit Design, Datenmodell, Programmierung und Step-Logik nicht wieder neu rekonstruiert werden muessen.
 
@@ -24,6 +24,7 @@ Diese Datei ist der Einstiegspunkt fuer spaetere Sessions. Die Detailnotizen sin
 - [Programmierung und Betrieb](programming-notes.md): Architektur, Startanleitung, Login-Daten, Verifikation.
 - [Step Chain Logic](step-chain-logic.md): Abhaengigkeiten, lineare Kette, Migration, bekannte Risiken.
 - [Betrieb, Seed und Performance vom 22.06.2026](session-2026-06-22-operations-performance.md): persistente Services, kanonischer Baseline-Seed, Reload-Optimierung, Messwerte und Teststand.
+- [Dokumentation und Toolstack](documentation-toolstack.md): Lastenheft, Pflichtenheft, Markdown/Pandoc/Mermaid-Workflow und DOCX-Export.
 
 ## Geaenderte Kernbereiche
 
@@ -76,11 +77,38 @@ Wichtige Login-Hinweise:
 ## Performance-Stand
 
 - User-Dashboard nutzt einen Bootstrap-Request statt sieben Einzelrequests.
+- Der Bootstrap-Request berechnet Completion/ETA inzwischen aus den bereits
+  geladenen Steps und Progress-Daten; dadurch entfallen doppelte MongoDB-Reads
+  auf dem Reload-Hotpath.
 - Admin- und Partner-Endpunkte verwenden Bulk-Metriken statt serieller N+1-Abfragen.
+- Partner-Insights, Partner-Submissions und Other-Users lesen Stammdaten ueber
+  `user_progress.step_order=1` statt ueber eine globale Step-1-ID. Das ist
+  schneller und korrekt fuer parallele Surveys.
 - AdminDashboard verhindert den doppelten initialen Request-Batch beim Setzen des Surveys.
 - PartnerDashboard lädt vier unabhängige Ressourcen parallel.
 - Gemessene Hotpaths liegen nach Optimierung zwischen ca. 0,02 und 0,42 Sekunden;
   vorher lagen einzelne Listen bei 5,9 bis 18,5 Sekunden.
+
+## Session-Endstand 2026-06-23
+
+- Letzter sauberer GitHub-/Ruecksetzpunkt vor der aktuellen lokalen
+  Performance-/Security-Runde: `b8d55c2c5a9ffec39a6ec0cc72fc71d2aabe0bd0`.
+- Der aktuelle Workspace enthaelt danach lokale, noch nicht committete
+  Aenderungen in:
+  - `backend/server.py`
+  - `backend/helpers.py`
+  - `backend/tests/test_reload_performance.py`
+  - `backend/tests/test_file_access_security.py`
+- Backend wurde nach den Aenderungen neu gestartet, damit neue Indizes und Code
+  aktiv sind.
+- Verifikation am Session-Ende:
+  - `PYTHONPYCACHEPREFIX=/tmp/gerdoctor-pycache python3 -m py_compile backend/server.py backend/helpers.py backend/tests/test_file_access_security.py backend/tests/test_reload_performance.py`
+  - `git diff --check`
+  - `docker exec -e REACT_APP_BACKEND_URL=http://localhost:8001 gerdoctor-backend pytest -q tests/test_reload_performance.py tests/test_file_access_security.py tests/test_admin_user_survey_assignment.py tests/test_partner_insights_alignment.py tests/test_new_features_iter34.py tests/test_partner_completed_users_split.py tests/test_partner_milestone_complete.py`
+  - Ergebnis: `24 passed`.
+- Wichtiger Security-Hinweis aus den Logs: `JWT_SECRET` ist mit 26 Bytes kuerzer
+  als die fuer HS256 empfohlenen 32 Bytes. Nicht automatisch geaendert, weil das
+  Deployment-/Token-Konfiguration betrifft.
 
 ## Aktueller fachlicher Stand
 

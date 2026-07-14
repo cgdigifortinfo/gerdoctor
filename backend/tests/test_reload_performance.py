@@ -64,8 +64,13 @@ def test_reload_query_indexes_exist():
     progress_indexes = {index["name"] for index in db.user_progress.list_indexes()}
     submission_indexes = {index["name"] for index in db.partner_submissions.list_indexes()}
     step_indexes = {index["name"] for index in db.steps.list_indexes()}
+    user_indexes = {index["name"] for index in db.users.list_indexes()}
+    file_indexes = {index["name"] for index in db.files.list_indexes()}
     assert "user_id_1_step_id_1" in progress_indexes
     assert "user_id_1_survey_id_1" in progress_indexes
+    assert "user_id_1_step_order_1" in progress_indexes
     assert "partner_id_1_user_id_1" in submission_indexes
     assert "survey_id_1_is_active_1_order_1" in step_indexes
+    assert "role_1_created_at_-1" in user_indexes
+    assert "user_id_1_created_at_-1" in file_indexes
     client.close()

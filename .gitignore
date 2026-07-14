@@ -105,3 +105,6 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Windows download metadata exported by some filesystems
+*:Zone.Identifier

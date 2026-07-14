@@ -751,6 +751,15 @@ def _metrics_from_loaded_context(steps: list, progress: list) -> dict:
     }
 
 
+def calculate_metrics_from_loaded_context(steps: list, progress: list) -> dict:
+    """Calculate user dashboard metrics from already loaded steps/progress.
+
+    This keeps reload/bootstrap endpoints from issuing duplicate MongoDB reads
+    while sharing the same visibility and ETA logic as bulk metric calls.
+    """
+    return _metrics_from_loaded_context(steps, progress)
+
+
 async def calculate_users_metrics(user_ids: list[str]) -> dict[str, dict]:
     """Calculate metrics for many users with three MongoDB queries total."""
     unique_ids = list(dict.fromkeys(uid for uid in user_ids if uid))
