@@ -28,6 +28,7 @@ import EmailTemplateEditor from '../components/admin/EmailTemplateEditor';
 import EventManagement from '../components/admin/EventManagement';
 import { SearchableMultiSelect, SearchableSelect } from '../components/admin/EntityPickers';
 import SurveyFormBuilder, { CONTENT_FIELD_TYPES } from '../components/admin/SurveyFormBuilder';
+import PermissionGroupsManager from '../components/admin/PermissionGroupsManager';
 import { PaginationControls, usePagination } from '../components/PaginationControls';
 
 export default function AdminDashboard() {
@@ -39,6 +40,7 @@ export default function AdminDashboard() {
     const stepsRequestRef = useRef(0);
     const loadedStepsSurveyRef = useRef('');
     const [activeTab, setActiveTab] = useState('analytics');
+    const can = useCallback((permission) => !!user && (user.permissions?.includes('*') || user.permissions?.includes(permission)), [user]);
 
     const handleImpersonate = async (userId) => {
         try {
@@ -71,6 +73,11 @@ export default function AdminDashboard() {
     const [userSearch, setUserSearch] = useState('');
     const [userRoleFilter, setUserRoleFilter] = useState('all');
     const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
+    const [userManagementView, setUserManagementView] = useState('users');
+    const [permissionGroups, setPermissionGroups] = useState([]);
+    const [permissionCatalog, setPermissionCatalog] = useState({ categories: [], all_permissions: [] });
+    const [userPermissionDraft, setUserPermissionDraft] = useState({ group_ids: [], allow: [], deny: [] });
+    const [savingUserPermissions, setSavingUserPermissions] = useState(false);
 
     // Step management state
     const [editingStep, setEditingStep] = useState(null);
@@ -114,24 +121,26 @@ export default function AdminDashboard() {
         const requestId = loadDataRequestRef.current + 1;
         loadDataRequestRef.current = requestId;
         try {
-            const surveysRes = await adminAPI.getSurveys().catch(() => ({ data: [] }));
+            const surveysRes = can('surveys.view') ? await adminAPI.getSurveys().catch(() => ({ data: [] })) : { data: [] };
             const surveyList = surveysRes.data || [];
             const params = new URLSearchParams(location.search);
             const requestedSurvey = params.get('survey') || '';
             const requestedSurveyId = surveyList.find(s => s.id === requestedSurvey || s.slug === requestedSurvey)?.id || '';
             const selectedSurveyId = requestedSurveyId || surveyList.find(s => s.is_default)?.id || surveyList[0]?.id || '';
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, landingPagesRes, auditRes, settingsRes, templatesRes] = await Promise.all([
-                adminAPI.getUsers(),
-                adminAPI.getSteps(selectedSurveyId),
-                adminAPI.getPartners(),
-                adminAPI.getAnalytics(),
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, landingPagesRes, auditRes, settingsRes, templatesRes, groupsRes, permissionCatalogRes] = await Promise.all([
+                can('users.view') ? adminAPI.getUsers() : Promise.resolve({ data: [] }),
+                can('steps.view') ? adminAPI.getSteps(selectedSurveyId) : Promise.resolve({ data: [] }),
+                can('partners.view') ? adminAPI.getPartners() : Promise.resolve({ data: [] }),
+                can('analytics.view') ? adminAPI.getAnalytics() : Promise.resolve({ data: null }),
                 adminAPI.getCmsContent('home'),
                 adminAPI.getCmsContent('about'),
                 adminAPI.getCmsContent('partners'),
                 adminAPI.getCmsContent('landing_pages'),
-                adminAPI.getAuditLog(0),
-                settingsAPI.get().catch(() => ({ data: {} })),
-                adminAPI.listStepTemplates().catch(() => ({ data: [] }))
+                can('audit.view') ? adminAPI.getAuditLog(0) : Promise.resolve({ data: { logs: [], action_types: [] } }),
+                can('settings.view') ? settingsAPI.get().catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
+                can('steps.view') ? adminAPI.listStepTemplates().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                can('groups.view') ? adminAPI.getPermissionGroups().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                can('groups.view') ? adminAPI.getPermissionCatalog().catch(() => ({ data: { categories: [], all_permissions: [] } })) : Promise.resolve({ data: { categories: [], all_permissions: [] } }),
             ]);
             if (requestId !== loadDataRequestRef.current) return;
             setSurveys(surveyList);
@@ -155,20 +164,31 @@ export default function AdminDashboard() {
             setAuditActionTypes(auditRes.data.action_types || []);
             if (settingsRes.data) setSiteSettings(settingsRes.data);
             setStepTemplates(templatesRes.data || []);
+            setPermissionGroups(groupsRes.data || []);
+            setPermissionCatalog(permissionCatalogRes.data || { categories: [], all_permissions: [] });
         } catch (error) {
             if (requestId !== loadDataRequestRef.current) return;
             toast.error('Failed to load data');
         } finally {
             if (requestId === loadDataRequestRef.current) setLoading(false);
         }
-    }, [location.search]);
+    }, [location.search, can]);
+
+    const loadPermissionData = useCallback(async () => {
+        const [groupsRes, catalogRes] = await Promise.all([
+            adminAPI.getPermissionGroups(),
+            adminAPI.getPermissionCatalog(),
+        ]);
+        setPermissionGroups(groupsRes.data || []);
+        setPermissionCatalog(catalogRes.data || { categories: [], all_permissions: [] });
+    }, []);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
 
     useEffect(() => {
-        if (!activeSurveyId) return;
+        if (!activeSurveyId || !can('steps.view')) return;
         if (loadedStepsSurveyRef.current === activeSurveyId) return;
         const requestId = stepsRequestRef.current + 1;
         stepsRequestRef.current = requestId;
@@ -184,7 +204,7 @@ export default function AdminDashboard() {
                     toast.error('Failed to load steps');
                 }
             });
-    }, [activeSurveyId]);
+    }, [activeSurveyId, can]);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -192,6 +212,25 @@ export default function AdminDashboard() {
         if (tab) setActiveTab(tab);
         if (params.get('step')) setStepsView('list');
     }, [location.search]);
+
+    useEffect(() => {
+        const allowedTabs = [
+            ['analytics', 'analytics.view'],
+            ['users', can('users.view') || can('groups.view')],
+            ['steps', can('steps.view') || can('surveys.view')],
+            ['partners', 'partners.view'],
+            ['cms', 'cms.view'],
+            ['email-templates', 'messages.view'],
+            ['events', 'messages.view'],
+            ['audit', 'audit.view'],
+            ['settings', 'settings.view'],
+        ].filter(([, permission]) => typeof permission === 'boolean' ? permission : can(permission)).map(([tab]) => tab);
+        if (allowedTabs.length && !allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
+    }, [activeTab, can]);
+
+    useEffect(() => {
+        if (!can('users.view') && can('groups.view')) setUserManagementView('groups');
+    }, [can]);
 
     const handleLogout = async () => {
         await logout();
@@ -208,6 +247,22 @@ export default function AdminDashboard() {
             return matchesSearch && matchesRole;
         });
     }, [users, userSearch, userRoleFilter]);
+    const permissionOptions = useMemo(() => (permissionCatalog.categories || []).flatMap((category) => (
+        category.permissions.map((permission) => ({
+            value: permission.key,
+            label: permission.label,
+            description: category.category,
+            keywords: `${permission.key} ${permission.description}`,
+        }))
+    )), [permissionCatalog]);
+    const selectedUserGroupOptions = useMemo(() => permissionGroups
+        .filter((group) => !selectedUser || group.role === selectedUser.role)
+        .map((group) => ({
+            value: group.id,
+            label: group.name,
+            description: `${group.member_count} Mitglieder · ${group.permissions?.includes('*') ? 'Alle Rechte' : `${group.permissions?.length || 0} Rechte`}`,
+            keywords: `${group.role} ${group.description || ''}`,
+        })), [permissionGroups, selectedUser]);
 
     const sortedSteps = useMemo(
         () => [...steps].sort((a, b) => a.order - b.order),
@@ -260,10 +315,32 @@ export default function AdminDashboard() {
         try {
             const response = await adminAPI.getUser(userId);
             setSelectedUser(response.data);
+            setUserPermissionDraft({
+                group_ids: response.data.group_ids || [],
+                allow: response.data.permission_overrides?.allow || [],
+                deny: response.data.permission_overrides?.deny || [],
+            });
             setShowUserDialog(true);
         } catch (error) {
             toast.error('Failed to load user details');
         }
+    };
+
+    const handleSaveUserPermissions = async () => {
+        if (!selectedUser) return;
+        setSavingUserPermissions(true);
+        try {
+            const response = await adminAPI.updateUserPermissions(selectedUser.id, userPermissionDraft);
+            toast.success('Benutzerrechte aktualisiert');
+            setSelectedUser((current) => ({
+                ...current,
+                group_ids: response.data.group_ids,
+                permission_overrides: response.data.permission_overrides,
+                effective_permissions: response.data.effective_permissions,
+            }));
+            await Promise.all([loadPermissionData(), loadData()]);
+        } catch (error) { toast.error(formatApiError(error)); }
+        finally { setSavingUserPermissions(false); }
     };
 
     const handleUpdateUserRole = async (userId, role) => {
@@ -618,42 +695,42 @@ export default function AdminDashboard() {
             <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="main-navigation mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
-                        <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        {can('analytics.view') && <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
                             {t('admin_dashboard')}
-                        </TabsTrigger>
-                        <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-users-tab">
+                        </TabsTrigger>}
+                        {(can('users.view') || can('groups.view')) && <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-users-tab">
                             <Users size={18} className="mr-2" />
                             {t('admin_users')}
-                        </TabsTrigger>
-                        <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-steps-tab">
+                        </TabsTrigger>}
+                        {(can('steps.view') || can('surveys.view')) && <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-steps-tab">
                             <ListChecks size={18} className="mr-2" />
                             {t('admin_steps')}
-                        </TabsTrigger>
-                        <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-partners-tab">
+                        </TabsTrigger>}
+                        {can('partners.view') && <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-partners-tab">
                             <Buildings size={18} className="mr-2" />
                             {t('admin_partners')}
-                        </TabsTrigger>
-                        <TabsTrigger value="cms" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        </TabsTrigger>}
+                        {can('cms.view') && <TabsTrigger value="cms" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
                             {t('admin_cms')}
-                        </TabsTrigger>
-                        <TabsTrigger value="email-templates" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
+                        </TabsTrigger>}
+                        {can('messages.view') && <TabsTrigger value="email-templates" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
                             <Envelope size={18} className="mr-2" />
                             Nachrichten
-                        </TabsTrigger>
-                        <TabsTrigger value="events" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-events-tab">
+                        </TabsTrigger>}
+                        {can('messages.view') && <TabsTrigger value="events" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-events-tab">
                             <BellRinging size={18} className="mr-2" />
                             Events
-                        </TabsTrigger>
-                        <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-audit-tab">
+                        </TabsTrigger>}
+                        {can('audit.view') && <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-audit-tab">
                             <ClockCounterClockwise size={18} className="mr-2" />
                             {t('admin_audit')}
-                        </TabsTrigger>
-                        <TabsTrigger value="settings" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-settings-tab">
+                        </TabsTrigger>}
+                        {can('settings.view') && <TabsTrigger value="settings" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-settings-tab">
                             <GearSix size={18} className="mr-2" />
                             {t('admin_settings')}
-                        </TabsTrigger>
+                        </TabsTrigger>}
                     </TabsList>
 
                     {/* ============ ANALYTICS TAB ============ */}
@@ -717,7 +794,12 @@ export default function AdminDashboard() {
 
                     {/* ============ USERS TAB ============ */}
                     <TabsContent value="users">
-                        <div className="bg-card border border-border rounded-sm">
+                        <div className="mb-4 flex gap-2 rounded-lg border border-border bg-card p-1.5" data-testid="user-management-sections">
+                            {can('users.view') && <Button type="button" variant={userManagementView === 'users' ? 'default' : 'ghost'} onClick={() => setUserManagementView('users')} data-testid="show-user-list">Benutzer</Button>}
+                            {can('groups.view') && <Button type="button" variant={userManagementView === 'groups' ? 'default' : 'ghost'} onClick={() => setUserManagementView('groups')} data-testid="show-permission-groups">Nutzergruppen & Rechte</Button>}
+                        </div>
+                        {userManagementView === 'groups' && can('groups.view') && <PermissionGroupsManager groups={permissionGroups} catalog={permissionCatalog} onRefresh={loadPermissionData} canCreate={can('groups.create')} canUpdate={can('groups.update')} canDelete={can('groups.delete')} />}
+                        <div className={`bg-card border border-border rounded-sm ${userManagementView === 'groups' || !can('users.view') ? 'hidden' : ''}`}>
                             <div className="p-4 border-b border-border">
                                 <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
                                     <h2 className="text-lg font-semibold text-foreground">User Management</h2>
@@ -743,19 +825,19 @@ export default function AdminDashboard() {
                                                 <SelectItem value="partner">Partner</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
+                                        {can('users.export') && <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
-                                        </Button>
-                                        <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="create-user-btn">
+                                        </Button>}
+                                        {can('users.create') && <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="create-user-btn">
                                             <UserPlus size={16} className="mr-1" /> {t('admin_create_user')}
-                                        </Button>
+                                        </Button>}
                                     </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">{filteredUsers.length} of {users.length} users</p>
                             </div>
 
                             {/* Bulk Actions Bar */}
-                            {selectedUserIds.length > 0 && (
+                            {can('users.update') && selectedUserIds.length > 0 && (
                                 <div className="p-3 bg-[var(--brand-primary)]/5 border-b border-border flex flex-wrap items-center gap-3">
                                     <span className="text-sm font-medium text-[var(--brand-primary)]">{selectedUserIds.length} selected</span>
                                     <Select value={bulkRole} onValueChange={setBulkRole}>
@@ -785,6 +867,7 @@ export default function AdminDashboard() {
                                                 <Checkbox
                                                     checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0}
                                                     onCheckedChange={toggleSelectAll}
+                                                    disabled={!can('users.update')}
                                                     data-testid="select-all-users"
                                                 />
                                             </th>
@@ -806,6 +889,7 @@ export default function AdminDashboard() {
                                                     <Checkbox
                                                         checked={selectedUserIds.includes(u.id)}
                                                         onCheckedChange={() => toggleUserSelection(u.id)}
+                                                        disabled={!can('users.update')}
                                                         data-testid={`select-user-${u.id}`}
                                                     />
                                                 </td>
@@ -828,7 +912,7 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-muted-foreground">{u.email}</td>
                                                 <td className="px-4 py-3">
-                                                    <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>
+                                                    <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)} disabled={!can('users.update')}>
                                                         <SelectTrigger className="w-32 h-8 text-xs border-border">
                                                             <SelectValue />
                                                         </SelectTrigger>
@@ -838,6 +922,9 @@ export default function AdminDashboard() {
                                                             <SelectItem value="partner">Partner</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                    <div className="mt-1 flex max-w-40 flex-wrap gap-1" data-testid={`user-groups-${u.id}`}>
+                                                        {(u.permission_groups || []).map((group) => <span key={group.id} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{group.name}</span>)}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3" data-testid={`user-partners-${u.id}`}>
                                                     {(u.partner_names && u.partner_names.length > 0) ? (
@@ -875,7 +962,7 @@ export default function AdminDashboard() {
                                                         <Button variant="outline" size="sm" onClick={() => handleViewUser(u.id)} className="border-border" data-testid={`view-user-${u.id}`}>
                                                             <Eye size={16} className="mr-1" /> View
                                                         </Button>
-                                                        {u.role !== 'admin' && (
+                                                        {can('users.impersonate') && u.role !== 'admin' && (
                                                             <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
                                                                 <UserSwitch size={16} />
                                                             </Button>
@@ -1514,7 +1601,7 @@ export default function AdminDashboard() {
 
             {/* User Detail Dialog */}
             <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>User Details</DialogTitle>
                     </DialogHeader>
@@ -1556,6 +1643,28 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Groups and per-user permission overrides */}
+                            <section className="rounded-lg border border-border p-4" data-testid="user-permissions-editor">
+                                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                    <div><h4 className="font-semibold">Nutzergruppen und individuelle Rechte</h4><p className="mt-1 text-xs text-muted-foreground">Gruppenrechte bilden die Basis. „Erlauben“ ergänzt Rechte; „Verweigern“ hat immer Vorrang.</p></div>
+                                    <span className="rounded-full bg-[var(--brand-primary)]/10 px-3 py-1 text-xs font-medium text-[var(--brand-primary)]">{selectedUser.effective_permissions?.includes('*') ? 'Vollzugriff' : `${selectedUser.effective_permissions?.length || 0} wirksame Rechte`}</span>
+                                </div>
+                                {selectedUser.is_primary_admin ? (
+                                    <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">Das primäre Administratorkonto behält aus Sicherheitsgründen immer Vollzugriff.</div>
+                                ) : can('users.permissions.manage') ? (
+                                    <div className="space-y-4">
+                                        <div><Label>Nutzergruppen</Label><p className="mb-2 text-xs text-muted-foreground">Mehrere Gruppen derselben Portalrolle können kombiniert werden.</p><SearchableMultiSelect options={selectedUserGroupOptions} values={userPermissionDraft.group_ids} onChange={(group_ids) => setUserPermissionDraft({ ...userPermissionDraft, group_ids })} placeholder="Nutzergruppen auswählen" searchPlaceholder="Nutzergruppe suchen …" testId="user-permission-groups" /></div>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="rounded-md border border-green-200 p-3 dark:border-green-900"><Label className="text-green-700 dark:text-green-300">Zusätzlich erlauben</Label><p className="mb-2 mt-1 text-xs text-muted-foreground">Diese Rechte gelten unabhängig von den Gruppen.</p><SearchableMultiSelect options={permissionOptions} values={userPermissionDraft.allow} onChange={(allow) => setUserPermissionDraft({ ...userPermissionDraft, allow, deny: userPermissionDraft.deny.filter((key) => !allow.includes(key)) })} placeholder="Rechte erlauben" searchPlaceholder="Berechtigung suchen …" testId="user-permission-allow" /></div>
+                                            <div className="rounded-md border border-red-200 p-3 dark:border-red-900"><Label className="text-red-700 dark:text-red-300">Ausdrücklich verweigern</Label><p className="mb-2 mt-1 text-xs text-muted-foreground">Deny überschreibt Gruppenrechte und individuelle Freigaben.</p><SearchableMultiSelect options={permissionOptions} values={userPermissionDraft.deny} onChange={(deny) => setUserPermissionDraft({ ...userPermissionDraft, deny, allow: userPermissionDraft.allow.filter((key) => !deny.includes(key)) })} placeholder="Rechte verweigern" searchPlaceholder="Berechtigung suchen …" testId="user-permission-deny" /></div>
+                                        </div>
+                                        <div className="flex justify-end"><Button type="button" onClick={handleSaveUserPermissions} disabled={savingUserPermissions} data-testid="save-user-permissions">{savingUserPermissions ? 'Speichert …' : 'Rechte speichern'}</Button></div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 text-sm text-muted-foreground"><p>Du kannst die effektiven Rechte dieses Benutzers ansehen, aber nicht überschreiben.</p><div className="flex flex-wrap gap-1">{(selectedUser.permission_groups || []).map((group) => <span key={group.id} className="rounded bg-muted px-2 py-1 text-xs">{group.name}</span>)}</div></div>
+                                )}
+                            </section>
 
                             {/* Completion bar */}
                             <div className="p-4 bg-muted rounded-sm">
@@ -1758,6 +1867,8 @@ export default function AdminDashboard() {
                 onSave={handleCreateUser}
                 partners={partners}
                 surveys={surveys}
+                permissionGroups={permissionGroups}
+                canManagePermissions={can('users.permissions.manage')}
                 defaultSurveyId={activeSurveyId || surveys.find(s => s.is_default)?.id || surveys[0]?.id || ''}
                 t={t}
             />
@@ -3030,18 +3141,20 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
     );
 }
 
-function CreateUserDialog({ open, onClose, onSave, partners, surveys, defaultSurveyId, t }) {
-    const [formData, setFormData] = useState(() => ({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '' }));
+function CreateUserDialog({ open, onClose, onSave, partners, surveys, permissionGroups = [], canManagePermissions = false, defaultSurveyId, t }) {
+    const defaultGroupsForRole = useCallback((role) => permissionGroups.filter((group) => group.role === role && group.is_system).map((group) => group.id), [permissionGroups]);
+    const [formData, setFormData] = useState(() => ({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '', group_ids: [] }));
 
     useEffect(() => {
-        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '' });
-    }, [open, defaultSurveyId]);
+        if (open) setFormData({ email: '', password: '', name: '', role: 'user', partner_id: 'none', survey_id: defaultSurveyId || '', group_ids: defaultGroupsForRole('user') });
+    }, [open, defaultSurveyId, defaultGroupsForRole]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const data = { ...formData };
         if (data.partner_id === 'none') delete data.partner_id;
         if (data.role !== 'user') delete data.survey_id;
+        if (!canManagePermissions) delete data.group_ids;
         onSave(data);
     };
 
@@ -3057,14 +3170,27 @@ function CreateUserDialog({ open, onClose, onSave, partners, surveys, defaultSur
                     <div><Label>{t('create_user_password')}</Label><Input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="mt-1" required minLength={6} data-testid="create-user-password" /></div>
                     <div>
                         <Label>{t('create_user_role')}</Label>
-                        <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? 'none' : formData.partner_id })}>
+                        <Select value={formData.role} onValueChange={val => setFormData({ ...formData, role: val, partner_id: val !== 'partner' ? 'none' : formData.partner_id, group_ids: defaultGroupsForRole(val) })}>
                             <SelectTrigger className="mt-1" data-testid="create-user-role"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="user">{t('user')}</SelectItem>
                                 <SelectItem value="partner">{t('partner')}</SelectItem>
+                                {canManagePermissions && <SelectItem value="admin">Admin</SelectItem>}
                             </SelectContent>
                         </Select>
                     </div>
+                    {canManagePermissions && <div>
+                        <Label>Nutzergruppen</Label>
+                        <p className="mb-2 mt-1 text-xs text-muted-foreground">Passende Gruppen für die gewählte Portalrolle zuweisen.</p>
+                        <SearchableMultiSelect
+                            options={permissionGroups.filter((group) => group.role === formData.role).map((group) => ({ value: group.id, label: group.name, description: `${group.permissions?.includes('*') ? 'Alle' : group.permissions?.length || 0} Rechte` }))}
+                            values={formData.group_ids}
+                            onChange={(group_ids) => setFormData({ ...formData, group_ids })}
+                            placeholder="Nutzergruppen auswählen"
+                            searchPlaceholder="Nutzergruppe suchen …"
+                            testId="create-user-permission-groups"
+                        />
+                    </div>}
                     {formData.role === 'user' && (
                         <div>
                             <Label>Survey</Label>

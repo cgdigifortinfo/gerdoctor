@@ -103,6 +103,12 @@ export const adminAPI = {
     updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
     bulkUpdateRole: (user_ids, role) => api.put('/admin/users/bulk-role', { user_ids, role }),
     exportUsersCsv: () => api.get('/admin/export/users', { responseType: 'blob' }),
+    getPermissionCatalog: () => api.get('/admin/permission-catalog'),
+    getPermissionGroups: () => api.get('/admin/permission-groups'),
+    createPermissionGroup: (data) => api.post('/admin/permission-groups', data),
+    updatePermissionGroup: (id, data) => api.put(`/admin/permission-groups/${id}`, data),
+    deletePermissionGroup: (id) => api.delete(`/admin/permission-groups/${id}`),
+    updateUserPermissions: (userId, data) => api.put(`/admin/users/${userId}/permissions`, data),
     
     // Steps
     getSurveys: () => api.get('/admin/surveys'),

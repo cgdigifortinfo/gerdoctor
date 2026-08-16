@@ -69,3 +69,16 @@ def require_role(*roles):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
     return check_role
+
+
+def require_permission(permission: str, *roles: str):
+    async def check_permission(request: Request):
+        from permissions import has_permission
+
+        user = await get_current_user(request)
+        if roles and user.get("role") not in roles:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        if not await has_permission(user, permission):
+            raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
+        return user
+    return check_permission

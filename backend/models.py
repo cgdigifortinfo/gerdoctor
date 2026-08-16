@@ -218,6 +218,24 @@ class AdminUserCreate(BaseModel):
     role: str = "user"
     partner_id: Optional[str] = None
     survey_id: Optional[str] = None
+    group_ids: Optional[List[str]] = None
+
+class PermissionGroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    role: str = "user"
+    permissions: List[str] = Field(default_factory=list)
+
+class PermissionGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    role: Optional[str] = None
+    permissions: Optional[List[str]] = None
+
+class UserPermissionsUpdate(BaseModel):
+    group_ids: List[str] = Field(default_factory=list)
+    allow: List[str] = Field(default_factory=list)
+    deny: List[str] = Field(default_factory=list)
 
 class SiteSettingsUpdate(BaseModel):
     site_title: Optional[str] = None

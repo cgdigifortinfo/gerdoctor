@@ -18,6 +18,7 @@ from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, APIRouter, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from bson import ObjectId
 
 # Shared modules
@@ -28,11 +29,12 @@ from models import (
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
     StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk,
-    SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate
+    SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate,
+    PermissionGroupCreate, PermissionGroupUpdate, UserPermissionsUpdate,
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
-    create_access_token, create_refresh_token, get_current_user, require_role
+    create_access_token, create_refresh_token, get_current_user, require_role, require_permission
 )
 from helpers import (
     init_storage, put_object, get_object, APP_NAME,
@@ -48,6 +50,12 @@ from form_builder import (
     CONTENT_FIELD_TYPES, FORM_SCHEMA_VERSION,
     migrate_database_form_configs, normalize_step_field,
 )
+from permissions import (
+    ALL_PERMISSION_KEYS, PERMISSION_CATALOG, default_group_id,
+    effective_permissions, ensure_permission_groups, has_permission,
+    normalize_permissions, permission_for_admin_request, permission_for_portal_request,
+    permission_group_summaries,
+)
 from email_template_defaults import DEFAULT_TEMPLATES
 from event_system import (
     ensure_event_configs, emit_domain_event, process_domain_event,
@@ -61,6 +69,22 @@ logging.basicConfig(level=logging.INFO)
 # APP & ROUTERS
 # ========================
 app = FastAPI()
+
+
+@app.middleware("http")
+async def enforce_admin_permissions(request: Request, call_next):
+    admin_permission = permission_for_admin_request(request.method, request.url.path)
+    permission = admin_permission or permission_for_portal_request(request.method, request.url.path)
+    if not permission:
+        return await call_next(request)
+    try:
+        user = await get_current_user(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    if (admin_permission and user.get("role") != "admin") or not await has_permission(user, permission):
+        return JSONResponse(status_code=403, content={"detail": f"Missing permission: {permission}"})
+    request.state.current_user = user
+    return await call_next(request)
 
 api_router = APIRouter(prefix="/api")
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -154,6 +178,26 @@ def _auth_cookie_kwargs(max_age: int) -> dict:
         "path": "/",
     }
 
+
+async def _auth_user_payload(user: dict, access_token: str | None = None) -> dict:
+    payload = {
+        "id": str(user["_id"]),
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+        "profile": user.get("profile", {}),
+        "survey_id": user.get("survey_id"),
+        "survey_slug": user.get("survey_slug"),
+        "group_ids": user.get("group_ids", []),
+        "permission_groups": await permission_group_summaries(user),
+        "permission_overrides": user.get("permission_overrides", {"allow": [], "deny": []}),
+        "permissions": await effective_permissions(user),
+        "is_primary_admin": user.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+    }
+    if access_token:
+        payload["access_token"] = access_token
+    return payload
+
 def _safe_object_id(value: str, label: str = "Invalid id") -> ObjectId:
     if not ObjectId.is_valid(value):
         raise HTTPException(status_code=400, detail=label)
@@ -197,11 +241,14 @@ async def register(data: UserRegister, response: Response):
         raise HTTPException(status_code=400, detail="Email already registered")
     survey = await _get_survey_by_slug(data.survey_slug)
     survey_id = str(survey["_id"])
+    group_id = await default_group_id("user")
     user_doc = {
         "email": email, "password_hash": hash_password(data.password),
         "name": data.name, "role": "user", "profile": {},
         "survey_id": survey_id, "survey_slug": survey.get("slug", DEFAULT_SURVEY_SLUG),
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "group_ids": [group_id] if group_id else [],
+        "permission_overrides": {"allow": [], "deny": []},
     }
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
@@ -222,7 +269,8 @@ async def register(data: UserRegister, response: Response):
     refresh_token = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
     response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
-    return {"id": user_id, "email": email, "name": data.name, "role": "user", "survey_id": survey_id, "survey_slug": survey.get("slug"), "access_token": access_token}
+    user_doc["_id"] = result.inserted_id
+    return await _auth_user_payload(user_doc, access_token)
 
 @auth_router.post("/login")
 async def login(data: UserLogin, request: Request, response: Response):
@@ -250,7 +298,7 @@ async def login(data: UserLogin, request: Request, response: Response):
     refresh_token = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
     response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
-    return {"id": user_id, "email": user["email"], "name": user["name"], "role": user["role"], "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug"), "access_token": access_token}
+    return await _auth_user_payload(user, access_token)
 
 @auth_router.post("/logout")
 async def logout(response: Response):
@@ -261,7 +309,7 @@ async def logout(response: Response):
 @auth_router.get("/me")
 async def get_me(request: Request):
     user = await get_current_user(request)
-    return {"id": user["_id"], "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug")}
+    return await _auth_user_payload(user)
 
 @auth_router.post("/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -329,7 +377,7 @@ async def admin_impersonate_user(user_id: str, request: Request):
     tid = str(target["_id"])
     access_token = create_access_token(tid, target["email"], target["role"])
     await create_audit_log(admin_user["_id"], admin_user["email"], "impersonate", "user", tid, {"target_email": target["email"]})
-    return {"access_token": access_token, "user": {"id": tid, "email": target["email"], "name": target["name"], "role": target["role"], "survey_id": target.get("survey_id"), "survey_slug": target.get("survey_slug")}}
+    return {"access_token": access_token, "user": await _auth_user_payload(target)}
 
 # ========================
 # USER PROFILE ROUTES
@@ -673,10 +721,154 @@ async def get_file(file_id: str, request: Request, auth: str = Query(None)):
 # ADMIN ROUTES
 # ========================
 
+def _permission_group_payload(group: dict, member_count: int = 0) -> dict:
+    return {
+        "id": str(group["_id"]),
+        "key": group.get("key", ""),
+        "name": group.get("name", ""),
+        "description": group.get("description", ""),
+        "role": group.get("role", "user"),
+        "permissions": group.get("permissions", []),
+        "is_system": group.get("is_system", False),
+        "member_count": member_count,
+        "created_at": group.get("created_at"),
+        "updated_at": group.get("updated_at"),
+    }
+
+
+def _validated_permission_keys(values: list[str], role: str) -> list[str]:
+    allowed = set(ALL_PERMISSION_KEYS)
+    if role == "admin":
+        allowed.add("*")
+    unknown = sorted(set(values or []) - allowed)
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown permission(s): {', '.join(unknown)}")
+    return normalize_permissions(values, allow_wildcard=role == "admin")
+
+
+async def _validated_group_ids(group_ids: list[str], role: str) -> list[str]:
+    valid_ids = []
+    for group_id in dict.fromkeys(group_ids or []):
+        if not ObjectId.is_valid(group_id):
+            raise HTTPException(status_code=400, detail="Invalid permission group id")
+        group = await db.permission_groups.find_one({"_id": ObjectId(group_id)})
+        if not group:
+            raise HTTPException(status_code=400, detail="Permission group not found")
+        if group.get("role") != role:
+            raise HTTPException(status_code=400, detail="Permission group does not match the user's portal role")
+        valid_ids.append(group_id)
+    return valid_ids
+
+
+@admin_router.get("/permission-catalog")
+async def admin_permission_catalog(request: Request):
+    await require_role("admin")(request)
+    return {"categories": PERMISSION_CATALOG, "all_permissions": list(ALL_PERMISSION_KEYS)}
+
+
+@admin_router.get("/permission-groups")
+async def admin_list_permission_groups(request: Request):
+    await require_role("admin")(request)
+    groups = await db.permission_groups.find({}).sort([("role", 1), ("name", 1)]).to_list(500)
+    result = []
+    for group in groups:
+        result.append(_permission_group_payload(
+            group,
+            await db.users.count_documents({"group_ids": str(group["_id"])}),
+        ))
+    return result
+
+
+@admin_router.post("/permission-groups")
+async def admin_create_permission_group(data: PermissionGroupCreate, request: Request):
+    admin_user = await require_role("admin")(request)
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Group name is required")
+    if data.role not in {"user", "partner", "admin"}:
+        raise HTTPException(status_code=400, detail="Invalid portal role")
+    if await db.permission_groups.find_one({"name_key": name.casefold()}):
+        raise HTTPException(status_code=400, detail="A group with this name already exists")
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "key": f"custom_{uuid.uuid4().hex}",
+        "name": name,
+        "name_key": name.casefold(),
+        "description": (data.description or "").strip(),
+        "role": data.role,
+        "permissions": _validated_permission_keys(data.permissions, data.role),
+        "is_system": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await db.permission_groups.insert_one(doc)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "permission_group_create", "permission_group", str(result.inserted_id), {"name": name, "role": data.role})
+    doc["_id"] = result.inserted_id
+    return _permission_group_payload(doc)
+
+
+@admin_router.put("/permission-groups/{group_id}")
+async def admin_update_permission_group(group_id: str, data: PermissionGroupUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid permission group id")
+    group = await db.permission_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Permission group not found")
+    update = {}
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Group name is required")
+        duplicate = await db.permission_groups.find_one({"name_key": name.casefold(), "_id": {"$ne": group["_id"]}})
+        if duplicate:
+            raise HTTPException(status_code=400, detail="A group with this name already exists")
+        update.update({"name": name, "name_key": name.casefold()})
+    role = data.role if data.role is not None else group.get("role", "user")
+    if role not in {"user", "partner", "admin"}:
+        raise HTTPException(status_code=400, detail="Invalid portal role")
+    if data.role is not None and data.role != group.get("role"):
+        if group.get("is_system"):
+            raise HTTPException(status_code=400, detail="System group role cannot be changed")
+        if await db.users.count_documents({"group_ids": group_id}):
+            raise HTTPException(status_code=400, detail="Group role cannot be changed while users are assigned")
+    if data.role is not None:
+        update["role"] = data.role
+    if data.description is not None:
+        update["description"] = data.description.strip()
+    if data.permissions is not None:
+        update["permissions"] = _validated_permission_keys(data.permissions, role)
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.permission_groups.update_one({"_id": group["_id"]}, {"$set": update})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "permission_group_update", "permission_group", group_id, {"fields": list(update.keys())})
+    saved = await db.permission_groups.find_one({"_id": group["_id"]})
+    return _permission_group_payload(saved, await db.users.count_documents({"group_ids": group_id}))
+
+
+@admin_router.delete("/permission-groups/{group_id}")
+async def admin_delete_permission_group(group_id: str, request: Request):
+    admin_user = await require_role("admin")(request)
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid permission group id")
+    group = await db.permission_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Permission group not found")
+    if group.get("is_system"):
+        raise HTTPException(status_code=400, detail="System groups cannot be deleted")
+    member_count = await db.users.count_documents({"group_ids": group_id})
+    if member_count:
+        raise HTTPException(status_code=400, detail="Permission group is still assigned to users")
+    await db.permission_groups.delete_one({"_id": group["_id"]})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "permission_group_delete", "permission_group", group_id, {"name": group.get("name")})
+    return {"message": "Permission group deleted"}
+
+
 @admin_router.get("/users")
 async def admin_get_users(request: Request):
     user = await require_role("admin")(request)
     users = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    permission_group_docs = await db.permission_groups.find({}, {"name": 1, "role": 1}).to_list(500)
+    permission_group_by_id = {str(group["_id"]): group for group in permission_group_docs}
 
     # Preload partners into a lookup {id_str: name}
     partner_docs = await db.partners.find({}, {"name": 1, "linked_user_ids": 1}).to_list(1000)
@@ -794,6 +986,12 @@ async def admin_get_users(request: Request):
             "estimated_completion": metrics["estimated_completion"],
             "partner_names": partner_names,
             "pending_registrations": pending_registrations,
+            "group_ids": u.get("group_ids", []),
+            "permission_groups": [
+                {"id": group_id, "name": permission_group_by_id[group_id].get("name", ""), "role": permission_group_by_id[group_id].get("role", "user")}
+                for group_id in u.get("group_ids", []) if group_id in permission_group_by_id
+            ],
+            "permission_overrides": u.get("permission_overrides", {"allow": [], "deny": []}),
         })
     return result
 
@@ -806,11 +1004,15 @@ async def admin_search_users(request: Request, q: str = "", role: str = ""):
     if role and role != "all":
         query["role"] = role
     users = await db.users.find(query, {"password_hash": 0}).to_list(1000)
-    return [{"id": str(u["_id"]), "email": u["email"], "name": u["name"], "role": u["role"], "created_at": u.get("created_at"), "partner_id": u.get("partner_id")} for u in users]
+    return [{"id": str(u["_id"]), "email": u["email"], "name": u["name"], "role": u["role"], "created_at": u.get("created_at"), "partner_id": u.get("partner_id"), "group_ids": u.get("group_ids", [])} for u in users]
 
 @admin_router.post("/users")
 async def admin_create_user(data: AdminUserCreate, request: Request):
     admin_user = await require_role("admin")(request)
+    if data.role not in {"user", "partner", "admin"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    if (data.role == "admin" or data.group_ids) and not await has_permission(admin_user, "users.permissions.manage"):
+        raise HTTPException(status_code=403, detail="Missing permission: users.permissions.manage")
     email = data.email.lower()
     existing = await db.users.find_one({"email": email})
     if existing:
@@ -836,7 +1038,13 @@ async def admin_create_user(data: AdminUserCreate, request: Request):
         "role": data.role,
         "profile": {},
         "created_at": now,
+        "permission_overrides": {"allow": [], "deny": []},
     }
+    if data.group_ids:
+        user_doc["group_ids"] = await _validated_group_ids(data.group_ids, data.role)
+    else:
+        initial_group_id = await default_group_id(data.role)
+        user_doc["group_ids"] = [initial_group_id] if initial_group_id else []
     if survey:
         user_doc["survey_id"] = str(survey["_id"])
         user_doc["survey_slug"] = survey.get("slug", DEFAULT_SURVEY_SLUG)
@@ -878,7 +1086,32 @@ async def admin_get_user(user_id: str, request: Request):
     progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     submissions = await db.partner_submissions.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     history = await db.progress_history.find({"user_id": user_id}, {"_id": 0}).sort("timestamp", -1).to_list(200)
-    return {"id": str(user["_id"]), "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug"), "created_at": user.get("created_at"), "progress": progress, "submissions": submissions, "history": history, "completion_pct": await calculate_completion_pct(user_id)}
+    return {"id": str(user["_id"]), "email": user["email"], "name": user["name"], "role": user["role"], "profile": user.get("profile", {}), "survey_id": user.get("survey_id"), "survey_slug": user.get("survey_slug"), "created_at": user.get("created_at"), "progress": progress, "submissions": submissions, "history": history, "completion_pct": await calculate_completion_pct(user_id), "group_ids": user.get("group_ids", []), "permission_groups": await permission_group_summaries(user), "permission_overrides": user.get("permission_overrides", {"allow": [], "deny": []}), "effective_permissions": await effective_permissions(user), "is_primary_admin": user.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com")}
+
+
+@admin_router.put("/users/{user_id}/permissions")
+async def admin_update_user_permissions(user_id: str, data: UserPermissionsUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user id")
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com"):
+        raise HTTPException(status_code=400, detail="Primary admin permissions cannot be overridden")
+    group_ids = await _validated_group_ids(data.group_ids, target.get("role", "user"))
+    allow = normalize_permissions(data.allow)
+    deny = normalize_permissions(data.deny)
+    if set(allow) & set(deny):
+        raise HTTPException(status_code=400, detail="A permission cannot be both allowed and denied")
+    overrides = {"allow": allow, "deny": deny}
+    await db.users.update_one(
+        {"_id": target["_id"]},
+        {"$set": {"group_ids": group_ids, "permission_overrides": overrides, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    saved = await db.users.find_one({"_id": target["_id"]})
+    await create_audit_log(admin_user["_id"], admin_user["email"], "user_permissions_update", "user", user_id, {"group_ids": group_ids, **overrides})
+    return {"message": "User permissions updated", "group_ids": group_ids, "permission_overrides": overrides, "effective_permissions": await effective_permissions(saved)}
 
 @admin_router.put("/users/{user_id}/progress")
 async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
@@ -892,17 +1125,20 @@ async def admin_update_user_progress(user_id: str, data: UserProgressUpdate, req
 
 @admin_router.put("/users/bulk-role")
 async def admin_bulk_update_role(data: BulkRoleUpdate, request: Request):
-    await require_role("admin")(request)
+    admin_user = await require_role("admin")(request)
     if data.role not in ["user", "admin", "partner"]:
         raise HTTPException(status_code=400, detail="Invalid role")
+    if data.role == "admin" and not await has_permission(admin_user, "users.permissions.manage"):
+        raise HTTPException(status_code=403, detail="Missing permission: users.permissions.manage")
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
+    role_group_id = await default_group_id(data.role)
     updated = 0
     for uid in data.user_ids:
         try:
             target = await db.users.find_one({"_id": ObjectId(uid)})
             if target and target["email"] == admin_email and data.role != "admin":
                 continue
-            result = await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": data.role}})
+            result = await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"role": data.role, "group_ids": [role_group_id] if role_group_id else [], "permission_overrides": {"allow": [], "deny": []}}})
             if result.modified_count:
                 updated += 1
         except Exception:
@@ -930,10 +1166,13 @@ async def admin_update_user_role(user_id: str, role: str, request: Request):
     admin_user = await require_role("admin")(request)
     if role not in ["user", "admin", "partner"]:
         raise HTTPException(status_code=400, detail="Invalid role")
+    if role == "admin" and not await has_permission(admin_user, "users.permissions.manage"):
+        raise HTTPException(status_code=403, detail="Missing permission: users.permissions.manage")
     target = await db.users.find_one({"_id": ObjectId(user_id)})
     if target and target["email"] == os.environ.get("ADMIN_EMAIL", "admin@example.com") and role != "admin":
         raise HTTPException(status_code=400, detail="Cannot change the primary admin's role")
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": role}})
+    role_group_id = await default_group_id(role)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": role, "group_ids": [role_group_id] if role_group_id else [], "permission_overrides": {"allow": [], "deny": []}}})
     await create_audit_log(admin_user["_id"], admin_user["email"], "role_change", "user", user_id, {"new_role": role})
     return {"message": "User role updated"}
 
@@ -2067,7 +2306,7 @@ async def get_cms_section(section: str):
 
 @cms_router.put("/{section}")
 async def update_cms_content(section: str, data: CMSContentUpdate, request: Request):
-    admin_user = await require_role("admin")(request)
+    admin_user = await require_permission("cms.manage", "admin")(request)
     normalized_content, normalized_translations = _normalize_cms_payload(data.content, data.translations)
     update_fields = {"section": section, "content": normalized_content, "updated_at": datetime.now(timezone.utc).isoformat()}
     if data.translations is not None:
@@ -2541,6 +2780,8 @@ async def startup():
     await db.users.create_index("partner_id")
     await db.users.create_index([("role", 1), ("created_at", -1)])
     await db.surveys.create_index([("is_active", 1), ("is_default", 1)])
+    await db.permission_groups.create_index("key", unique=True)
+    await db.permission_groups.create_index("name_key", unique=True)
     await db.steps.create_index([("survey_id", 1), ("is_active", 1), ("order", 1)])
     await db.steps.create_index([("is_active", 1), ("order", 1)])
     await db.user_progress.create_index([("user_id", 1), ("step_id", 1)], unique=True)
@@ -2604,6 +2845,9 @@ async def startup():
     elif existing.get("role") != "admin":
         await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
         logger.info("Admin role restored")
+    created_permission_groups = await ensure_permission_groups()
+    if created_permission_groups:
+        logger.info("Created %s default permission group(s)", created_permission_groups)
     # Seed default steps if none
     if await db.steps.count_documents({}) == 0:
         doc_types = ["Visum", "Antrag auf Approbation", "Approbation", "Eingangsbescheinigung bei zustaendiger Behoerde", "Kenntnisspruefung"]

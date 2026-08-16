@@ -9,6 +9,7 @@ Seiten-Screenshots. Die Dateien sind nach Testsuite in Unterordnern gruppiert:
 - `email-template-editor/`
 - `auth-flows/`
 - `form-builder/`
+- `permissions/`
 
 Der Ordner `admin-survey-steps/` enthält zusätzlich die fokussierten Ansichten
 des Step-Editors für Bedingungen, Feld-Mappings und Pflichtangaben
@@ -21,6 +22,10 @@ Login mit dem neu gesetzten Passwort.
 Der Ordner `form-builder/` zeigt die Übernahme bestehender Felder, die visuelle
 Konfiguration von HTML, Bild, Textbereich und Mehrfachauswahl sowie die daraus
 gerenderte und validierte Nutzeransicht.
+
+Der Ordner `permissions/` dokumentiert die Standardgruppen, das Anlegen und
+Bearbeiten einer frei konfigurierten Nutzergruppe sowie gruppenbasierte und
+individuelle Allow-/Deny-Rechte am Benutzer.
 
 Bei einem erneuten Lauf werden gleichnamige Screenshots aktualisiert. Mit der
 Umgebungsvariable `E2E_SCREENSHOT_DIR` kann ein anderer Ergebnisordner gewählt

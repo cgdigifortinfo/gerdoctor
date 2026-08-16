@@ -49,3 +49,16 @@ Die beiden fokussierten Tests verifizieren die gespeicherte Builder-Konfiguratio
 zusätzlich über die Admin-API. Der Nutzer-Test prüft außerdem HTML-Bereinigung,
 Bild, zweispaltiges Layout, Textbereich, Datei-Attribute, Pflichtvalidierung und
 Mehrfachauswahl. Temporäre Schritte und Benutzer werden nach jedem Lauf entfernt.
+
+### Nutzergruppen und Einzelberechtigungen
+
+| Suite | Ergebnis | Screenshots |
+| --- | ---: | ---: |
+| Gruppen-CRUD und Benutzer-Overrides im Adminbereich | 1/1 bestanden | 6 |
+| Rechte-API, Rollen- und Auth-Regressionen | 83/83 bestanden | 0 |
+
+Der Browser-Test läuft über den echten Frontend-Proxy und prüft das Anlegen,
+Bearbeiten und Löschen einer Gruppe sowie Gruppen-Multi-Select und individuelle
+Allow-/Deny-Overrides. Die API-Suite prüft zusätzlich Deny-Priorität,
+unbekannte Rechte, Schutz vor Rechteausweitung, Systemgruppen und die sofortige
+serverseitige Durchsetzung. Temporäre Benutzer und Gruppen werden bereinigt.

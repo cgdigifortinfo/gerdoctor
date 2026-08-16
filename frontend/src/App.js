@@ -51,21 +51,21 @@ function App() {
 
                 {/* User Dashboard */}
                 <Route path="/dashboard" element={
-                  <ProtectedRoute allowedRoles={['user']}>
+                  <ProtectedRoute allowedRoles={['user']} requiredPermission="portal.user.access">
                     <UserDashboard />
                   </ProtectedRoute>
                 } />
 
                 {/* Admin Dashboard */}
                 <Route path="/admin" element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={['admin']} requiredPermission="admin.access">
                     <AdminDashboard />
                   </ProtectedRoute>
                 } />
 
                 {/* Partner Dashboard */}
                 <Route path="/partner-dashboard" element={
-                  <ProtectedRoute allowedRoles={['partner']}>
+                  <ProtectedRoute allowedRoles={['partner']} requiredPermission="portal.partner.access">
                     <PartnerDashboard />
                   </ProtectedRoute>
                 } />
