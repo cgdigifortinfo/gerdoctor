@@ -25,6 +25,8 @@ from pathlib import Path
 from bson import json_util
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from form_builder import migrate_snapshot_form_configs
+
 
 SNAPSHOT_CREATED_AT = '2026-06-22T11:02:26.617255+00:00'
 PAYLOAD_SHA256 = '563f3d80550bfacdc4c4805898dacd09c1842c9fa6909a717bb96ff14b5360ae'
@@ -4017,7 +4019,8 @@ def load_snapshot():
     actual = hashlib.sha256(compressed).hexdigest()
     if actual != PAYLOAD_SHA256:
         raise RuntimeError(f"Embedded snapshot checksum mismatch: {actual}")
-    return json_util.loads(gzip.decompress(compressed).decode("utf-8"))
+    snapshot = json_util.loads(gzip.decompress(compressed).decode("utf-8"))
+    return migrate_snapshot_form_configs(snapshot)
 
 
 def safe_storage_path(root: Path, relative: str) -> Path:

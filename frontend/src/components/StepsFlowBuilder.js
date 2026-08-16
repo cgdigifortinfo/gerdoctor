@@ -11,6 +11,7 @@ import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise
 import { simulateJourney, SIMULATOR_PROFILES } from '../lib/stepVisibility';
 import { useFlowHistory } from '../hooks/useFlowHistory';
 import FlowSimulatorPanel from './FlowSimulatorPanel';
+import { SearchableMultiSelect, SearchableSelect } from './admin/EntityPickers';
 
 // ---- Duration helpers (for animated playback ETA) ----
 function durationToDays(value, unit) {
@@ -294,11 +295,55 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
         }
     }, [open, initial]);
     if (!open || !source || !target) return null;
+
+    const fieldOptions = [
+        { value: 'status', label: 'Schrittstatus', description: 'Systemfeld' },
+        ...(source.fields || []).map((field) => ({
+            value: field.name,
+            label: field.label || field.name,
+            description: `${field.name} · ${field.field_type || 'Feld'}`,
+        })),
+    ];
+    if (form.field && !fieldOptions.some((option) => option.value === form.field)) {
+        fieldOptions.push({ value: form.field, label: `Bestehendes Feld: ${form.field}` });
+    }
+    const selectedField = (source.fields || []).find((field) => field.name === form.field);
+    const configuredValues = form.field === 'status'
+        ? [
+            { value: 'pending', label: 'Ausstehend' },
+            { value: 'in_progress', label: 'In Bearbeitung' },
+            { value: 'completed', label: 'Abgeschlossen' },
+            { value: 'rejected', label: 'Abgelehnt' },
+        ]
+        : (selectedField?.options || []).map((option) => ({ value: String(option), label: String(option) }));
+    const currentValues = Array.isArray(form.value) ? form.value : [form.value];
+    currentValues.filter(Boolean).forEach((value) => {
+        if (!configuredValues.some((option) => option.value === String(value))) {
+            configuredValues.push({ value: String(value), label: String(value) });
+        }
+    });
+
+    const changeField = (field) => {
+        const nextField = (source.fields || []).find((candidate) => candidate.name === field);
+        if (field === 'status') setForm({ ...form, field, operator: 'status_is', value: 'completed' });
+        else if (nextField?.field_type === 'multiupload') setForm({ ...form, field, operator: 'has_upload', value: nextField.options?.[0] || '' });
+        else setForm({ ...form, field, operator: 'equals', value: nextField?.options?.[0] || '' });
+    };
+    const changeOperator = (operator) => {
+        if (['one_of', 'not_one_of'].includes(operator)) {
+            setForm({ ...form, operator, value: Array.isArray(form.value) ? form.value : (form.value ? [form.value] : []) });
+        } else if (['empty', 'not_empty'].includes(operator)) {
+            setForm({ ...form, operator, value: '' });
+        } else {
+            setForm({ ...form, operator, value: Array.isArray(form.value) ? (form.value[0] || '') : form.value });
+        }
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
-            <div className="bg-card border border-border rounded-sm shadow-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()} data-testid="condition-modal">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50" onClick={onCancel}>
+            <div className="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()} data-testid="condition-modal">
                 <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {mode === 'edit' ? 'Condition bearbeiten' : 'Neue Condition'}
+                    {mode === 'edit' ? 'Regel bearbeiten' : 'Neue Regel'}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
                     Von <span className="font-semibold">#{source.order} {source.title}</span> →
@@ -315,27 +360,62 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
                             <option value="redirect">Weiterleiten</option>
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-3 sm:grid-cols-2">
                         <div>
-                            <label className="text-xs font-medium text-foreground">Feld (optional)</label>
-                            <input type="text" value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })} placeholder="decision" className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-field-input" />
+                            <label className="text-xs font-medium text-foreground">Status oder Feld</label>
+                            <SearchableSelect
+                                options={fieldOptions}
+                                value={form.field}
+                                onChange={changeField}
+                                placeholder="Feld auswählen"
+                                searchPlaceholder="Feld durchsuchen …"
+                                testId="condition-field-input"
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-foreground">Operator</label>
-                            <select value={form.operator} onChange={(e) => setForm({ ...form, operator: e.target.value })} className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-operator-select">
+                            <select value={form.operator} onChange={(e) => changeOperator(e.target.value)} className="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md" data-testid="condition-operator-select">
                                 <option value="equals">gleich</option>
                                 <option value="not_equals">ungleich</option>
+                                <option value="one_of">ist einer von</option>
+                                <option value="not_one_of">ist keiner von</option>
                                 <option value="contains">enthält</option>
                                 <option value="not_empty">nicht leer</option>
                                 <option value="empty">leer</option>
                                 <option value="status_is">Status ist</option>
                                 <option value="status_not">Status ungleich</option>
+                                <option value="has_upload">Dokument vorhanden</option>
+                                <option value="missing_upload">Dokument fehlt</option>
                             </select>
                         </div>
                     </div>
                     <div>
                         <label className="text-xs font-medium text-foreground">Wert</label>
-                        <input type="text" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="upload" className="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm" data-testid="condition-value-input" />
+                        {['empty', 'not_empty'].includes(form.operator) ? (
+                            <div className="mt-1 flex min-h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-muted-foreground">Kein Wert erforderlich</div>
+                        ) : ['one_of', 'not_one_of'].includes(form.operator) ? (
+                            <SearchableMultiSelect
+                                options={configuredValues}
+                                values={Array.isArray(form.value) ? form.value : (form.value ? [form.value] : [])}
+                                onChange={(value) => setForm({ ...form, value })}
+                                placeholder="Mehrere Werte auswählen"
+                                searchPlaceholder="Werte durchsuchen oder eingeben …"
+                                testId="condition-value-input"
+                                allowCustom
+                            />
+                        ) : configuredValues.length > 0 ? (
+                            <SearchableSelect
+                                options={configuredValues}
+                                value={Array.isArray(form.value) ? (form.value[0] || '') : form.value}
+                                onChange={(value) => setForm({ ...form, value })}
+                                placeholder="Wert auswählen"
+                                searchPlaceholder="Wert durchsuchen …"
+                                testId="condition-value-input"
+                                allowCustom
+                            />
+                        ) : (
+                            <input type="text" value={form.value || ''} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="Vergleichswert" className="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md" data-testid="condition-value-input" />
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-2 justify-between mt-5">

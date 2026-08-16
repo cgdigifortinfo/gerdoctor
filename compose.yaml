@@ -23,7 +23,7 @@ services:
       MONGO_URL: mongodb://mongo:27017
       DB_NAME: test_database
       JWT_SECRET: gerdoctor-local-dev-secret
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       LOCAL_STORAGE_ROOT: /var/lib/gerdoctor/uploads
       TMPDIR: /tmp
     volumes:

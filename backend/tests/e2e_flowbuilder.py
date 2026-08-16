@@ -116,6 +116,16 @@ async def goto_flow_view(page):
         await page.wait_for_timeout(1500)
 
 
+async def show_all_step_rows(page):
+    """Disable list pagination before assertions that compare the full survey."""
+    trigger = page.locator('[data-testid="page-size-admin-steps"]')
+    if await trigger.count() == 0:
+        return
+    await trigger.click()
+    await page.locator('[role="option"]').filter(has_text="Alle").last.click()
+    await page.wait_for_timeout(500)
+
+
 # ---------- The actual test ----------
 
 async def run_test():
@@ -171,8 +181,10 @@ async def run_test():
             # --- Case 2: Toggle view ---
             await page.locator('[data-testid="steps-view-list"]').click()
             await page.wait_for_timeout(800)
+            await show_all_step_rows(page)
             list_rows = await page.query_selector_all('[data-testid^="edit-step-"]')
-            assert len(list_rows) == len(original_snapshot), "List rows mismatch"
+            assert len(list_rows) == len(original_snapshot), \
+                f"List rows mismatch: expected {len(original_snapshot)}, got {len(list_rows)}"
             await page.locator('[data-testid="steps-view-flow"]').click()
             await page.wait_for_timeout(1500)
             print(f"  ✓ Case 2: view toggle works (list→flow→list)")

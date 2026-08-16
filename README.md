@@ -11,7 +11,7 @@ npm install --legacy-peer-deps
 npm start
 ```
 
-Das Frontend ist anschließend unter `http://localhost:3000` erreichbar, die API unter `http://localhost:8001/api/`.
+Das Frontend ist in der lokalen GerDoctor-Entwicklungsumgebung unter `http://localhost:3001` erreichbar, die API unter `http://localhost:8001/api/`. Der Browser verwendet `/api` auf demselben Host; CRACO leitet diese Requests lokal an Port `8001` weiter.
 
 ## Frontend
 

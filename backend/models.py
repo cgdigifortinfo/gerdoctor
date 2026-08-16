@@ -74,12 +74,30 @@ class PartnerUpdate(BaseModel):
         return v
 
 class StepFieldCreate(BaseModel):
+    id: Optional[str] = None
     name: str
     field_type: str
     label: str
     placeholder: Optional[str] = None
     required: bool = False
-    options: Optional[List[str]] = None
+    options: Optional[List[Any]] = None
+    help_text: Optional[str] = None
+    default_value: Optional[Any] = None
+    width: Optional[str] = "full"
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    alt_text: Optional[str] = None
+    caption: Optional[str] = None
+    heading_level: Optional[int] = None
+    accept: Optional[str] = None
+    multiple: Optional[bool] = None
+    rows: Optional[int] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    step: Optional[float] = None
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    validation_pattern: Optional[str] = None
 
 class StepCreate(BaseModel):
     title: str
@@ -88,6 +106,7 @@ class StepCreate(BaseModel):
     step_type: str
     survey_id: Optional[str] = None
     fields: Optional[List[StepFieldCreate]] = None
+    form_schema_version: int = 1
     filter_tag: Optional[str] = None
     skippable: bool = False
     skip_label: Optional[str] = None
@@ -119,6 +138,7 @@ class StepUpdate(BaseModel):
     step_type: Optional[str] = None
     survey_id: Optional[str] = None
     fields: Optional[List[StepFieldCreate]] = None
+    form_schema_version: Optional[int] = None
     filter_tag: Optional[str] = None
     skippable: Optional[bool] = None
     skip_label: Optional[str] = None

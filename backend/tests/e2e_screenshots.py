@@ -54,12 +54,32 @@ def _proxied_api_url(backend_url: str, request_url: str) -> str:
     return f"{backend_url.rstrip('/')}{parsed.path}{query}"
 
 
+def _browser_cors_headers(request_url: str, request_headers: dict, response_headers: dict) -> dict:
+    """Keep routed API responses readable when the test UI uses another host port."""
+    headers = dict(response_headers)
+    origin = request_headers.get("origin")
+    if not origin:
+        parsed = urlsplit(request_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+    headers["access-control-allow-origin"] = origin
+    headers["access-control-allow-credentials"] = "true"
+    headers["vary"] = "Origin"
+    return headers
+
+
 def install_api_proxy(browser_target, backend_url: str) -> None:
     """Proxy browser `/api` requests through Playwright's sync request client."""
 
     def forward(route):
         response = route.fetch(url=_proxied_api_url(backend_url, route.request.url))
-        route.fulfill(response=response)
+        route.fulfill(
+            response=response,
+            headers=_browser_cors_headers(
+                route.request.url,
+                route.request.headers,
+                response.headers,
+            ),
+        )
 
     browser_target.route("**/api/**", forward)
 
@@ -71,6 +91,13 @@ async def install_api_proxy_async(browser_target, backend_url: str) -> None:
         response = await route.fetch(
             url=_proxied_api_url(backend_url, route.request.url)
         )
-        await route.fulfill(response=response)
+        await route.fulfill(
+            response=response,
+            headers=_browser_cors_headers(
+                route.request.url,
+                route.request.headers,
+                response.headers,
+            ),
+        )
 
     await browser_target.route("**/api/**", forward)

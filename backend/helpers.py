@@ -388,6 +388,14 @@ def _evaluate_condition(cond: dict, order_map: dict) -> bool:
         return str(field_value) == str(expected)
     if op == "not_equals":
         return str(field_value) != str(expected)
+    if op in ("one_of", "not_one_of"):
+        expected_values = expected if isinstance(expected, list) else [expected]
+        normalized_expected = {str(value) for value in expected_values if value is not None}
+        if isinstance(field_value, list):
+            matches = any(str(value) in normalized_expected for value in field_value)
+        else:
+            matches = str(field_value) in normalized_expected
+        return matches if op == "one_of" else not matches
     if op == "contains":
         return str(expected) in str(field_value or "")
     if op == "not_empty":

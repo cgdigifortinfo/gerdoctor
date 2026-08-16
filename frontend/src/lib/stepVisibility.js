@@ -19,6 +19,18 @@ export function evaluateCondition(cond, stepDataByOrder) {
     switch (cond.operator) {
         case 'equals': return String(fieldValue) === String(expected);
         case 'not_equals': return String(fieldValue) !== String(expected);
+        case 'one_of': {
+            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
+            return Array.isArray(fieldValue)
+                ? fieldValue.some(value => expectedValues.includes(String(value)))
+                : expectedValues.includes(String(fieldValue));
+        }
+        case 'not_one_of': {
+            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
+            return Array.isArray(fieldValue)
+                ? !fieldValue.some(value => expectedValues.includes(String(value)))
+                : !expectedValues.includes(String(fieldValue));
+        }
         case 'contains': return String(fieldValue || '').includes(String(expected));
         case 'not_empty': return !!fieldValue && fieldValue !== '';
         case 'empty': return !fieldValue || fieldValue === '';

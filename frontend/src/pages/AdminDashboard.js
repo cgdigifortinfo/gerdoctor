@@ -26,6 +26,8 @@ import { Logo } from '../components/Logo';
 import StepsFlowBuilder from '../components/StepsFlowBuilder';
 import EmailTemplateEditor from '../components/admin/EmailTemplateEditor';
 import EventManagement from '../components/admin/EventManagement';
+import { SearchableMultiSelect, SearchableSelect } from '../components/admin/EntityPickers';
+import SurveyFormBuilder, { CONTENT_FIELD_TYPES } from '../components/admin/SurveyFormBuilder';
 import { PaginationControls, usePagination } from '../components/PaginationControls';
 
 export default function AdminDashboard() {
@@ -292,6 +294,7 @@ export default function AdminDashboard() {
             const payload = { ...stepData, survey_id: stepData.survey_id || activeSurveyId };
             if (editingStep?.id) {
                 await adminAPI.updateStep(editingStep.id, payload);
+                setSteps((current) => current.map((item) => item.id === editingStep.id ? { ...item, ...payload } : item));
                 toast.success('Step updated');
             } else {
                 await adminAPI.createStep(payload);
@@ -299,7 +302,7 @@ export default function AdminDashboard() {
             }
             setShowStepDialog(false);
             setEditingStep(null);
-            loadData();
+            await loadData();
         } catch (error) {
             toast.error(formatApiError(error));
         }
@@ -1021,7 +1024,9 @@ export default function AdminDashboard() {
                                                     action: form.action,
                                                     field: form.field || '',
                                                     operator: form.operator,
-                                                    value: form.value || '',
+                                                    value: form.value ?? '',
+                                                    target_step_order: form.action === 'redirect' ? target.order : null,
+                                                    message: form.message || '',
                                                 };
                                                 const updatedConditions = [...(target.conditions || []), newCondition];
                                                 await adminAPI.updateStep(target.id, { ...target, survey_id: target.survey_id || activeSurveyId, conditions: updatedConditions });
@@ -1039,7 +1044,11 @@ export default function AdminDashboard() {
                                                     action: updatedCond.action,
                                                     field: updatedCond.field || '',
                                                     operator: updatedCond.operator,
-                                                    value: updatedCond.value || '',
+                                                    value: updatedCond.value ?? '',
+                                                    target_step_order: updatedCond.action === 'redirect'
+                                                        ? (updatedCond.target_step_order ?? conds[condIndex].target_step_order ?? null)
+                                                        : null,
+                                                    message: updatedCond.message || '',
                                                 };
                                                 await adminAPI.updateStep(stepId, { ...step, survey_id: step.survey_id || activeSurveyId, conditions: conds });
                                                 toast.success('Condition aktualisiert');
@@ -1716,6 +1725,7 @@ export default function AdminDashboard() {
                 onSave={handleSaveStep}
                 existingSteps={steps}
                 surveys={surveys}
+                partners={partners}
                 activeSurveyId={activeSurveyId}
                 onSurveyChange={handleSurveyChange}
                 t={t}
@@ -2043,8 +2053,71 @@ function LinkUserDialog({ open, onClose, partner, users, onLink }) {
     );
 }
 
+const STEP_STATUS_OPTIONS = [
+    { value: 'pending', label: 'Ausstehend' },
+    { value: 'in_progress', label: 'In Bearbeitung' },
+    { value: 'completed', label: 'Abgeschlossen' },
+    { value: 'rejected', label: 'Abgelehnt' },
+    { value: 'skipped', label: 'Übersprungen' },
+];
+
+const CONDITION_OPERATOR_OPTIONS = [
+    { value: 'status_is', label: 'Status ist' },
+    { value: 'status_not', label: 'Status ist nicht' },
+    { value: 'equals', label: 'Ist gleich' },
+    { value: 'not_equals', label: 'Ist ungleich' },
+    { value: 'one_of', label: 'Ist einer von' },
+    { value: 'not_one_of', label: 'Ist keiner von' },
+    { value: 'contains', label: 'Enthält Text' },
+    { value: 'not_empty', label: 'Ist ausgefüllt' },
+    { value: 'empty', label: 'Ist leer' },
+    { value: 'has_upload', label: 'Dokument vorhanden' },
+    { value: 'missing_upload', label: 'Dokument fehlt' },
+];
+
+const CONDITION_ACTION_OPTIONS = [
+    { value: 'block', label: 'Schritt blockieren' },
+    { value: 'hide', label: 'Schritt ausblenden' },
+    { value: 'auto_complete', label: 'Automatisch abschließen' },
+    { value: 'allow_next', label: 'Zugriff erlauben' },
+    { value: 'redirect', label: 'Zu anderem Schritt weiterleiten' },
+];
+
+function optionValue(option) {
+    if (typeof option === 'string') return option;
+    return option?.value ?? option?.label ?? '';
+}
+
+function optionLabel(option) {
+    if (typeof option === 'string') return option;
+    return option?.label ?? option?.value ?? '';
+}
+
+function stepFieldOptions(selectedStep, includeStatus = true) {
+    const options = (selectedStep?.fields || []).map((field) => ({
+        value: field.name,
+        label: field.label || field.name,
+        description: `${field.name} · ${field.field_type || 'Feld'}`,
+        keywords: `${field.name} ${field.field_type || ''}`,
+    }));
+    if (includeStatus) {
+        options.unshift({
+            value: 'status',
+            label: 'Schrittstatus',
+            description: 'Systemfeld · pending, in_progress, completed …',
+            keywords: 'status abgeschlossen ausstehend system',
+        });
+    }
+    return options;
+}
+
+function withFallbackOption(options, value, labelPrefix = 'Bestehender Wert') {
+    if (value == null || value === '' || options.some((option) => String(option.value) === String(value))) return options;
+    return [...options, { value: String(value), label: `${labelPrefix}: ${value}` }];
+}
+
 // Step Dialog Component
-function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], activeSurveyId = '', onSurveyChange, t }) {
+function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], partners = [], activeSurveyId = '', onSurveyChange, t }) {
     const [formData, setFormData] = useState({
         title: '', description: '', order: existingSteps.length + 1,
         survey_id: activeSurveyId,
@@ -2056,8 +2129,6 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
         email_on_enter: false, email_on_edit: false, email_on_leave: false, is_active: true
     });
     const [translations, setTranslations] = useState({});
-    const [showFieldForm, setShowFieldForm] = useState(false);
-    const [editingField, setEditingField] = useState(null);
     const [activeSection, setActiveSection] = useState('basic');
 
     useEffect(() => {
@@ -2107,67 +2178,277 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
             [lang]: { ...(prev[lang] || {}), [field]: value }
         }));
     };
-    const handleAddField = (field) => {
-        if (editingField !== null) { const nf = [...formData.fields]; nf[editingField] = field; setFormData({ ...formData, fields: nf }); setEditingField(null); }
-        else { setFormData({ ...formData, fields: [...formData.fields, field] }); }
-        setShowFieldForm(false);
+    const handleFieldsChange = (fields) => {
+        const requiredFieldNames = fields
+            .filter((field) => field.required && !CONTENT_FIELD_TYPES.has(field.field_type) && field.field_type !== 'multiupload')
+            .map((field) => field.name)
+            .filter(Boolean);
+        setFormData((current) => ({ ...current, fields, required_fields: requiredFieldNames }));
     };
-    const handleRemoveField = (index) => { setFormData({ ...formData, fields: formData.fields.filter((_, i) => i !== index) }); };
+
+    const sortedReferenceSteps = useMemo(
+        () => [...existingSteps].sort((a, b) => a.order - b.order),
+        [existingSteps],
+    );
+    const stepOptions = useMemo(() => sortedReferenceSteps.map((candidate) => ({
+        value: String(candidate.order),
+        label: `${candidate.order}. ${candidate.title}`,
+        description: candidate.step_type === 'form'
+            ? `${candidate.fields?.length || 0} Formularfelder`
+            : candidate.step_type,
+        keywords: `${candidate.id || ''} ${candidate.step_type || ''}`,
+        disabled: candidate.id === step?.id,
+    })), [sortedReferenceSteps, step?.id]);
+    const surveyOptions = useMemo(() => surveys.map((survey) => ({
+        value: survey.id,
+        label: survey.name,
+        description: `/s/${survey.slug}`,
+        keywords: survey.slug,
+    })), [surveys]);
+    const partnerTagOptions = useMemo(() => {
+        const counts = new Map();
+        partners.forEach((partner) => (partner.tags || []).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1)));
+        return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right, 'de')).map(([tag, count]) => ({
+            value: tag,
+            label: tag,
+            description: `${count} passende${count === 1 ? 'r Partner' : ' Partner'}`,
+        }));
+    }, [partners]);
+    const currentFieldOptions = useMemo(
+        () => (formData.fields || []).map((field) => ({
+            value: field.name,
+            label: field.label || field.name,
+            description: `${field.name} · ${field.field_type || 'Feld'}`,
+        })),
+        [formData.fields],
+    );
+    const documentTypeOptions = useMemo(() => {
+        const values = new Set(formData.required_uploads || []);
+        [...sortedReferenceSteps, { fields: formData.fields }].forEach((candidate) => {
+            (candidate.fields || []).forEach((field) => {
+                if (field.field_type === 'multiupload') {
+                    (field.options || []).forEach((option) => values.add(String(optionValue(option))));
+                }
+            });
+        });
+        return [...values].filter(Boolean).sort((a, b) => a.localeCompare(b, 'de')).map((value) => ({ value, label: value }));
+    }, [formData.fields, formData.required_uploads, sortedReferenceSteps]);
+
+    const findStepByOrder = (order) => sortedReferenceSteps.find((candidate) => candidate.order === Number(order));
+    const findField = (selectedStep, fieldName) => (selectedStep?.fields || []).find((field) => field.name === fieldName);
+    const sourceFieldOptions = (sourceOrder, currentValue) => withFallbackOption(
+        stepFieldOptions(findStepByOrder(sourceOrder)),
+        currentValue,
+        'Nicht gefundenes Feld',
+    );
+    const conditionValueOptions = (condition) => {
+        if (condition.field === 'status' || ['status_is', 'status_not'].includes(condition.operator)) {
+            const current = Array.isArray(condition.value) ? condition.value : [condition.value];
+            return current.reduce((options, value) => withFallbackOption(options, value), STEP_STATUS_OPTIONS);
+        }
+        const sourceStep = findStepByOrder(condition.source_step_order);
+        const sourceField = findField(sourceStep, condition.field);
+        const configured = (sourceField?.options || []).map((option) => ({
+            value: String(optionValue(option)),
+            label: String(optionLabel(option)),
+        }));
+        const base = ['has_upload', 'missing_upload'].includes(condition.operator)
+            ? [...configured, ...documentTypeOptions.filter((option) => !configured.some((item) => item.value === option.value))]
+            : configured;
+        const current = Array.isArray(condition.value) ? condition.value : [condition.value];
+        return current.reduce((options, value) => withFallbackOption(options, value), base);
+    };
+    const conditionOperatorOptions = (condition) => {
+        const sourceField = findField(findStepByOrder(condition.source_step_order), condition.field);
+        let allowed;
+        if (condition.field === 'status') {
+            allowed = ['status_is', 'status_not'];
+        } else if (sourceField?.field_type === 'multiupload') {
+            allowed = ['has_upload', 'missing_upload', 'not_empty', 'empty'];
+        } else if ((sourceField?.options || []).length > 0 || sourceField?.field_type === 'decision') {
+            allowed = ['equals', 'not_equals', 'one_of', 'not_one_of', 'not_empty', 'empty'];
+        } else {
+            allowed = ['equals', 'not_equals', 'one_of', 'not_one_of', 'contains', 'not_empty', 'empty'];
+        }
+        if (condition.operator && !allowed.includes(condition.operator)) allowed.push(condition.operator);
+        return CONDITION_OPERATOR_OPTIONS.filter((option) => allowed.includes(option.value));
+    };
 
     // Mapping helpers
-    const addMapping = () => { setFormData({ ...formData, field_mappings: [...formData.field_mappings, { source_step_order: 1, source_field: '', target_field: '' }] }); };
-    const removeMapping = (i) => { setFormData({ ...formData, field_mappings: formData.field_mappings.filter((_, idx) => idx !== i) }); };
-    const updateMapping = (i, key, val) => { const m = [...formData.field_mappings]; m[i] = { ...m[i], [key]: key === 'source_step_order' ? parseInt(val) : val }; setFormData({ ...formData, field_mappings: m }); };
+    const addMapping = () => {
+        const source = sortedReferenceSteps.find((candidate) => candidate.id !== step?.id) || sortedReferenceSteps[0];
+        const sourceField = source?.fields?.[0]?.name || '';
+        setFormData((current) => ({
+            ...current,
+            field_mappings: [...current.field_mappings, {
+                source_step_order: source?.order || null,
+                source_field: sourceField,
+                target_field: current.fields?.[0]?.name || '',
+            }],
+        }));
+    };
+    const removeMapping = (i) => { setFormData((current) => ({ ...current, field_mappings: current.field_mappings.filter((_, idx) => idx !== i) })); };
+    const updateMapping = (i, patch) => {
+        setFormData((current) => {
+            const mappings = [...current.field_mappings];
+            mappings[i] = { ...mappings[i], ...patch };
+            return { ...current, field_mappings: mappings };
+        });
+    };
+    const changeMappingSource = (i, value) => {
+        const source = findStepByOrder(value);
+        updateMapping(i, {
+            source_step_order: value ? Number(value) : null,
+            source_field: source?.fields?.[0]?.name || '',
+        });
+    };
 
     // Condition helpers
-    const addCondition = () => { setFormData({ ...formData, conditions: [...formData.conditions, { source_step_order: 1, field: 'status', operator: 'status_is', value: 'completed', action: 'allow_next', target_step_order: null, message: '' }] }); };
-    const removeCondition = (i) => { setFormData({ ...formData, conditions: formData.conditions.filter((_, idx) => idx !== i) }); };
-    const updateCondition = (i, key, val) => { const c = [...formData.conditions]; c[i] = { ...c[i], [key]: ['source_step_order', 'target_step_order'].includes(key) ? (val ? parseInt(val) : null) : val }; setFormData({ ...formData, conditions: c }); };
-
-    // Required fields/uploads
-    const toggleRequiredField = (name) => {
-        const rf = formData.required_fields.includes(name) ? formData.required_fields.filter(f => f !== name) : [...formData.required_fields, name];
-        setFormData({ ...formData, required_fields: rf });
+    const addCondition = () => {
+        const source = [...sortedReferenceSteps].reverse().find((candidate) => candidate.order < formData.order)
+            || sortedReferenceSteps.find((candidate) => candidate.id !== step?.id)
+            || sortedReferenceSteps[0];
+        setFormData((current) => ({
+            ...current,
+            conditions: [...current.conditions, {
+                source_step_order: source?.order || null,
+                field: 'status',
+                operator: 'status_is',
+                value: 'completed',
+                action: 'block',
+                target_step_order: null,
+                message: 'Bitte schließen Sie zuerst den ausgewählten Schritt ab.',
+            }],
+        }));
     };
-    const [newReqUpload, setNewReqUpload] = useState('');
-    const addRequiredUpload = () => { if (newReqUpload && !formData.required_uploads.includes(newReqUpload)) { setFormData({ ...formData, required_uploads: [...formData.required_uploads, newReqUpload] }); setNewReqUpload(''); } };
-    const removeRequiredUpload = (u) => { setFormData({ ...formData, required_uploads: formData.required_uploads.filter(x => x !== u) }); };
+    const removeCondition = (i) => { setFormData((current) => ({ ...current, conditions: current.conditions.filter((_, idx) => idx !== i) })); };
+    const updateCondition = (i, patch) => {
+        setFormData((current) => {
+            const conditions = [...current.conditions];
+            conditions[i] = { ...conditions[i], ...patch };
+            return { ...current, conditions };
+        });
+    };
+    const changeConditionSource = (i, value) => updateCondition(i, {
+        source_step_order: value ? Number(value) : null,
+        field: 'status',
+        operator: 'status_is',
+        value: 'completed',
+    });
+    const changeConditionField = (i, fieldName) => {
+        const condition = formData.conditions[i];
+        const selectedField = findField(findStepByOrder(condition.source_step_order), fieldName);
+        if (fieldName === 'status') {
+            updateCondition(i, { field: fieldName, operator: 'status_is', value: 'completed' });
+        } else if (selectedField?.field_type === 'multiupload') {
+            updateCondition(i, { field: fieldName, operator: 'has_upload', value: optionValue(selectedField.options?.[0]) || '' });
+        } else {
+            updateCondition(i, { field: fieldName, operator: 'equals', value: optionValue(selectedField?.options?.[0]) || '' });
+        }
+    };
+    const changeConditionOperator = (i, operator) => {
+        const currentValue = formData.conditions[i].value;
+        if (['one_of', 'not_one_of'].includes(operator)) {
+            updateCondition(i, { operator, value: Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []) });
+        } else if (['empty', 'not_empty'].includes(operator)) {
+            updateCondition(i, { operator, value: '' });
+        } else {
+            updateCondition(i, { operator, value: Array.isArray(currentValue) ? (currentValue[0] || '') : currentValue });
+        }
+    };
 
-    const sectionBtnClass = (s) => `px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${activeSection === s ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`;
+    const sectionMeta = [
+        { id: 'basic', label: t('step_basic'), description: 'Identität, Typ und Dauer' },
+        ...((['partner_selection', 'partner_multiselection', 'milestone', 'display'].includes(formData.step_type))
+            ? [{ id: 'type', label: t('step_type_settings'), description: 'Verhalten dieses Schritttyps' }]
+            : []),
+        ...(['form', 'decision'].includes(formData.step_type) ? [{ id: 'fields', label: t('step_fields'), description: 'Formular visuell aufbauen', count: formData.fields.length }] : []),
+        { id: 'requirements', label: t('step_requirements'), description: 'Pflichtangaben und Dokumente', count: formData.required_fields.length + formData.required_uploads.length },
+        { id: 'mappings', label: t('step_mappings'), description: 'Daten automatisch übernehmen', count: formData.field_mappings.length },
+        { id: 'conditions', label: t('step_conditions'), description: 'Sichtbarkeit und Zugriff steuern', count: formData.conditions.length },
+        { id: 'notifications', label: t('step_notifications'), description: 'E-Mail-Auslöser und Inhalte' },
+        { id: 'translations', label: 'Englisch', description: 'Übersetzte Texte pflegen' },
+    ];
+    const currentSection = sectionMeta.find((section) => section.id === activeSection) || sectionMeta[0];
+    const previousStep = [...sortedReferenceSteps].reverse().find((candidate) => candidate.order < formData.order);
+    const uploadPresetStep = sortedReferenceSteps.find((candidate) => (candidate.fields || []).some((field) => field.field_type === 'multiupload'));
+    const uploadPresetField = (uploadPresetStep?.fields || []).find((field) => field.field_type === 'multiupload');
+    const choicePresetStep = sortedReferenceSteps.find((candidate) => (candidate.fields || []).some((field) => (field.options || []).length > 0 && field.field_type !== 'multiupload'));
+    const choicePresetField = (choicePresetStep?.fields || []).find((field) => (field.options || []).length > 0 && field.field_type !== 'multiupload');
+
+    const addConditionPreset = (preset) => {
+        setFormData((current) => ({
+            ...current,
+            conditions: [...current.conditions, { target_step_order: null, message: '', ...preset }],
+        }));
+    };
+
+    useEffect(() => {
+        if (activeSection === 'fields' && !['form', 'decision'].includes(formData.step_type)) setActiveSection('basic');
+        if (activeSection === 'type' && !['partner_selection', 'partner_multiselection', 'milestone', 'display'].includes(formData.step_type)) setActiveSection('basic');
+    }, [activeSection, formData.step_type]);
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>{step ? t('step_edit') : t('step_create')}</DialogTitle></DialogHeader>
-                
-                {/* Section tabs */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                    <button type="button" onClick={() => setActiveSection('basic')} className={sectionBtnClass('basic')}>{t('step_basic')}</button>
-                    {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection' || formData.step_type === 'milestone' || formData.step_type === 'display') && <button type="button" onClick={() => setActiveSection('type')} className={sectionBtnClass('type')}>{t('step_type_settings')}</button>}
-                    {formData.step_type === 'form' && <button type="button" onClick={() => setActiveSection('fields')} className={sectionBtnClass('fields')}>{t('step_fields')} ({formData.fields.length})</button>}
-                    <button type="button" onClick={() => setActiveSection('requirements')} className={sectionBtnClass('requirements')}>{t('step_requirements')}</button>
-                    <button type="button" onClick={() => setActiveSection('mappings')} className={sectionBtnClass('mappings')}>{t('step_mappings')} ({formData.field_mappings.length})</button>
-                    <button type="button" onClick={() => setActiveSection('conditions')} className={sectionBtnClass('conditions')}>{t('step_conditions')} ({formData.conditions.length})</button>
-                    <button type="button" onClick={() => setActiveSection('notifications')} className={sectionBtnClass('notifications')}>{t('step_notifications')}</button>
-                    <button type="button" onClick={() => setActiveSection('translations')} className={sectionBtnClass('translations')}>EN</button>
-                </div>
+            <DialogContent
+                className="flex h-[94vh] max-h-[980px] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 xl:max-w-[1500px]"
+                data-testid="step-editor-dialog"
+                onEscapeKeyDown={(event) => {
+                    if (document.querySelector('[data-entity-picker-open="true"]')) event.preventDefault();
+                }}
+            >
+                <DialogHeader className="border-b border-border px-6 py-5 pr-16">
+                    <DialogTitle>{step ? t('step_edit') : t('step_create')}</DialogTitle>
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                        <span>{formData.title || 'Neuer Schritt'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>Position {formData.order || '–'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{formData.step_type}</span>
+                    </div>
+                </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="grid min-h-0 flex-1 md:grid-cols-[240px_minmax(0,1fr)]">
+                        <aside className="border-b border-border bg-muted/35 p-3 md:border-b-0 md:border-r" aria-label="Editor-Bereiche">
+                            <nav className="grid grid-cols-2 gap-1 md:grid-cols-1">
+                                {sectionMeta.map((section) => (
+                                    <button
+                                        key={section.id}
+                                        type="button"
+                                        onClick={() => setActiveSection(section.id)}
+                                        className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${activeSection === section.id ? 'border-[var(--brand-primary)] bg-card text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-card hover:text-foreground'}`}
+                                        data-testid={`step-section-${section.id}`}
+                                    >
+                                        <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                                            {section.label}
+                                            {section.count > 0 && <span className="rounded-full bg-[var(--brand-primary)]/10 px-2 py-0.5 text-[11px] text-[var(--brand-primary)]">{section.count}</span>}
+                                        </span>
+                                        <span className="mt-0.5 hidden text-[11px] leading-4 text-muted-foreground md:block">{section.description}</span>
+                                    </button>
+                                ))}
+                            </nav>
+                        </aside>
+                        <section className="min-h-0 overflow-y-auto px-5 py-5 md:px-7" data-testid={`step-section-panel-${activeSection}`}>
+                            <div className="mb-5">
+                                <h3 className="text-lg font-semibold text-foreground">{currentSection.label}</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">{currentSection.description}</p>
+                            </div>
                     {/* BASIC */}
                     {activeSection === 'basic' && (
                         <div className="space-y-4">
                             <div>
                                 <Label>Survey</Label>
-                                <Select value={formData.survey_id || activeSurveyId} onValueChange={handleStepSurveyChange}>
-                                    <SelectTrigger className="mt-1" data-testid="step-survey-select">
-                                        <SelectValue placeholder="Survey wählen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {surveys.map(s => (
-                                            <SelectItem key={s.id} value={s.id}>{s.name} /s/{s.slug}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <div className="mt-1">
+                                    <SearchableSelect
+                                        options={surveyOptions}
+                                        value={formData.survey_id || activeSurveyId}
+                                        onChange={handleStepSurveyChange}
+                                        placeholder="Survey wählen"
+                                        searchPlaceholder="Survey nach Name oder URL suchen …"
+                                        testId="step-survey-select"
+                                    />
+                                </div>
                             </div>
                             <div><Label>{t('step_title')}</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
                             <div><Label>{t('step_description')}</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
@@ -2192,7 +2473,21 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     {/* TYPE SETTINGS */}
                     {activeSection === 'type' && (
                         <div className="space-y-4">
-                            {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && <div><Label>{t('step_filter_tag')}</Label><Input value={formData.filter_tag} onChange={(e) => setFormData({ ...formData, filter_tag: e.target.value })} className="mt-1" placeholder="z.B. Antragstellung" data-testid="step-filter-tag" /></div>}
+                            {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && (
+                                <div>
+                                    <Label>{t('step_filter_tag')}</Label>
+                                    <p className="mb-2 mt-1 text-xs text-muted-foreground">Nur Partner mit diesem Tag werden angeboten. Neue Tags können direkt angelegt werden.</p>
+                                    <SearchableSelect
+                                        options={withFallbackOption(partnerTagOptions, formData.filter_tag)}
+                                        value={formData.filter_tag}
+                                        onChange={(value) => setFormData({ ...formData, filter_tag: value })}
+                                        placeholder="Partner-Tag auswählen"
+                                        searchPlaceholder="Partner-Tags durchsuchen …"
+                                        testId="step-filter-tag"
+                                        allowCustom
+                                    />
+                                </div>
+                            )}
                             {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
                                 <>
                                     <div><Label>{t('step_pending_msg')}</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" /></div>
@@ -2204,48 +2499,43 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     )}
 
                     {/* FIELDS */}
-                    {activeSection === 'fields' && formData.step_type === 'form' && (
-                        <div>
-                            <div className="flex justify-between items-center mb-3"><Label>Formularfelder</Label><Button type="button" variant="outline" size="sm" onClick={() => { setEditingField(null); setShowFieldForm(true); }} data-testid="add-field-btn"><Plus size={16} className="mr-1" /> Feld hinzufügen</Button></div>
-                            <div className="space-y-2">
-                                {formData.fields.map((field, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-sm">
-                                        <div><span className="font-medium">{field.label}</span><span className="text-xs text-muted-foreground ml-2">({field.field_type})</span>{field.required && <span className="text-red-500 ml-1">*</span>}</div>
-                                        <div className="flex gap-2"><Button type="button" variant="ghost" size="sm" onClick={() => { setEditingField(index); setShowFieldForm(true); }}><Pencil size={16} /></Button><Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveField(index)} className="text-red-500"><X size={16} /></Button></div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                    {activeSection === 'fields' && ['form', 'decision'].includes(formData.step_type) && (
+                        <SurveyFormBuilder fields={formData.fields} onChange={handleFieldsChange} />
                     )}
 
                     {/* REQUIREMENTS */}
                     {activeSection === 'requirements' && (
                         <div className="space-y-4">
-                            <div>
-                                <Label className="mb-2 block">Pflichtfelder (zum Abschluss des Schritts)</Label>
-                                {formData.fields.length > 0 ? (
-                                    <div className="space-y-1">{formData.fields.map(f => (
-                                        <label key={f.name} className="flex items-center gap-2 p-2 bg-muted rounded-sm cursor-pointer hover:bg-muted/80">
-                                            <input type="checkbox" checked={formData.required_fields.includes(f.name)} onChange={() => toggleRequiredField(f.name)} className="rounded" />
-                                            <span className="text-sm">{f.label} ({f.name})</span>
-                                        </label>
-                                    ))}</div>
-                                ) : <p className="text-sm text-muted-foreground">Keine Felder definiert</p>}
+                            <div className="rounded-lg border border-border p-4">
+                                <Label className="block">Pflichtfelder</Label>
+                                <p className="mb-3 mt-1 text-xs text-muted-foreground">Mehrere Formularfelder durchsuchen und auswählen. Nutzer können den Schritt erst abschließen, wenn alle ausgewählten Felder ausgefüllt sind.</p>
+                                <SearchableMultiSelect
+                                    options={formData.required_fields.reduce((options, value) => withFallbackOption(options, value), currentFieldOptions)}
+                                    values={formData.required_fields}
+                                    onChange={(values) => setFormData((current) => ({
+                                        ...current,
+                                        required_fields: values,
+                                        fields: current.fields.map((field) => CONTENT_FIELD_TYPES.has(field.field_type) || field.field_type === 'multiupload'
+                                            ? field
+                                            : { ...field, required: values.includes(field.name) }),
+                                    }))}
+                                    placeholder={formData.fields.length > 0 ? 'Pflichtfelder auswählen' : 'Noch keine Formularfelder definiert'}
+                                    searchPlaceholder="Formularfelder durchsuchen …"
+                                    testId="step-required-fields"
+                                />
                             </div>
-                            <div>
-                                <Label className="mb-2 block">Erforderliche Dokument-Uploads</Label>
-                                <div className="space-y-2">
-                                    {formData.required_uploads.map(u => (
-                                        <div key={u} className="flex items-center justify-between p-2 bg-muted rounded-sm">
-                                            <span className="text-sm">{u}</span>
-                                            <Button type="button" variant="ghost" size="sm" onClick={() => removeRequiredUpload(u)} className="text-red-500 h-6 w-6 p-0"><X size={14} /></Button>
-                                        </div>
-                                    ))}
-                                    <div className="flex gap-2">
-                                        <Input value={newReqUpload} onChange={(e) => setNewReqUpload(e.target.value)} placeholder="z.B. Visum" className="flex-1" />
-                                        <Button type="button" variant="outline" size="sm" onClick={addRequiredUpload}><Plus size={14} /></Button>
-                                    </div>
-                                </div>
+                            <div className="rounded-lg border border-border p-4">
+                                <Label className="block">Erforderliche Dokumenttypen</Label>
+                                <p className="mb-3 mt-1 text-xs text-muted-foreground">Dokumenttypen aus Upload-Feldern auswählen oder einen neuen Namen eingeben. Mehrfachauswahl ist möglich.</p>
+                                <SearchableMultiSelect
+                                    options={documentTypeOptions}
+                                    values={formData.required_uploads}
+                                    onChange={(values) => setFormData({ ...formData, required_uploads: values })}
+                                    placeholder="Dokumenttypen auswählen"
+                                    searchPlaceholder="Dokumenttyp suchen oder neu eingeben …"
+                                    testId="step-required-uploads"
+                                    allowCustom
+                                />
                             </div>
                         </div>
                     )}
@@ -2253,88 +2543,196 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     {/* MAPPINGS */}
                     {activeSection === 'mappings' && (
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center"><Label>Feld-Mappings (Daten aus anderen Schritten vorausfüllen)</Label><Button type="button" variant="outline" size="sm" onClick={addMapping}><Plus size={14} className="mr-1" /> Mapping</Button></div>
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <Label>Automatische Feldübernahme</Label>
+                                    <p className="mt-1 text-xs text-muted-foreground">Übernimmt einen Wert aus einem anderen Schritt in ein Feld dieses Schritts.</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={addMapping} data-testid="add-field-mapping"><Plus size={14} className="mr-1" /> Mapping</Button>
+                            </div>
                             {formData.field_mappings.map((m, i) => (
-                                <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 p-3 bg-muted rounded-sm items-end">
-                                    <div><Label className="text-xs">Quell-Schritt Nr.</Label><Input type="number" min="1" value={m.source_step_order || ''} onChange={(e) => updateMapping(i, 'source_step_order', e.target.value)} className="h-8 text-sm" /></div>
-                                    <div><Label className="text-xs">Quell-Feld</Label><Input value={m.source_field || ''} onChange={(e) => updateMapping(i, 'source_field', e.target.value)} className="h-8 text-sm" placeholder="z.B. name" /></div>
-                                    <div><Label className="text-xs">Ziel-Feld</Label><Input value={m.target_field || ''} onChange={(e) => updateMapping(i, 'target_field', e.target.value)} className="h-8 text-sm" placeholder="z.B. applicant_name" /></div>
-                                    <Button type="button" variant="ghost" size="sm" onClick={() => removeMapping(i)} className="text-red-500 h-8 w-8 p-0"><Trash size={14} /></Button>
+                                <div key={i} className="rounded-lg border border-border bg-card p-4" data-testid={`field-mapping-${i}`}>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <p className="text-sm font-semibold">Mapping {i + 1}</p>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => removeMapping(i)} className="h-8 text-red-500"><Trash size={14} className="mr-1" /> Entfernen</Button>
+                                    </div>
+                                    <div className="grid gap-3 lg:grid-cols-3">
+                                        <div>
+                                            <Label className="text-xs">Wert aus Schritt</Label>
+                                            <SearchableSelect
+                                                options={withFallbackOption(stepOptions, m.source_step_order, 'Nicht gefundener Schritt')}
+                                                value={m.source_step_order == null ? '' : String(m.source_step_order)}
+                                                onChange={(value) => changeMappingSource(i, value)}
+                                                placeholder="Quell-Schritt auswählen"
+                                                searchPlaceholder="Schritt suchen …"
+                                                testId={`mapping-source-step-${i}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs">Quellfeld</Label>
+                                            <SearchableSelect
+                                                options={sourceFieldOptions(m.source_step_order, m.source_field).filter((option) => option.value !== 'status')}
+                                                value={m.source_field || ''}
+                                                onChange={(value) => updateMapping(i, { source_field: value })}
+                                                placeholder="Quellfeld auswählen"
+                                                searchPlaceholder="Feld suchen …"
+                                                testId={`mapping-source-field-${i}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs">Zielfeld in diesem Schritt</Label>
+                                            <SearchableSelect
+                                                options={withFallbackOption(currentFieldOptions, m.target_field, 'Nicht gefundenes Feld')}
+                                                value={m.target_field || ''}
+                                                onChange={(value) => updateMapping(i, { target_field: value })}
+                                                placeholder="Zielfeld auswählen"
+                                                searchPlaceholder="Zielfeld suchen …"
+                                                testId={`mapping-target-field-${i}`}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
-                            {formData.field_mappings.length === 0 && <p className="text-sm text-muted-foreground p-4 bg-muted rounded-sm text-center">Keine Mappings konfiguriert</p>}
+                            {formData.field_mappings.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Keine Mappings konfiguriert. Mit „Mapping“ können Daten ohne erneute Eingabe übernommen werden.</p>}
                         </div>
                     )}
 
                     {/* CONDITIONS */}
                     {activeSection === 'conditions' && (
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center"><Label>Bedingungen (Zugangssteuerung basierend auf vorherigen Schritten)</Label><Button type="button" variant="outline" size="sm" onClick={addCondition}><Plus size={14} className="mr-1" /> Bedingung</Button></div>
-                            
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <Label>Regeln für diesen Schritt</Label>
+                                    <p className="mt-1 text-xs text-muted-foreground">Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={addCondition} data-testid="add-condition"><Plus size={14} className="mr-1" /> Regel</Button>
+                            </div>
+
                             {/* Presets */}
-                            <div className="p-3 bg-[var(--brand-primary)]/5 border border-[var(--brand-primary)]/20 rounded-sm">
-                                <p className="text-xs font-semibold text-[var(--brand-primary)] mb-2">Vorlagen (klicken zum Hinzufügen)</p>
+                            <div className="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4">
+                                <p className="mb-2 text-xs font-semibold text-[var(--brand-primary)]">Schnellstart mit sinnvoll vorbelegten Regeln</p>
                                 <div className="flex flex-wrap gap-2">
                                     {[
-                                        { label: 'Vorheriger Schritt abgeschlossen', preset: { source_step_order: Math.max(1, formData.order - 1), field: 'status', operator: 'status_not', value: 'completed', action: 'block', message: 'Bitte schließen Sie zuerst den vorherigen Schritt ab.' } },
-                                        { label: 'Dokument vorhanden', preset: { source_step_order: 1, field: 'documents', operator: 'has_upload', value: 'Visum', action: 'allow_next', message: 'Visum liegt vor.' } },
-                                        { label: 'Dokument fehlt → blockieren', preset: { source_step_order: 1, field: 'documents', operator: 'missing_upload', value: 'Visum', action: 'block', message: 'Bitte laden Sie zuerst Ihr Visum hoch.' } },
-                                        { label: 'Feld ausgefüllt', preset: { source_step_order: 1, field: 'field_of_study', operator: 'not_empty', value: '', action: 'allow_next', message: '' } },
-                                        { label: 'Bestimmtes Fachgebiet', preset: { source_step_order: 1, field: 'field_of_study', operator: 'equals', value: 'Allgemeinmedizin', action: 'allow_next', message: 'Nur für Allgemeinmedizin.' } },
-                                        { label: 'Weiterleitung zu Schritt', preset: { source_step_order: 1, field: 'status', operator: 'status_is', value: 'completed', action: 'redirect', target_step_order: formData.order + 1, message: 'Weiterleitung...' } },
-                                    ].map((p, i) => (
-                                        <button key={i} type="button" onClick={() => setFormData({ ...formData, conditions: [...formData.conditions, { ...p.preset, target_step_order: p.preset.target_step_order || null }] })}
-                                            className="px-2 py-1 text-xs bg-card border border-border rounded-sm hover:bg-muted transition-colors" data-testid={`condition-preset-${i}`}>
+                                        previousStep && { label: 'Vorherigen Schritt voraussetzen', preset: { source_step_order: previousStep.order, field: 'status', operator: 'status_not', value: 'completed', action: 'block', message: `Bitte schließen Sie zuerst „${previousStep.title}“ ab.` } },
+                                        uploadPresetStep && uploadPresetField && { label: 'Fehlendes Dokument blockiert', preset: { source_step_order: uploadPresetStep.order, field: uploadPresetField.name, operator: 'missing_upload', value: optionValue(uploadPresetField.options?.[0]) || '', action: 'block', message: 'Bitte laden Sie zuerst das erforderliche Dokument hoch.' } },
+                                        choicePresetStep && choicePresetField && { label: 'Mehrere Antworten zulassen', preset: { source_step_order: choicePresetStep.order, field: choicePresetField.name, operator: 'one_of', value: (choicePresetField.options || []).slice(0, 2).map(optionValue), action: 'allow_next', message: '' } },
+                                        previousStep && { label: 'Nach Abschluss weiterleiten', preset: { source_step_order: previousStep.order, field: 'status', operator: 'status_is', value: 'completed', action: 'redirect', target_step_order: sortedReferenceSteps.find((candidate) => candidate.order > formData.order)?.order || null, message: '' } },
+                                    ].filter(Boolean).map((p, i) => (
+                                        <button key={p.label} type="button" onClick={() => addConditionPreset(p.preset)}
+                                            className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted" data-testid={`condition-preset-${i}`}>
                                             {p.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            <p className="text-xs text-muted-foreground">Wenn eine Bedingung zutrifft, wird die konfigurierte Aktion ausgeführt.</p>
-                            {formData.conditions.map((c, i) => (
-                                <div key={i} className="p-3 bg-muted rounded-sm space-y-2 border border-border">
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        <div><Label className="text-xs">Quell-Schritt Nr.</Label><Input type="number" min="1" value={c.source_step_order || ''} onChange={(e) => updateCondition(i, 'source_step_order', e.target.value)} className="h-8 text-sm" /></div>
-                                        <div><Label className="text-xs">Feld</Label><Input value={c.field || ''} onChange={(e) => updateCondition(i, 'field', e.target.value)} className="h-8 text-sm" placeholder="status / feldname" /></div>
-                                        <div><Label className="text-xs">Operator</Label>
-                                            <Select value={c.operator} onValueChange={(val) => updateCondition(i, 'operator', val)}>
-                                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="status_is">Status ist</SelectItem>
-                                                    <SelectItem value="status_not">Status ist nicht</SelectItem>
-                                                    <SelectItem value="equals">Gleich</SelectItem>
-                                                    <SelectItem value="not_equals">Ungleich</SelectItem>
-                                                    <SelectItem value="contains">Enthält</SelectItem>
-                                                    <SelectItem value="not_empty">Nicht leer</SelectItem>
-                                                    <SelectItem value="empty">Leer</SelectItem>
-                                                    <SelectItem value="has_upload">Hat Upload</SelectItem>
-                                                    <SelectItem value="missing_upload">Fehlt Upload</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                            {formData.conditions.map((c, i) => {
+                                const valueOptions = conditionValueOptions(c);
+                                const actionLabel = CONDITION_ACTION_OPTIONS.find((option) => option.value === c.action)?.label || c.action;
+                                return (
+                                    <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid={`condition-card-${i}`}>
+                                        <div className="mb-4 flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-semibold">Regel {i + 1}</p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">Bei Treffer: {actionLabel}</p>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => removeCondition(i)} className="h-8 text-red-500"><Trash size={14} className="mr-1" /> Entfernen</Button>
                                         </div>
-                                        <div><Label className="text-xs">Wert</Label><Input value={c.value || ''} onChange={(e) => updateCondition(i, 'value', e.target.value)} className="h-8 text-sm" placeholder="completed / Visum" /></div>
-                                    </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
-                                        <div><Label className="text-xs">Aktion</Label>
-                                            <Select value={c.action} onValueChange={(val) => updateCondition(i, 'action', val)}>
-                                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="block">Blockieren</SelectItem>
-                                                    <SelectItem value="hide">Ausblenden</SelectItem>
-                                                    <SelectItem value="auto_complete">Auto-Abschließen</SelectItem>
-                                                    <SelectItem value="allow_next">Weiter erlauben</SelectItem>
-                                                    <SelectItem value="redirect">Zu Schritt weiterleiten</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+
+                                        <div className="grid gap-3 lg:grid-cols-2">
+                                            <div>
+                                                <Label className="text-xs">1. Schritt auswählen</Label>
+                                                <SearchableSelect
+                                                    options={withFallbackOption(stepOptions, c.source_step_order, 'Nicht gefundener Schritt')}
+                                                    value={c.source_step_order == null ? '' : String(c.source_step_order)}
+                                                    onChange={(value) => changeConditionSource(i, value)}
+                                                    placeholder="Quell-Schritt auswählen"
+                                                    searchPlaceholder="Schritt nach Nummer, Titel oder Typ suchen …"
+                                                    testId={`condition-source-step-${i}`}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs">2. Status oder Feld auswählen</Label>
+                                                <SearchableSelect
+                                                    options={sourceFieldOptions(c.source_step_order, c.field)}
+                                                    value={c.field || ''}
+                                                    onChange={(value) => changeConditionField(i, value)}
+                                                    placeholder="Feld auswählen"
+                                                    searchPlaceholder="Feld nach Name oder Typ suchen …"
+                                                    testId={`condition-source-field-${i}`}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs">3. Vergleich</Label>
+                                                <Select value={c.operator} onValueChange={(value) => changeConditionOperator(i, value)}>
+                                                    <SelectTrigger className="min-h-10" data-testid={`condition-operator-${i}`}><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {conditionOperatorOptions(c).map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs">4. Vergleichswert</Label>
+                                                {['empty', 'not_empty'].includes(c.operator) ? (
+                                                    <div className="flex min-h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-muted-foreground">Kein Wert erforderlich</div>
+                                                ) : ['one_of', 'not_one_of'].includes(c.operator) ? (
+                                                    <SearchableMultiSelect
+                                                        options={valueOptions}
+                                                        values={Array.isArray(c.value) ? c.value : (c.value ? [c.value] : [])}
+                                                        onChange={(values) => updateCondition(i, { value: values })}
+                                                        placeholder="Mehrere Werte auswählen"
+                                                        searchPlaceholder="Werte durchsuchen oder eingeben …"
+                                                        testId={`condition-values-${i}`}
+                                                        allowCustom
+                                                    />
+                                                ) : valueOptions.length > 0 ? (
+                                                    <SearchableSelect
+                                                        options={valueOptions}
+                                                        value={Array.isArray(c.value) ? (c.value[0] || '') : (c.value || '')}
+                                                        onChange={(value) => updateCondition(i, { value })}
+                                                        placeholder="Wert auswählen"
+                                                        searchPlaceholder="Wert durchsuchen …"
+                                                        testId={`condition-value-${i}`}
+                                                        allowCustom
+                                                    />
+                                                ) : (
+                                                    <Input value={c.value || ''} onChange={(event) => updateCondition(i, { value: event.target.value })} placeholder="Vergleichswert eingeben" data-testid={`condition-value-input-${i}`} />
+                                                )}
+                                            </div>
                                         </div>
-                                        {c.action === 'redirect' && <div><Label className="text-xs">Ziel-Schritt Nr.</Label><Input type="number" min="1" value={c.target_step_order || ''} onChange={(e) => updateCondition(i, 'target_step_order', e.target.value)} className="h-8 text-sm" /></div>}
-                                        <div><Label className="text-xs">Nachricht</Label><Input value={c.message || ''} onChange={(e) => updateCondition(i, 'message', e.target.value)} className="h-8 text-sm" placeholder="Optionale Nachricht" /></div>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => removeCondition(i)} className="text-red-500 h-8"><Trash size={14} /></Button>
+
+                                        <div className="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2">
+                                            <div>
+                                                <Label className="text-xs">5. Aktion bei Treffer</Label>
+                                                <Select value={c.action} onValueChange={(value) => updateCondition(i, { action: value, target_step_order: value === 'redirect' ? c.target_step_order : null })}>
+                                                    <SelectTrigger className="min-h-10" data-testid={`condition-action-${i}`}><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {CONDITION_ACTION_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            {c.action === 'redirect' && (
+                                                <div>
+                                                    <Label className="text-xs">Ziel-Schritt</Label>
+                                                    <SearchableSelect
+                                                        options={withFallbackOption(stepOptions, c.target_step_order, 'Nicht gefundener Schritt')}
+                                                        value={c.target_step_order == null ? '' : String(c.target_step_order)}
+                                                        onChange={(value) => updateCondition(i, { target_step_order: value ? Number(value) : null })}
+                                                        placeholder="Ziel-Schritt auswählen"
+                                                        searchPlaceholder="Ziel-Schritt suchen …"
+                                                        testId={`condition-target-step-${i}`}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className={c.action === 'redirect' ? 'lg:col-span-2' : ''}>
+                                                <Label className="text-xs">Hinweis für Nutzer (optional)</Label>
+                                                <Textarea value={c.message || ''} onChange={(event) => updateCondition(i, { message: event.target.value })} className="mt-1 min-h-[68px]" placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird." data-testid={`condition-message-${i}`} />
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                            {formData.conditions.length === 0 && <p className="text-sm text-muted-foreground p-4 bg-muted rounded-sm text-center">Keine Bedingungen konfiguriert. Alle Benutzer können diesen Schritt erreichen.</p>}
+                                );
+                            })}
+                            {formData.conditions.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Keine Regeln konfiguriert. Dieser Schritt ist ohne zusätzliche Einschränkung erreichbar.</p>}
                         </div>
                     )}
 
@@ -2421,84 +2819,19 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     )}
 
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                        </section>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-6 py-4">
+                        <p className="hidden text-xs text-muted-foreground sm:block">Änderungen werden erst mit „Speichern“ übernommen.</p>
+                        <div className="ml-auto flex gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
                         <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
+                        </div>
                     </div>
                 </form>
-
-                {showFieldForm && <FieldForm field={editingField !== null ? formData.fields[editingField] : null} onSave={handleAddField} onCancel={() => { setShowFieldForm(false); setEditingField(null); }} />}
             </DialogContent>
         </Dialog>
-    );
-}
-
-function FieldForm({ field, onSave, onCancel }) {
-    const [data, setData] = useState({
-        name: field?.name || '', field_type: field?.field_type || 'text',
-        label: field?.label || '', placeholder: field?.placeholder || '',
-        required: field?.required || false, options: field?.options || []
-    });
-    const [optionsText, setOptionsText] = useState((field?.options || []).join('\n'));
-
-    const handleSubmit = () => {
-        const options = ['select', 'selectbox', 'multiupload'].includes(data.field_type) ? optionsText.split('\n').filter(o => o.trim()) : undefined;
-        onSave({ ...data, options });
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card p-6 rounded-sm w-full max-w-md">
-                <h3 className="font-semibold mb-4">{field ? 'Edit Field' : 'Add Field'}</h3>
-                <div className="space-y-4">
-                    <div>
-                        <Label>Field Name (ID)</Label>
-                        <Input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value.toLowerCase().replace(/\s/g, '_') })} className="mt-1" placeholder="e.g., phone_number" data-testid="field-name-input" />
-                    </div>
-                    <div>
-                        <Label>Label</Label>
-                        <Input value={data.label} onChange={(e) => setData({ ...data, label: e.target.value })} className="mt-1" placeholder="e.g., Phone Number" data-testid="field-label-input" />
-                    </div>
-                    <div>
-                        <Label>Type</Label>
-                        <Select value={data.field_type} onValueChange={(val) => setData({ ...data, field_type: val })}>
-                            <SelectTrigger className="mt-1" data-testid="field-type-select"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="text">Text</SelectItem>
-                                <SelectItem value="email">Email</SelectItem>
-                                <SelectItem value="phone">Phone</SelectItem>
-                                <SelectItem value="textarea">Text Area</SelectItem>
-                                <SelectItem value="select">Dropdown</SelectItem>
-                                <SelectItem value="selectbox">Selectbox</SelectItem>
-                                <SelectItem value="date">Date</SelectItem>
-                                <SelectItem value="file">File Upload</SelectItem>
-                                <SelectItem value="multiupload">Multi-Upload</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label>Placeholder</Label>
-                        <Input value={data.placeholder} onChange={(e) => setData({ ...data, placeholder: e.target.value })} className="mt-1" data-testid="field-placeholder-input" />
-                    </div>
-                    {(data.field_type === 'select' || data.field_type === 'selectbox' || data.field_type === 'multiupload') && (
-                        <div>
-                            <Label>Options (one per line){data.field_type === 'multiupload' ? ' - Dokumenttypen' : ''}</Label>
-                            <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} className="mt-1" placeholder={"Option 1\nOption 2\nOption 3"} data-testid="field-options-input" />
-                        </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                        <Label>Required</Label>
-                        <Switch checked={data.required} onCheckedChange={(val) => setData({ ...data, required: val })} />
-                    </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                    <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-field-btn">
-                        {field ? 'Update' : 'Add'} Field
-                    </Button>
-                </div>
-            </div>
-        </div>
     );
 }
 

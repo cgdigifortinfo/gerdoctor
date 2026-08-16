@@ -19,6 +19,11 @@ import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 import { JourneyProgressIndicator } from '../components/JourneyProgressIndicator';
+import { sanitizeHtml } from '../lib/sanitizeHtml';
+
+const CONTENT_FIELD_TYPES = new Set(['heading', 'paragraph', 'html', 'image', 'divider']);
+const optionValue = (option) => typeof option === 'object' && option !== null ? String(option.value ?? option.label ?? '') : String(option ?? '');
+const optionLabel = (option) => typeof option === 'object' && option !== null ? String(option.label ?? option.value ?? '') : String(option ?? '');
 
 // Evaluate a single condition against all step data
 function evaluateCondition(cond, allStepData) {
@@ -29,6 +34,18 @@ function evaluateCondition(cond, allStepData) {
     switch (cond.operator) {
         case 'equals': return String(fieldValue) === String(expected);
         case 'not_equals': return String(fieldValue) !== String(expected);
+        case 'one_of': {
+            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
+            return Array.isArray(fieldValue)
+                ? fieldValue.some(value => expectedValues.includes(String(value)))
+                : expectedValues.includes(String(fieldValue));
+        }
+        case 'not_one_of': {
+            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
+            return Array.isArray(fieldValue)
+                ? !fieldValue.some(value => expectedValues.includes(String(value)))
+                : !expectedValues.includes(String(fieldValue));
+        }
         case 'contains': return String(fieldValue).includes(String(expected));
         case 'not_empty': return !!fieldValue && fieldValue !== '';
         case 'empty': return !fieldValue || fieldValue === '';
@@ -268,6 +285,19 @@ export default function UserDashboard() {
         } catch { toast.error('Fehler beim Hochladen'); }
     };
 
+    const handleFileSelection = async (field, fileList) => {
+        const files = [...(fileList || [])];
+        if (!files.length) return;
+        if (!field.multiple) return handleFileUpload(field.name, files[0]);
+        try {
+            const responses = await Promise.all(files.map((file) => filesAPI.upload(file)));
+            const uploaded = responses.map((response) => response.data);
+            setUploadedFiles((current) => ({ ...current, [field.name]: uploaded }));
+            setFormData((current) => ({ ...current, [field.name]: uploaded.map((file) => file.id) }));
+            toast.success(`${uploaded.length} Dateien hochgeladen`);
+        } catch { toast.error('Fehler beim Hochladen'); }
+    };
+
     const handleAddMultiuploadEntry = (fieldName) => {
         setFormData(prev => ({ ...prev, [fieldName]: [...(prev[fieldName] || []), { file_id: '', document_type: '' }] }));
     };
@@ -294,11 +324,16 @@ export default function UserDashboard() {
         const currentStep = visibleSteps[currentStepIndex];
         if (!currentStep) return true;
         const errors = [];
-        const reqFields = currentStep.required_fields || [];
+        const reqFields = [...new Set([
+            ...(currentStep.required_fields || []),
+            ...(currentStep.fields || [])
+                .filter((field) => field.required && !CONTENT_FIELD_TYPES.has(field.field_type) && field.field_type !== 'multiupload')
+                .map((field) => field.name),
+        ])];
         const reqUploads = currentStep.required_uploads || [];
         for (const rf of reqFields) {
             const val = formData[rf];
-            if (!val || (typeof val === 'string' && !val.trim())) {
+            if (val === undefined || val === null || val === '' || (typeof val === 'string' && !val.trim()) || (Array.isArray(val) && val.length === 0) || val === false) {
                 const fieldDef = currentStep.fields?.find(f => f.name === rf);
                 errors.push(`${fieldDef?.label || rf} ist ein Pflichtfeld`);
             }
@@ -452,35 +487,59 @@ export default function UserDashboard() {
 
     // Render form field
     const renderFormField = (field) => {
-        const value = formData[field.name] || '';
+        const value = formData[field.name] ?? field.default_value ?? '';
         const hasError = validationErrors.some(e => e.includes(field.label || field.name));
         const currentStep = visibleSteps[currentStepIndex];
         const fieldLabel = (lang !== 'de' && currentStep?.translations?.[lang]?.field_labels?.[field.name]) || field.label;
 
+        if (field.field_type === 'divider') return <hr className="my-2 border-border" data-testid={`content-field-${field.name}`} />;
+        if (field.field_type === 'heading') {
+            const Heading = `h${Math.max(2, Math.min(Number(field.heading_level) || 2, 4))}`;
+            return <Heading className="font-semibold text-foreground" data-testid={`content-field-${field.name}`}>{field.content || fieldLabel}</Heading>;
+        }
+        if (field.field_type === 'paragraph') return <p className="whitespace-pre-wrap text-sm leading-6 text-foreground" data-testid={`content-field-${field.name}`}>{field.content || fieldLabel}</p>;
+        if (field.field_type === 'html') return <div className="prose prose-sm max-w-none dark:prose-invert" data-testid={`content-field-${field.name}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.content) }} />;
+        if (field.field_type === 'image') {
+            const imageUrl = /^(https?:\/\/|\/|data:image\/(png|gif|jpeg|webp);base64,)/i.test(field.image_url || '') ? field.image_url : '';
+            if (!imageUrl) return null;
+            return <figure data-testid={`content-field-${field.name}`}><img src={imageUrl} alt={field.alt_text || ''} className="max-h-[480px] w-full rounded-sm border border-border object-contain" />{field.caption && <figcaption className="mt-2 text-center text-xs text-muted-foreground">{field.caption}</figcaption>}</figure>;
+        }
+
         if (field.field_type === 'selectbox' || field.field_type === 'select') {
             return (
-                <div key={field.name} className="space-y-2">
+                <div className="space-y-2">
                     <Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label>
-                    <Select value={value} onValueChange={(val) => handleInputChange(field.name, val)}>
+                    <Select value={String(value)} onValueChange={(val) => handleInputChange(field.name, val)}>
                         <SelectTrigger className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`}>
-                            <SelectValue placeholder="Bitte wählen..." />
+                            <SelectValue placeholder={field.placeholder || 'Bitte wählen...'} />
                         </SelectTrigger>
-                        <SelectContent>{field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                        <SelectContent>{field.options?.map((opt, index) => <SelectItem key={`${optionValue(opt)}-${index}`} value={optionValue(opt)}>{optionLabel(opt)}</SelectItem>)}</SelectContent>
                     </Select>
+                    {field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}
                 </div>
             );
+        }
+        if (field.field_type === 'radio') {
+            return <fieldset className="space-y-2"><legend className="text-sm font-medium text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</legend><div className="space-y-2" data-testid={`form-field-${field.name}`}>{(field.options || []).map((option, index) => { const optionId = `${field.name}-${index}`; return <label key={optionId} htmlFor={optionId} className="flex cursor-pointer items-center gap-2 rounded-sm border border-border p-3 hover:border-[var(--brand-primary)]"><input id={optionId} type="radio" name={field.name} value={optionValue(option)} checked={String(value) === optionValue(option)} onChange={(event) => handleInputChange(field.name, event.target.value)} /><span className="text-sm">{optionLabel(option)}</span></label>; })}</div>{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</fieldset>;
+        }
+        if (field.field_type === 'multiselect') {
+            const selected = Array.isArray(value) ? value.map(String) : [];
+            return <fieldset className="space-y-2"><legend className="text-sm font-medium text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</legend><div className="space-y-2" data-testid={`form-field-${field.name}`}>{(field.options || []).map((option, index) => { const optionId = `${field.name}-${index}`; const optionKey = optionValue(option); return <label key={optionId} htmlFor={optionId} className="flex cursor-pointer items-center gap-2 rounded-sm border border-border p-3 hover:border-[var(--brand-primary)]"><input id={optionId} type="checkbox" value={optionKey} checked={selected.includes(optionKey)} onChange={(event) => handleInputChange(field.name, event.target.checked ? [...selected, optionKey] : selected.filter((item) => item !== optionKey))} /><span className="text-sm">{optionLabel(option)}</span></label>; })}</div>{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</fieldset>;
+        }
+        if (field.field_type === 'checkbox') {
+            return <div className="space-y-2"><label className={`flex cursor-pointer items-start gap-3 rounded-sm border p-3 ${hasError ? 'border-red-500' : 'border-border'}`}><input type="checkbox" className="mt-0.5" checked={!!value} onChange={(event) => handleInputChange(field.name, event.target.checked)} data-testid={`form-field-${field.name}`} /><span className="text-sm text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</span></label>{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</div>;
         }
         if (field.field_type === 'multiupload') {
             const entries = formData[field.name] || [];
             return (
-                <div key={field.name} className="space-y-3">
+                <div className="space-y-3">
                     <Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label>
                     {entries.map((entry, idx) => (
                         <div key={idx} className="flex flex-col sm:flex-row gap-2 p-3 bg-muted rounded-sm border border-border" data-testid={`multiupload-entry-${idx}`}>
                             <div className="flex-1">
                                 <Select value={entry.document_type} onValueChange={(val) => handleMultiuploadTypeChange(field.name, idx, val)}>
                                     <SelectTrigger className="border-border rounded-sm text-sm h-9"><SelectValue placeholder="Dokumenttyp..." /></SelectTrigger>
-                                    <SelectContent>{field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{field.options?.map((opt, optionIndex) => <SelectItem key={`${optionValue(opt)}-${optionIndex}`} value={optionValue(opt)}>{optionLabel(opt)}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                             <div className="flex-1">
@@ -488,7 +547,7 @@ export default function UserDashboard() {
                                     <div className="flex items-center gap-2 h-9 px-3 bg-card border border-border rounded-sm text-sm"><Check size={14} className="text-green-600" /><span className="truncate">{entry.filename || 'Hochgeladen'}</span></div>
                                 ) : (
                                     <div className="relative">
-                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => e.target.files[0] && handleMultiuploadFileChange(field.name, idx, e.target.files[0])} />
+                                        <input type="file" accept={field.accept} className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => e.target.files[0] && handleMultiuploadFileChange(field.name, idx, e.target.files[0])} />
                                         <div className="flex items-center gap-2 h-9 px-3 border border-dashed border-border rounded-sm text-sm text-muted-foreground cursor-pointer hover:border-[var(--brand-primary)]"><CloudArrowUp size={16} /> Datei auswählen</div>
                                     </div>
                                 )}
@@ -497,19 +556,20 @@ export default function UserDashboard() {
                         </div>
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => handleAddMultiuploadEntry(field.name)} className="border-border" data-testid={`add-multiupload-${field.name}`}><Plus size={16} className="mr-1" /> Dokument hinzufügen</Button>
+                    {field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}
                 </div>
             );
         }
         if (field.field_type === 'textarea') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Textarea value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm min-h-[100px] ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
+            return (<div className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Textarea value={value} rows={field.rows || 4} minLength={field.min_length ?? undefined} maxLength={field.max_length ?? undefined} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} />{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</div>);
         }
-        if (field.field_type === 'file') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone p-6 rounded-sm text-center cursor-pointer"><input type="file" id={field.name} className="hidden" onChange={(e) => e.target.files[0] && handleFileUpload(field.name, e.target.files[0])} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{uploadedFiles[field.name] ? <div className="flex items-center justify-center gap-2 text-[var(--brand-primary)]"><Check size={20} /><span>{uploadedFiles[field.name].filename}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>Klicken zum Hochladen</span></div>}</label></div></div>);
+        if (field.field_type === 'file' || field.field_type === 'upload') {
+            const uploaded = uploadedFiles[field.name];
+            const filenames = Array.isArray(uploaded) ? uploaded.map((item) => item.filename).join(', ') : uploaded?.filename;
+            return (<div className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><div className="dropzone rounded-sm p-6 text-center"><input type="file" id={field.name} className="hidden" accept={field.accept} multiple={!!field.multiple} onChange={(e) => handleFileSelection(field, e.target.files)} data-testid={`form-field-${field.name}`} /><label htmlFor={field.name} className="cursor-pointer">{filenames ? <div className="flex items-center justify-center gap-2 text-[var(--brand-primary)]"><Check size={20} /><span>{filenames}</span></div> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><CloudArrowUp size={32} /><span>{field.multiple ? 'Dateien auswählen' : 'Klicken zum Hochladen'}</span></div>}</label></div>{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</div>);
         }
-        if (field.field_type === 'date') {
-            return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type="date" value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
-        }
-        return (<div key={field.name} className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type={field.field_type === 'phone' ? 'tel' : field.field_type === 'email' ? 'email' : 'text'} value={value} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} /></div>);
+        const inputType = field.field_type === 'phone' ? 'tel' : ['email', 'date', 'time', 'number'].includes(field.field_type) ? field.field_type : 'text';
+        return (<div className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type={inputType} value={value} min={field.min ?? undefined} max={field.max ?? undefined} step={field.step ?? undefined} minLength={field.min_length ?? undefined} maxLength={field.max_length ?? undefined} pattern={field.validation_pattern || undefined} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} />{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</div>);
     };
 
     const renderStepContent = (scope = 'desktop') => {
@@ -642,7 +702,17 @@ export default function UserDashboard() {
                 );
                 return (
                     <div className="space-y-6">
-                        {currentStep.fields?.map(renderFormField)}
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-6" data-testid="survey-form-grid">
+                            {currentStep.fields?.map((field, index) => (
+                                <div
+                                    key={field.id || field.name || index}
+                                    className={field.width === 'third' ? 'md:col-span-2' : field.width === 'half' ? 'md:col-span-3' : 'md:col-span-6'}
+                                    data-field-type={field.field_type}
+                                >
+                                    {renderFormField(field)}
+                                </div>
+                            ))}
+                        </div>
                         {validationErrors.length > 0 && (
                             <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-sm" data-testid="validation-errors">
                                 <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">Bitte korrigieren Sie folgende Fehler:</p>

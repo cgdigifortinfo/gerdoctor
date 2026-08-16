@@ -1,11 +1,16 @@
 import axios from 'axios';
+import { API_BASE_URL } from './config';
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+const API = API_BASE_URL;
 
 // Helper to format API errors
 export function formatApiError(error) {
     const detail = error.response?.data?.detail;
-    if (detail == null) return "Something went wrong. Please try again.";
+    if (detail == null && error.request) return "Der Server ist nicht erreichbar. Bitte versuchen Sie es erneut.";
+    if (detail == null) return "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.";
+    if (detail === "Invalid email or password") return "E-Mail-Adresse oder Passwort ist falsch.";
+    if (detail === "Too many failed attempts. Try again later.") return "Zu viele fehlgeschlagene Versuche. Bitte versuchen Sie es später erneut.";
+    if (detail === "Invalid or expired token" || detail === "Token expired") return "Der Link ist ungültig oder abgelaufen.";
     if (typeof detail === "string") return detail;
     if (Array.isArray(detail))
         return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");

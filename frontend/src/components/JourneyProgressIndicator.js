@@ -91,6 +91,16 @@ function computeDecisionBranches(currentStep, allSteps) {
                 switch (c.operator) {
                     case 'equals': match = String(fv) === String(expected); break;
                     case 'not_equals': match = String(fv) !== String(expected); break;
+                    case 'one_of': {
+                        const values = (Array.isArray(expected) ? expected : [expected]).map(String);
+                        match = Array.isArray(fv) ? fv.some((value) => values.includes(String(value))) : values.includes(String(fv));
+                        break;
+                    }
+                    case 'not_one_of': {
+                        const values = (Array.isArray(expected) ? expected : [expected]).map(String);
+                        match = Array.isArray(fv) ? !fv.some((value) => values.includes(String(value))) : !values.includes(String(fv));
+                        break;
+                    }
                     case 'empty': match = !fv || fv === ''; break;
                     case 'not_empty': match = !!fv && fv !== ''; break;
                     default: match = false;

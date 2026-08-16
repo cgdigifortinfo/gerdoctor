@@ -44,6 +44,10 @@ from helpers import (
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
 )
+from form_builder import (
+    CONTENT_FIELD_TYPES, FORM_SCHEMA_VERSION,
+    migrate_database_form_configs, normalize_step_field,
+)
 from email_template_defaults import DEFAULT_TEMPLATES
 from event_system import (
     ensure_event_configs, emit_domain_event, process_domain_event,
@@ -287,11 +291,15 @@ async def forgot_password(data: ForgotPassword):
     if not user:
         return {"message": "If an account exists, a reset link has been sent"}
     token = secrets.token_urlsafe(32)
+    await db.password_reset_tokens.update_many(
+        {"user_id": str(user["_id"]), "used": False},
+        {"$set": {"used": True}},
+    )
     await db.password_reset_tokens.insert_one({
         "user_id": str(user["_id"]), "token": token,
-        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "used": False
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=1), "used": False
     })
-    reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={token}"
+    reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3001')}/reset-password?token={token}"
     logger.info(f"Password reset link for {email}: {reset_link}")
     await send_rendered_email(email, "user_password_reset", {"reset_link": reset_link, "user_name": user.get("name", "")})
     return {"message": "If an account exists, a reset link has been sent"}
@@ -301,7 +309,12 @@ async def reset_password(data: ResetPassword):
     token_doc = await db.password_reset_tokens.find_one({"token": data.token, "used": False})
     if not token_doc:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
-    if datetime.fromisoformat(token_doc["expires_at"]) < datetime.now(timezone.utc):
+    expires_at = token_doc["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Token expired")
     await db.users.update_one({"_id": ObjectId(token_doc["user_id"])}, {"$set": {"password_hash": hash_password(data.new_password)}})
     await db.password_reset_tokens.update_one({"token": data.token}, {"$set": {"used": True}})
@@ -448,7 +461,15 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
     existing = await db.user_progress.find_one({"user_id": user["_id"], "step_id": data.step_id})
 
     if data.status == "completed" and not (data.data or {}).get("skipped"):
-        required_fields = step.get("required_fields", [])
+        required_fields = list(dict.fromkeys([
+            *(step.get("required_fields", []) or []),
+            *[
+                field.get("name") for field in step.get("fields", [])
+                if field.get("required")
+                and field.get("field_type") not in CONTENT_FIELD_TYPES | {"multiupload"}
+                and field.get("name")
+            ],
+        ]))
         submission_data = data.data or {}
         missing_fields = [rf for rf in required_fields if not submission_data.get(rf) or (isinstance(submission_data.get(rf), str) and not submission_data[rf].strip())]
         if missing_fields:
@@ -1000,13 +1021,22 @@ async def admin_get_steps(request: Request, survey_id: Optional[str] = Query(Non
     elif survey_id:
         query["survey_id"] = survey_id
     steps = await db.steps.find(query).sort("order", 1).to_list(100)
-    return [{"id": str(s["_id"]), "survey_id": s.get("survey_id", ""), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
+    return [{"id": str(s["_id"]), "survey_id": s.get("survey_id", ""), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "form_schema_version": s.get("form_schema_version", FORM_SCHEMA_VERSION), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
 
 @admin_router.post("/steps")
 async def admin_create_step(data: StepCreate, request: Request):
     await require_role("admin")(request)
     survey_id = data.survey_id or str((await _get_default_survey())["_id"])
-    step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": [f.model_dump() for f in data.fields] if data.fields else [], "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": data.required_fields or [], "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    fields = [
+        normalize_step_field(field.model_dump(exclude_none=True), index)
+        for index, field in enumerate(data.fields or [])
+    ]
+    inferred_required = [
+        field["name"] for field in fields
+        if field.get("required") and field.get("field_type") not in CONTENT_FIELD_TYPES | {"multiupload"}
+    ]
+    required_fields = list(dict.fromkeys([*(data.required_fields or []), *inferred_required]))
+    step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": fields, "form_schema_version": FORM_SCHEMA_VERSION, "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": required_fields, "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.steps.insert_one(step_doc)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
@@ -1048,8 +1078,20 @@ async def admin_save_step_layout_bulk(data: StepLayoutBulk, request: Request):
 async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
     await require_role("admin")(request)
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    if "fields" in update_data and update_data["fields"]:
-        update_data["fields"] = [f if isinstance(f, dict) else f.model_dump() for f in update_data["fields"]]
+    if "fields" in update_data:
+        update_data["fields"] = [
+            normalize_step_field(field if isinstance(field, dict) else field.model_dump(exclude_none=True), index)
+            for index, field in enumerate(update_data["fields"] or [])
+        ]
+        update_data["form_schema_version"] = FORM_SCHEMA_VERSION
+        inferred_required = [
+            field["name"] for field in update_data["fields"]
+            if field.get("required") and field.get("field_type") not in CONTENT_FIELD_TYPES | {"multiupload"}
+        ]
+        if "required_fields" in update_data:
+            update_data["required_fields"] = list(dict.fromkeys([
+                *(update_data.get("required_fields") or []), *inferred_required,
+            ]))
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.steps.update_one({"_id": ObjectId(step_id)}, {"$set": update_data})
     admin_user = await get_current_user(request)
@@ -2474,7 +2516,12 @@ app.include_router(api_router)
 
 # CORS
 frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-cors_origins = [frontend_url, "http://localhost:3000"]
+cors_origins = [
+    frontend_url,
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
 if frontend_url.startswith("https://"):
     cors_origins.append(frontend_url.replace("https://", "http://"))
 app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -2574,6 +2621,9 @@ async def startup():
             step["survey_id"] = default_survey_id
         await db.steps.insert_many(default_steps)
         logger.info("Default steps created")
+    migrated_form_steps = await migrate_database_form_configs(db)
+    if migrated_form_steps:
+        logger.info("Form-builder schema applied to %s step(s)", migrated_form_steps)
     # Seed partners if none
     if await db.partners.count_documents({}) == 0:
         await db.partners.insert_many([
