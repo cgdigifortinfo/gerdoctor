@@ -55,10 +55,14 @@ Mehrfachauswahl. Temporäre Schritte und Benutzer werden nach jedem Lauf entfern
 | Suite | Ergebnis | Screenshots |
 | --- | ---: | ---: |
 | Gruppen-CRUD und Benutzer-Overrides im Adminbereich | 1/1 bestanden | 6 |
-| Rechte-API, Rollen- und Auth-Regressionen | 83/83 bestanden | 0 |
+| Vollständige Unit-Matrix aller Katalogrechte | 109/109 bestanden | 0 |
+| Rechte-API, Rollen- und Middleware-Regressionen | 52/52 bestanden | 0 |
 
 Der Browser-Test läuft über den echten Frontend-Proxy und prüft das Anlegen,
 Bearbeiten und Löschen einer Gruppe sowie Gruppen-Multi-Select und individuelle
 Allow-/Deny-Overrides. Die API-Suite prüft zusätzlich Deny-Priorität,
 unbekannte Rechte, Schutz vor Rechteausweitung, Systemgruppen und die sofortige
-serverseitige Durchsetzung. Temporäre Benutzer und Gruppen werden bereinigt.
+serverseitige Durchsetzung. Die parametrisierte Unit-Matrix vergibt und entzieht
+jedes einzelne Recht des Katalogs und deckt außerdem alle Request-Zuordnungen,
+Mehrfachgruppen, Wildcard, Standardrollen sowie Legacy-/Migrationsverhalten ab.
+Temporäre Benutzer und Gruppen werden bereinigt.

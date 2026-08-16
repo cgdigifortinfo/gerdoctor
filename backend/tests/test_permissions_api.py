@@ -46,6 +46,11 @@ def test_permission_group_crud_assignment_overrides_and_enforcement():
         )
         assert created_group.status_code == 200, created_group.text
         group_id = created_group.json()["id"]
+        user_group_id = next(
+            group["id"]
+            for group in requests.get(f"{API}/admin/permission-groups", headers=admin_headers, timeout=15).json()
+            if group["role"] == "user" and group["is_system"]
+        )
 
         updated_group = requests.put(
             f"{API}/admin/permission-groups/{group_id}",
@@ -88,6 +93,30 @@ def test_permission_group_crud_assignment_overrides_and_enforcement():
         assert "users.view" in limited_login["permissions"]
         assert "users.create" not in limited_login["permissions"]
         limited_headers = _headers(limited_login["access_token"])
+
+        wrong_role_group = requests.put(
+            f"{API}/admin/users/{limited_admin_id}/permissions",
+            headers=admin_headers,
+            json={"group_ids": [user_group_id], "allow": [], "deny": []},
+            timeout=15,
+        )
+        assert wrong_role_group.status_code == 400
+
+        overlapping_override = requests.put(
+            f"{API}/admin/users/{limited_admin_id}/permissions",
+            headers=admin_headers,
+            json={"group_ids": [group_id], "allow": ["users.view"], "deny": ["users.view"]},
+            timeout=15,
+        )
+        assert overlapping_override.status_code == 400
+
+        unknown_override = requests.put(
+            f"{API}/admin/users/{limited_admin_id}/permissions",
+            headers=admin_headers,
+            json={"group_ids": [group_id], "allow": ["unknown.permission"], "deny": []},
+            timeout=15,
+        )
+        assert unknown_override.status_code == 400
 
         assert requests.get(f"{API}/admin/users", headers=limited_headers, timeout=15).status_code == 200
         denied_create = requests.post(

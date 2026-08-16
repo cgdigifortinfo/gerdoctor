@@ -186,7 +186,7 @@ async def ensure_permission_groups() -> int:
 
 def permission_for_admin_request(method: str, path: str) -> str | None:
     """Resolve granular permission for an /api/admin request."""
-    if not path.startswith("/api/admin"):
+    if path != "/api/admin" and not path.startswith("/api/admin/"):
         return None
     relative = path[len("/api/admin"):]
     write = method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
@@ -225,6 +225,8 @@ def permission_for_admin_request(method: str, path: str) -> str | None:
 
 def permission_for_portal_request(method: str, path: str) -> str | None:
     method = method.upper()
+    if path.startswith("/api/cms/") and method in {"POST", "PUT", "PATCH", "DELETE"}:
+        return "cms.manage"
     if path == "/api/profile" and method == "PUT":
         return "profile.self.manage"
     if path == "/api/notifications/preferences" and method == "PUT":

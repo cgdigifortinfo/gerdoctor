@@ -1100,8 +1100,8 @@ async def admin_update_user_permissions(user_id: str, data: UserPermissionsUpdat
     if target.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com"):
         raise HTTPException(status_code=400, detail="Primary admin permissions cannot be overridden")
     group_ids = await _validated_group_ids(data.group_ids, target.get("role", "user"))
-    allow = normalize_permissions(data.allow)
-    deny = normalize_permissions(data.deny)
+    allow = _validated_permission_keys(data.allow, "user")
+    deny = _validated_permission_keys(data.deny, "user")
     if set(allow) & set(deny):
         raise HTTPException(status_code=400, detail="A permission cannot be both allowed and denied")
     overrides = {"allow": allow, "deny": deny}
