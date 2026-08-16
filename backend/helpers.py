@@ -4,7 +4,6 @@ import logging
 import asyncio
 from collections import defaultdict
 from pathlib import Path
-import requests
 import smtplib
 import socket
 from email.mime.multipart import MIMEMultipart
@@ -22,10 +21,8 @@ logger = logging.getLogger("server")
 # ========================
 # OBJECT STORAGE
 # ========================
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
-LOCAL_STORAGE_ROOT = os.environ.get("LOCAL_STORAGE_ROOT", "").strip()
-APP_NAME = "guided-journey"
+LOCAL_STORAGE_ROOT = os.environ.get("LOCAL_STORAGE_ROOT", "./data/uploads").strip()
+APP_NAME = "gerdoctor"
 storage_key = None
 
 
@@ -41,56 +38,28 @@ def init_storage():
     global storage_key
     if storage_key:
         return storage_key
-    if LOCAL_STORAGE_ROOT:
-        Path(LOCAL_STORAGE_ROOT).mkdir(parents=True, exist_ok=True)
-        storage_key = "local"
-        logger.info("Local persistent storage initialized at %s", LOCAL_STORAGE_ROOT)
-        return storage_key
-    if not EMERGENT_KEY:
-        logger.warning("EMERGENT_LLM_KEY not set, file uploads will not work")
-        return None
-    try:
-        resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
-        resp.raise_for_status()
-        storage_key = resp.json()["storage_key"]
-        logger.info("Storage initialized successfully")
-        return storage_key
-    except Exception as e:
-        logger.error(f"Storage init failed: {e}")
-        return None
+    Path(LOCAL_STORAGE_ROOT).mkdir(parents=True, exist_ok=True)
+    storage_key = "local"
+    logger.info("Local persistent storage initialized at %s", LOCAL_STORAGE_ROOT)
+    return storage_key
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
     key = init_storage()
     if not key:
         raise HTTPException(status_code=500, detail="Storage not configured")
-    if LOCAL_STORAGE_ROOT:
-        target = _local_storage_path(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
-        return {"path": path, "size": len(data)}
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data, timeout=120
-    )
-    resp.raise_for_status()
-    return resp.json()
+    target = _local_storage_path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return {"path": path, "size": len(data)}
 
 def get_object(path: str) -> tuple:
     key = init_storage()
     if not key:
         raise HTTPException(status_code=500, detail="Storage not configured")
-    if LOCAL_STORAGE_ROOT:
-        target = _local_storage_path(path)
-        if not target.is_file():
-            raise HTTPException(status_code=404, detail="Stored file not found")
-        return target.read_bytes(), "application/octet-stream"
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key}, timeout=60
-    )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+    target = _local_storage_path(path)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="Stored file not found")
+    return target.read_bytes(), "application/octet-stream"
 
 # ========================
 # EMAIL
@@ -189,6 +158,27 @@ async def render_email(
 </body>
 </html>"""
     return {"subject": subject, "html": html}
+
+
+async def render_notification(
+    template_key: str,
+    variables: dict,
+    override_title: str | None = None,
+    override_body: str | None = None,
+) -> dict:
+    """Render the compact Browser/App copy stored beside an email template."""
+    variables = dict(variables or {})
+    variables.setdefault("app_url", os.environ.get("FRONTEND_URL", ""))
+    template = await db.email_templates.find_one({"key": template_key})
+    if not template:
+        logger.warning("render_notification: template '%s' not found", template_key)
+        return {}
+    title_raw = template.get("notification_title", "") if override_title is None else override_title
+    body_raw = template.get("notification_body", "") if override_body is None else override_body
+    return {
+        "title": _replace_vars(title_raw, variables),
+        "body": _replace_vars(body_raw, variables),
+    }
 
 
 async def send_rendered_email(

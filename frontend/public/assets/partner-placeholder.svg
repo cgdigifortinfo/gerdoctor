@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">Partner</title>
+  <rect width="96" height="96" rx="20" fill="#e6faf6"/>
+  <path d="M24 74V36l24-14 24 14v38H24Z" fill="#004856"/>
+  <path d="M42 74V55h12v19M34 42h8v8h-8zm20 0h8v8h-8z" fill="#7ed9c6"/>
+</svg>

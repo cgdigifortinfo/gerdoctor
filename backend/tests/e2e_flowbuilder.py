@@ -22,6 +22,8 @@ import sys
 import requests
 from dotenv import load_dotenv
 
+from e2e_screenshots import capture_page_async, install_api_proxy_async
+
 load_dotenv("/app/backend/.env")
 load_dotenv("/app/frontend/.env")
 
@@ -30,6 +32,7 @@ FRONT = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 TEST_ADMIN_EMAIL = "e2e-flow-admin@gerdoctor.example.com"
 TEST_ADMIN_PW = "TestFlow123!"
+TEST_SURVEY_ID = None
 
 
 # ---------- API helpers ----------
@@ -45,7 +48,10 @@ def admin_headers(token):
 
 
 def get_steps(token):
-    r = requests.get(f"{API}/admin/steps", headers=admin_headers(token))
+    params = {"survey_id": TEST_SURVEY_ID} if TEST_SURVEY_ID else None
+    r = requests.get(
+        f"{API}/admin/steps", headers=admin_headers(token), params=params
+    )
     r.raise_for_status()
     return r.json()
 
@@ -115,8 +121,18 @@ async def goto_flow_view(page):
 async def run_test():
     from playwright.async_api import async_playwright
 
+    global TEST_SURVEY_ID
     results = []
+    aborted = False
     real_admin_token = get_real_admin_token()
+    surveys_response = requests.get(
+        f"{API}/admin/surveys", headers=admin_headers(real_admin_token)
+    )
+    surveys_response.raise_for_status()
+    aerzte_survey = next(
+        survey for survey in surveys_response.json() if survey["slug"] == "aerzte"
+    )
+    TEST_SURVEY_ID = aerzte_survey["id"]
     original_snapshot = snapshot_steps(real_admin_token)
     original_ids = set(original_snapshot.keys())
     print(f"Initial step count: {len(original_snapshot)}")
@@ -134,7 +150,11 @@ async def run_test():
                 args=["--no-sandbox", "--host-resolver-rules=MAP localhost host.docker.internal"],
             )
             context = await browser.new_context(viewport={"width": 1920, "height": 1000})
+            await install_api_proxy_async(context, os.environ["REACT_APP_BACKEND_URL"])
             page = await context.new_page()
+
+            async def screenshot(name):
+                return await capture_page_async(page, "flowbuilder", name)
 
             # --- Case 1: Login + flow view + node count ---
             await login_as(page, TEST_ADMIN_EMAIL, TEST_ADMIN_PW)
@@ -142,6 +162,7 @@ async def run_test():
             await goto_flow_view(page)
             await page.wait_for_selector('[data-testid="steps-flow-builder"]', timeout=10000)
             nodes = await page.query_selector_all('[data-testid^="flow-node-"]')
+            await screenshot("01-flow-ansicht")
             assert len(nodes) == len(original_snapshot), \
                 f"Expected {len(original_snapshot)} nodes, got {len(nodes)}"
             print(f"  ✓ Case 1: {len(nodes)} nodes rendered (matches backend step count)")
@@ -156,6 +177,7 @@ async def run_test():
             await page.wait_for_timeout(1500)
             print(f"  ✓ Case 2: view toggle works (list→flow→list)")
             results.append(("Case 2: view toggle", "PASS"))
+            await screenshot("02-nach-ansichtswechsel")
 
             # --- Case 3: Palette visible + items draggable ---
             palette = await page.query_selector('[data-testid="flow-palette"]')
@@ -164,6 +186,7 @@ async def run_test():
             assert len(palette_items) == 6, f"Expected 6 palette items, got {len(palette_items)}"
             print(f"  ✓ Case 3: palette with {len(palette_items)} draggable items")
             results.append(("Case 3: palette rendered", "PASS"))
+            await screenshot("03-flow-palette")
 
             # --- Case 4: Palette drop → opens step dialog pre-filled ---
             # Since HTML5 drag events are tricky in Playwright, we use dispatchEvent sequence.
@@ -193,6 +216,7 @@ async def run_test():
                 assert 'Formular' in current or 'form' in current.lower(), \
                     f"Dialog step_type should be 'form', got: {current}"
                 print(f"  ✓ Case 4: palette drop opened dialog with step_type={current.strip()}")
+                await screenshot("04-neuer-schritt-dialog")
                 # Close dialog without saving
                 cancel = await page.query_selector('button:has-text("Cancel")')
                 if not cancel:
@@ -227,6 +251,7 @@ async def run_test():
                         f"Expected Persönliche Daten, got {value}"
                     print(f"  ✓ Case 5: edit-node opened with title: {value}")
                     results.append(("Case 5: edit node", "PASS"))
+                    await screenshot("05-schritt-bearbeiten-dialog")
                 else:
                     print(f"  ! Case 5: dialog opened but title input not found")
                     results.append(("Case 5: edit node", "FAIL"))
@@ -242,7 +267,7 @@ async def run_test():
                 "title": "E2E-Test-Step", "description": "Temp step for flow e2e",
                 "step_type": "form", "order": 99, "fields": [], "required_fields": [],
                 "duration_value": 0, "duration_unit": "days", "is_active": True,
-                "conditions": [],
+                "conditions": [], "survey_id": TEST_SURVEY_ID,
             }
             r = requests.post(f"{API}/admin/steps", headers=admin_headers(real_admin_token), json=new_step)
             r.raise_for_status()
@@ -257,6 +282,7 @@ async def run_test():
             assert new_node, "New step not rendered as node"
             print(f"  ✓ Case 6: created step appears as node (id={new_id})")
             results.append(("Case 6: create → node appears", "PASS"))
+            await screenshot("06-neuer-schritt-im-flow")
 
             # --- Case 7: Edge-drag condition — simulated via API because SVG handle
             #           drag is unreliable in headless. The UI handler calls adminAPI.updateStep
@@ -287,6 +313,7 @@ async def run_test():
             assert 'Ausblenden' in html_content, "hide-condition label missing"
             print(f"  ✓ Case 7: edge-drag condition stored + rendered as 'Ausblenden' edge")
             results.append(("Case 7: edge condition", "PASS"))
+            await screenshot("07-bedingung-im-flow")
 
             # --- Case 8: Delete node via trash icon (JS-click to bypass viewport issues) ---
             clicked = await page.evaluate(f"""() => {{
@@ -318,6 +345,7 @@ async def run_test():
                     results.append(("Case 8: delete node", "SKIP (no confirm)"))
             else:
                 results.append(("Case 8: delete node", "SKIP (button not found)"))
+            await screenshot("08-nach-schritt-loeschen")
 
             # --- Case 9: Auto-Layout button persists flow_position globally ---
             btn = await page.query_selector('[data-testid="flow-auto-layout-btn"]')
@@ -334,6 +362,7 @@ async def run_test():
                     results.append(("Case 9: auto-layout persists", "FAIL"))
             else:
                 results.append(("Case 9: auto-layout persists", "SKIP (button not found)"))
+            await screenshot("09-auto-layout")
 
             # --- Case 10: Click on a condition edge opens edit modal ---
             # Find any condition edge label text via JS and dispatch a click
@@ -363,6 +392,7 @@ async def run_test():
                 # Check if edit mode (delete button visible)
                 del_btn = await page.query_selector('[data-testid="condition-delete-btn"]')
                 print(f"  ✓ Case 10: edge click opened modal (edit mode={bool(del_btn)})")
+                await screenshot("10-bedingung-bearbeiten-dialog")
                 # Close without changes
                 cancel = await page.query_selector('[data-testid="condition-cancel-btn"]')
                 if cancel:
@@ -394,6 +424,7 @@ async def run_test():
                     results.append(("Case 11: fullscreen trigger", "FAIL"))
             else:
                 results.append(("Case 11: fullscreen trigger", "SKIP (button not found)"))
+            await screenshot("11-fullscreen-trigger")
 
             # --- Case 12: Linear layout — alternative steps are visually separated ---
             # The current layout keeps upload/partner alternatives in the same block,
@@ -432,6 +463,7 @@ async def run_test():
                     results.append(("Case 12: parallel alternatives", "SKIP (no positions)"))
             else:
                 results.append(("Case 12: parallel alternatives", "SKIP (steps not found)"))
+            await screenshot("12-parallele-alternativen")
 
             # --- Case 13: Journey Simulator — dropdown switches node badges ---
             sim_select = await page.query_selector('[data-testid="flow-simulator-select"]')
@@ -446,6 +478,7 @@ async def run_test():
                 await sim_select.select_option('partner_path')
                 await page.wait_for_timeout(800)
                 badges_partner = await page.query_selector_all('[data-testid^="sim-badge-"]')
+                await screenshot("13-journey-simulator-partner")
                 # Reset
                 await sim_select.select_option('none')
                 await page.wait_for_timeout(500)
@@ -509,6 +542,7 @@ async def run_test():
             else:
                 print(f"  ! Case 14: undo_enabled={undo_enabled}, redo_disabled_before={redo_disabled_before}, redo_enabled_after_undo={redo_enabled_after_undo}, redo_click_ok={redo_click_ok}")
                 results.append(("Case 14: undo/redo flow", "FAIL"))
+            await screenshot("14-undo-redo")
 
             # --- Case 15: Animierter Durchlauf (Playback) ---
             play_btn = await page.query_selector('[data-testid="flow-playback-btn"]')
@@ -537,6 +571,8 @@ async def run_test():
                     s = await page.query_selector('[data-testid="flow-playback-status"]')
                     if s:
                         status_texts.append(await s.inner_text())
+
+                await screenshot("15-animierter-durchlauf")
 
                 # Stop via button
                 stop_btn = await page.query_selector('[data-testid="flow-playback-stop-btn"]')
@@ -567,6 +603,7 @@ async def run_test():
             await browser.close()
 
     except Exception as exc:
+        aborted = True
         import traceback
         print()
         print("!" * 60)
@@ -658,6 +695,8 @@ async def run_test():
         if not restored or not conditions_clean:
             print("CLEANUP INCOMPLETE")
             return 2
+        if aborted:
+            return 1
         if pass_count < len(results) - 1:  # allow 1 skip
             return 1
         return 0

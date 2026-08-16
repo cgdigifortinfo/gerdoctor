@@ -14,13 +14,14 @@ import { Progress } from '../components/ui/progress';
 import {
     SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle,
     DownloadSimple, UserSwitch, CaretUp, CaretDown, UsersThree, UserList, Funnel,
-    ArrowsClockwise,
+    ArrowsClockwise, XCircle,
     ChartLine, Plus, X, Star
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 import { filterVisibleSteps } from '../lib/stepVisibility';
+import { PaginationControls, usePagination } from '../components/PaginationControls';
 
 // Suggested values for partner-tag multiselect
 const BUNDESLAENDER = [
@@ -174,6 +175,10 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
         return result;
     }, [scoredData, fieldFilter, forecastFrom, forecastTo, sortKey, sortDir]);
 
+    const pagination = usePagination(filtered, `partner-${tableId}`, {
+        resetKey: `${fieldFilter}|${forecastFrom}|${forecastTo}|${sortKey || ''}|${sortDir}`,
+    });
+
     return (
         <div>
             {/* Filters */}
@@ -224,7 +229,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map((item) => (
+                        {pagination.paginatedItems.map((item) => (
                             <tr key={item.user_id || item.id} className="border-t border-border table-row-hover">
                                 {partnerTags.length > 0 && (
                                     <td className="px-4 py-3 text-sm" data-testid={`match-${item.user_id || item.id}`}>
@@ -302,6 +307,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                     </tbody>
                 </table>
             </div>
+            <PaginationControls pagination={pagination} id={`partner-${tableId}`} />
         </div>
     );
 }
@@ -321,6 +327,7 @@ export default function PartnerDashboard() {
     const [userDetailLoading, setUserDetailLoading] = useState(false);
     // Per-step upload state: {stepId: {file, uploading}}
     const [uploadState, setUploadState] = useState({});
+    const [rejectionReasons, setRejectionReasons] = useState({});
     const [editingProfile, setEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({});
     const [insights, setInsights] = useState(null);
@@ -451,26 +458,18 @@ export default function PartnerDashboard() {
         } catch (error) { toast.error(formatApiError(error)); }
     };
 
-    const handleUpdateStepStatus = async (userId, stepId, newStatus, extraData) => {
-        try {
-            // Merge existing step.data with any new entries (so we don't lose history)
-            const current = userDetail?.progress?.find(p => p.step_id === stepId);
-            const merged = { ...(current?.data || {}), ...(extraData || {}) };
-            await partnerDashboardAPI.updateUserProgress(userId, stepId, newStatus, merged);
-            toast.success('Step-Status aktualisiert');
-            const res = await partnerDashboardAPI.getUserDetail(userId);
-            setUserDetail(res.data);
-            loadData();
-        } catch (error) { toast.error(formatApiError(error)); }
-    };
-
     const handleMilestoneFileChange = (stepId, file) => {
         setUploadState(prev => ({ ...prev, [stepId]: { file, uploading: false } }));
     };
 
-    const handleCompleteMilestoneWithUpload = async (userId, stepId) => {
+    const handlePartnerStepAction = async (userId, stepId, action) => {
         const entry = uploadState[stepId];
         const file = entry?.file;
+        const reason = (rejectionReasons[stepId] || '').trim();
+        if (action === 'reject' && !reason) {
+            toast.error('Bitte geben Sie einen Grund für die Ablehnung an.');
+            return;
+        }
         try {
             let extraData = {};
             if (file) {
@@ -489,23 +488,33 @@ export default function PartnerDashboard() {
                 const partnerUploads = Array.isArray(prev) ? [...prev, newUpload] : [newUpload];
                 extraData = { partner_uploads: partnerUploads };
             }
-            await handleUpdateStepStatus(userId, stepId, 'completed', extraData);
+            const response = await partnerDashboardAPI.performStepAction(userId, stepId, action, reason, extraData);
+            if (action === 'complete') {
+                toast.success('Step abgeschlossen und User informiert.');
+            } else {
+                const reopened = response.data?.reopened_step?.title;
+                toast.success(reopened ? `Step abgelehnt. User wurde zu „${reopened}“ zurückgesetzt.` : 'Step abgelehnt und User informiert.');
+            }
+            const detail = await partnerDashboardAPI.getUserDetail(userId);
+            setUserDetail(detail.data);
+            loadData();
             setUploadState(prev => {
                 const copy = { ...prev };
                 delete copy[stepId];
                 return copy;
             });
+            setRejectionReasons(prev => ({ ...prev, [stepId]: '' }));
         } catch (error) {
             toast.error(formatApiError(error));
             setUploadState(prev => ({ ...prev, [stepId]: { ...entry, uploading: false } }));
         }
     };
 
-    if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
+    if (loading) return <div className="app-view partner-view min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
 
     return (
-        <div className="min-h-screen bg-background">
-            <header className="sticky top-0 z-50 glass">
+        <div className="app-view partner-view min-h-screen bg-background">
+            <header className="app-topbar sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
@@ -528,7 +537,7 @@ export default function PartnerDashboard() {
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {!profile ? (
                     <div className="bg-card border border-border rounded-sm p-8 text-center">
                         <h2 className="text-xl font-semibold text-foreground mb-4">Account Not Linked</h2>
@@ -536,7 +545,7 @@ export default function PartnerDashboard() {
                     </div>
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
-                        <TabsList className="mb-6 bg-card border border-border">
+                        <TabsList className="main-navigation mb-6 bg-card border border-border">
                             <TabsTrigger value="my-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
                                 {t('partner_my_users')} ({activeSubmissions.length})
@@ -710,7 +719,7 @@ export default function PartnerDashboard() {
                                     ) : (
                                         <div className="space-y-6">
                                             <div className="flex items-start gap-6">
-                                                {profile.logo_url && <img src={profile.logo_url} alt={profile.partner_name || profile.name} className="w-24 h-24 object-cover rounded-sm" />}
+                                                {profile.logo_url && <img src={profile.logo_url || '/assets/partner-placeholder.svg'} alt={profile.partner_name || profile.name} className="w-24 h-24 object-cover rounded-sm" />}
                                                 <div>
                                                     <h3 className="text-xl font-semibold text-foreground">{profile.partner_name || profile.name}</h3>
                                                     {profile.category && <span className="inline-block mt-1 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">{profile.category}</span>}
@@ -765,7 +774,6 @@ export default function PartnerDashboard() {
                                             const managedIds = userDetail.partner_managed_step_ids || (userDetail.partner_step_id ? [userDetail.partner_step_id] : []);
                                             const isPartnerStep = managedIds.includes(step.id);
                                             const isPartnerMilestone = isPartnerStep && step.step_type === 'milestone';
-                                            const canComplete = status !== 'completed' && (isPartnerStep || status === 'in_progress');
                                             const upload = uploadState[step.id] || {};
                                             return (
                                                 <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
@@ -783,11 +791,6 @@ export default function PartnerDashboard() {
                                                             <span className={`px-2 py-0.5 text-xs font-medium rounded-sm ${status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? t('completed') : status === 'in_progress' ? t('in_progress') : t('pending')}
                                                             </span>
-                                                            {canComplete && !isPartnerMilestone && (
-                                                                <Button size="sm" onClick={() => handleUpdateStepStatus(userDetail.id, step.id, 'completed')} className={`text-white text-xs h-7 px-2 ${isPartnerStep ? 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]' : 'bg-green-600 hover:bg-green-700'}`} data-testid={`complete-step-${step.order}`}>
-                                                                    <CheckCircle size={14} className="mr-1" /> {isPartnerStep ? t('partner_approve_step') : t('partner_complete_step')}
-                                                                </Button>
-                                                            )}
                                                         </div>
                                                     </div>
                                                     {stepData && Object.keys(stepData).length > 0 && (
@@ -796,7 +799,7 @@ export default function PartnerDashboard() {
                                                                 {Object.entries(stepData).map(([key, value]) => {
                                                                     if (key === 'skipped') return null;
                                                                     // partner_uploads gets its own dedicated render block below — skip here.
-                                                                    if (key === 'partner_uploads') return null;
+                                                                    if (key === 'partner_uploads' || key === 'partner_rejection') return null;
                                                                     const fieldDef = step.fields?.find(f => f.name === key);
                                                                     const label = fieldDef?.label || key.replace(/_/g, ' ');
                                                                     const fieldType = fieldDef?.field_type;
@@ -865,26 +868,52 @@ export default function PartnerDashboard() {
                                                             </div>
                                                         </div>
                                                     )}
+                                                    {stepData.partner_rejection && (
+                                                        <div className="px-4 py-3 border-t border-amber-200 bg-amber-50 dark:bg-amber-950/20" data-testid={`partner-rejection-${step.order}`}>
+                                                            <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">Letzte Ablehnung</p>
+                                                            <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">{stepData.partner_rejection.reason}</p>
+                                                        </div>
+                                                    )}
                                                     {isPartnerMilestone && status !== 'completed' && (
                                                         <div className="px-4 py-3 border-t border-border bg-[var(--brand-primary)]/5" data-testid={`milestone-partner-action-${step.order}`}>
-                                                            <p className="text-xs font-semibold text-foreground mb-2">Meilenstein abschließen</p>
-                                                            <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="text-sm font-semibold text-foreground">Partner-Aktion</p>
+                                                            <p className="mb-3 mt-1 text-xs text-muted-foreground">Optional einen Nachweis hochladen und den Step abschließen – oder mit Begründung ablehnen.</p>
+                                                            <div className="space-y-3">
                                                                 <Input
                                                                     type="file"
                                                                     onChange={(e) => handleMilestoneFileChange(step.id, e.target.files?.[0] || null)}
-                                                                    className="text-xs h-8 max-w-xs"
+                                                                    className="text-xs h-9 max-w-md"
                                                                     data-testid={`milestone-file-input-${step.order}`}
                                                                 />
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => handleCompleteMilestoneWithUpload(userDetail.id, step.id)}
-                                                                    disabled={upload.uploading}
-                                                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs h-8 px-3"
-                                                                    data-testid={`milestone-complete-btn-${step.order}`}
-                                                                >
-                                                                    <CheckCircle size={14} className="mr-1" />
-                                                                    {upload.file ? (upload.uploading ? 'Lädt hoch …' : 'Hochladen & Abschließen') : 'Meilenstein abschließen'}
-                                                                </Button>
+                                                                <Textarea
+                                                                    value={rejectionReasons[step.id] || ''}
+                                                                    onChange={(event) => setRejectionReasons(prev => ({ ...prev, [step.id]: event.target.value }))}
+                                                                    placeholder="Begründung für eine Ablehnung"
+                                                                    className="min-h-[72px] max-w-xl text-sm"
+                                                                    data-testid={`milestone-rejection-reason-${step.order}`}
+                                                                />
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={() => handlePartnerStepAction(userDetail.id, step.id, 'complete')}
+                                                                        disabled={upload.uploading}
+                                                                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs h-9 px-3"
+                                                                        data-testid={`milestone-complete-btn-${step.order}`}
+                                                                    >
+                                                                        <CheckCircle size={14} className="mr-1" />
+                                                                        {upload.file ? (upload.uploading ? 'Lädt hoch …' : 'Hochladen & Abschließen') : 'Step abschließen'}
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handlePartnerStepAction(userDetail.id, step.id, 'reject')}
+                                                                        disabled={upload.uploading}
+                                                                        className="border-red-300 text-red-700 hover:bg-red-50 dark:text-red-300"
+                                                                        data-testid={`milestone-reject-btn-${step.order}`}
+                                                                    >
+                                                                        <XCircle size={14} className="mr-1" /> Ablehnen & zurücksetzen
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                             {upload.file && !upload.uploading && (
                                                                 <p className="text-[11px] text-muted-foreground mt-1" data-testid={`milestone-file-name-${step.order}`}>Ausgewählt: {upload.file.name}</p>

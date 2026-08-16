@@ -7,13 +7,15 @@ import os
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
+from e2e_screenshots import capture_page, install_api_proxy
+
 
 load_dotenv("/app/frontend/.env")
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 
-def _page_text(path: str):
+def _page_text(path: str, screenshot_name: str):
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -23,22 +25,30 @@ def _page_text(path: str):
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, "http://localhost:8001")
         page.goto(f"{FRONTEND_URL}{path}", wait_until="networkidle", timeout=30000)
         text = page.locator("body").inner_text(timeout=10000)
         register_href = page.locator("a:has([data-testid='hero-cta-btn'])").first.get_attribute("href")
+        capture_page(page, "landing-pages", screenshot_name)
         browser.close()
         return text, register_href
 
 
 def test_default_landing_stays_on_root():
-    text, register_href = _page_text("/")
+    text, register_href = _page_text("/", "01-aerzte-landingpage")
     assert "PRAKTIZIEREN IN DEUTSCHLAND" in text
-    assert "IHCA - dein persoenlicher Weg zum Facharzt in Deutschland" in text
+    assert any(
+        title in text
+        for title in (
+            "IHCA - dein persönlicher Weg zum Facharzt in Deutschland",
+            "IHCA - dein persoenlicher Weg zum Facharzt in Deutschland",
+        )
+    )
     assert register_href == "/s/aerzte/register"
 
 
 def test_pflege_landing_uses_pflege_path_and_survey_registration():
-    text, register_href = _page_text("/pflege")
+    text, register_href = _page_text("/pflege", "02-pflege-landingpage")
     assert "PFLEGE IN DEUTSCHLAND" in text
     assert "Anerkennung als Pflegefachkraft in Deutschland" in text
     assert "Ihr Weg in die Pflege in Deutschland" in text

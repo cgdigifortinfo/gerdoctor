@@ -156,6 +156,15 @@ class UserProgressUpdate(BaseModel):
     status: str
     data: Optional[dict] = None
 
+class PartnerStepAction(BaseModel):
+    action: str
+    reason: Optional[str] = None
+    data: Optional[dict] = None
+
+class EventConfigUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    handlers: Optional[List[dict]] = None
+
 class PartnerSubmissionCreate(BaseModel):
     partner_id: str
     data: dict

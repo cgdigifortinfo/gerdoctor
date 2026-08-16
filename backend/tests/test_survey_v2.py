@@ -24,7 +24,7 @@ import asyncio
 load_dotenv("/app/backend/.env")
 
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-            or "https://guided-journey-5.preview.emergentagent.com").rstrip("/")
+            or "http://localhost:8001").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN = ("admin@example.com", "Admin123!")

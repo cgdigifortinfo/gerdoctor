@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
     EditorProvider,
     Editor, Toolbar, BtnBold, BtnItalic, BtnUnderline, BtnLink,
@@ -13,7 +14,7 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { adminAPI } from '../../lib/api';
 import { toast } from 'sonner';
-import { FloppyDisk, ArrowClockwise, Eye, CopySimple, Code, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Browser, DeviceMobile, EnvelopeSimple, FloppyDisk, ArrowClockwise, Eye, CopySimple, Code, PaperPlaneTilt } from '@phosphor-icons/react';
 
 // Cookie helpers — 1-year persistence, scoped to the app path.
 const COOKIE_NAME = 'email_tpl_test_recipients';
@@ -54,17 +55,24 @@ const DEFAULT_DUMMY = {
     step_description: 'Laden Sie die benötigten Nachweise für die Approbation hoch.',
     total_steps: 24,
     milestone_title: 'Antragstellung Approbation',
+    rejection_reason: 'Bitte reichen Sie den fehlenden Nachweis erneut ein.',
+    reopened_step_title: 'Service Kenntnisprüfung',
     open_user_link: 'https://ihca.de/partner-dashboard?openUser=DEMO-USER-ID',
     reset_link: 'https://ihca.de/reset-password?token=DEMO-TOKEN',
     app_url: 'https://ihca.de',
 };
 
 export function EmailTemplateEditor() {
+    const location = useLocation();
     const [templates, setTemplates] = useState([]);
     const [variablesByCategory, setVariablesByCategory] = useState({});
     const [selectedKey, setSelectedKey] = useState('');
     const [subject, setSubject] = useState('');
     const [bodyHtml, setBodyHtml] = useState('');
+    const [notificationTitle, setNotificationTitle] = useState('');
+    const [notificationBody, setNotificationBody] = useState('');
+    const [notificationPreview, setNotificationPreview] = useState({ title: '', body: '' });
+    const [activeChannel, setActiveChannel] = useState('email');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [previewHtml, setPreviewHtml] = useState('');
@@ -84,6 +92,8 @@ export function EmailTemplateEditor() {
     const selected = useMemo(() => templates.find((t) => t.key === selectedKey), [templates, selectedKey]);
     const category = selected?.category || 'user';
     const availableVariables = variablesByCategory[category] || [];
+    const requestedTemplate = useMemo(() => new URLSearchParams(location.search).get('template') || '', [location.search]);
+    const requestedChannel = useMemo(() => new URLSearchParams(location.search).get('channel') || '', [location.search]);
 
     const loadTemplates = useCallback(async () => {
         setLoading(true);
@@ -91,17 +101,29 @@ export function EmailTemplateEditor() {
             const res = await adminAPI.listEmailTemplates();
             setTemplates(res.data.templates || []);
             setVariablesByCategory(res.data.variables || {});
-            if (!selectedKey && res.data.templates?.length) {
-                setSelectedKey(res.data.templates[0].key);
-            }
+            setSelectedKey(current => {
+                if (requestedTemplate && res.data.templates?.some(template => template.key === requestedTemplate)) {
+                    return requestedTemplate;
+                }
+                return current || res.data.templates?.[0]?.key || '';
+            });
         } catch (e) {
             toast.error('Vorlagen konnten nicht geladen werden');
         } finally {
             setLoading(false);
         }
-    }, [selectedKey]);
+    }, [requestedTemplate]);
 
     useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+    useEffect(() => {
+        if (requestedTemplate && templates.some(template => template.key === requestedTemplate)) {
+            setSelectedKey(requestedTemplate);
+        }
+        if (requestedChannel === 'notification' || requestedChannel === 'email') {
+            setActiveChannel(requestedChannel);
+        }
+    }, [requestedTemplate, requestedChannel, templates]);
 
     // Load reference lists (users, steps) once for the preview pickers
     useEffect(() => {
@@ -122,6 +144,9 @@ export function EmailTemplateEditor() {
         if (!selected) return;
         setSubject(selected.subject || '');
         setBodyHtml(selected.body_html || '');
+        setNotificationTitle(selected.notification_title || '');
+        setNotificationBody(selected.notification_body || '');
+        if (selected.category === 'layout') setActiveChannel('email');
     }, [selected]);
 
     // Build the dummy variables used for the live preview, optionally augmented
@@ -149,6 +174,7 @@ export function EmailTemplateEditor() {
 
     // Debounced preview rendering (subject + body + header/footer)
     const previewTimer = useRef(null);
+    const notificationPreviewTimer = useRef(null);
     useEffect(() => {
         if (!selectedKey || !selected) return;
         // Don't call the preview endpoint for layout blocks (header/footer) since
@@ -172,11 +198,34 @@ export function EmailTemplateEditor() {
         return () => clearTimeout(previewTimer.current);
     }, [selectedKey, selected, category, subject, bodyHtml, previewVariables]);
 
+    useEffect(() => {
+        if (!selectedKey || !selected || category === 'layout') return;
+        clearTimeout(notificationPreviewTimer.current);
+        notificationPreviewTimer.current = setTimeout(async () => {
+            try {
+                const response = await adminAPI.previewNotificationTemplate(selectedKey, {
+                    title: notificationTitle,
+                    body: notificationBody,
+                    variables: previewVariables,
+                });
+                setNotificationPreview(response.data || { title: '', body: '' });
+            } catch (e) {
+                setNotificationPreview({ title: '', body: '' });
+            }
+        }, 250);
+        return () => clearTimeout(notificationPreviewTimer.current);
+    }, [selectedKey, selected, category, notificationTitle, notificationBody, previewVariables]);
+
     const handleSave = async () => {
         if (!selectedKey) return;
         setSaving(true);
         try {
-            await adminAPI.updateEmailTemplate(selectedKey, { subject, body_html: bodyHtml });
+            await adminAPI.updateEmailTemplate(selectedKey, {
+                subject,
+                body_html: bodyHtml,
+                notification_title: notificationTitle,
+                notification_body: notificationBody,
+            });
             toast.success('Vorlage gespeichert');
             await loadTemplates();
         } catch (e) {
@@ -192,6 +241,8 @@ export function EmailTemplateEditor() {
             const res = await adminAPI.resetEmailTemplate(selectedKey);
             setSubject(res.data.subject || '');
             setBodyHtml(res.data.body_html || '');
+            setNotificationTitle(res.data.notification_title || '');
+            setNotificationBody(res.data.notification_body || '');
             toast.success('Vorlage zurückgesetzt');
             await loadTemplates();
         } catch (e) {
@@ -309,9 +360,11 @@ export function EmailTemplateEditor() {
                             <div className="flex items-start justify-between gap-3 mb-3">
                                 <p className="text-sm text-muted-foreground flex-1">{selected.description}</p>
                                 <div className="flex gap-2 shrink-0">
-                                    <Button variant="outline" size="sm" onClick={openTestDialog} disabled={saving} data-testid="email-template-test-btn">
-                                        <PaperPlaneTilt size={14} className="mr-1" /> Test-Mail senden
-                                    </Button>
+                                    {activeChannel === 'email' && (
+                                        <Button variant="outline" size="sm" onClick={openTestDialog} disabled={saving} data-testid="email-template-test-btn">
+                                            <PaperPlaneTilt size={14} className="mr-1" /> Test-Mail senden
+                                        </Button>
+                                    )}
                                     <Button variant="outline" size="sm" onClick={handleReset} disabled={saving} data-testid="email-template-reset-btn">
                                         <ArrowClockwise size={14} className="mr-1" /> Zurücksetzen
                                     </Button>
@@ -321,59 +374,110 @@ export function EmailTemplateEditor() {
                                 </div>
                             </div>
 
-                            {/* Subject (hidden for layout blocks) */}
                             {category !== 'layout' && (
-                                <div className="mb-3">
-                                    <Label>Betreff</Label>
-                                    <Input
-                                        value={subject}
-                                        onChange={(e) => setSubject(e.target.value)}
-                                        placeholder="E-Mail-Betreff"
-                                        data-testid="email-template-subject-input"
-                                    />
+                                <div className="mb-5 inline-flex overflow-hidden rounded-sm border border-border" data-testid="message-channel-toggle">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveChannel('email')}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm ${activeChannel === 'email' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground'}`}
+                                        data-testid="message-channel-email"
+                                    >
+                                        <EnvelopeSimple size={16} /> E-Mail
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveChannel('notification')}
+                                        className={`flex items-center gap-2 border-l border-border px-4 py-2 text-sm ${activeChannel === 'notification' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground'}`}
+                                        data-testid="message-channel-notification"
+                                    >
+                                        <DeviceMobile size={16} /> Browser & App
+                                    </button>
                                 </div>
                             )}
 
-                            {/* WYSIWYG or raw HTML textarea */}
-                            <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <Label>{category === 'layout' ? 'HTML-Block' : 'Nachricht'}</Label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSource((s) => !s)}
-                                        className="text-xs text-[var(--brand-primary)] hover:underline flex items-center gap-1"
-                                        data-testid="email-template-toggle-source"
-                                    >
-                                        <Code size={12} /> {showSource ? 'WYSIWYG' : 'HTML-Code'}
-                                    </button>
-                                </div>
-                                {showSource || category === 'layout' ? (
-                                    <Textarea
-                                        value={bodyHtml}
-                                        onChange={(e) => setBodyHtml(e.target.value)}
-                                        rows={category === 'layout' ? 10 : 16}
-                                        className="font-mono text-xs"
-                                        data-testid="email-template-body-textarea"
-                                    />
-                                ) : (
-                                    <div className="border border-border rounded bg-white" data-testid="email-template-wysiwyg">
-                                        <EditorProvider>
-                                            <Editor value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} style={{ minHeight: 300 }}>
-                                                <Toolbar>
-                                                    <BtnBold /> <BtnItalic /> <BtnUnderline />
-                                                    <Separator />
-                                                    <BtnBulletList /> <BtnNumberedList />
-                                                    <Separator />
-                                                    <BtnLink />
-                                                    <BtnClearFormatting />
-                                                    <Separator />
-                                                    <BtnStyles />
-                                                </Toolbar>
-                                            </Editor>
-                                        </EditorProvider>
+                            {(category === 'layout' || activeChannel === 'email') ? (
+                                <div data-testid="email-message-editor">
+                                    {category !== 'layout' && (
+                                        <div className="mb-3">
+                                            <Label>Betreff</Label>
+                                            <Input
+                                                value={subject}
+                                                onChange={(e) => setSubject(e.target.value)}
+                                                placeholder="E-Mail-Betreff"
+                                                data-testid="email-template-subject-input"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <Label>{category === 'layout' ? 'HTML-Block' : 'E-Mail-Nachricht'}</Label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSource((s) => !s)}
+                                                className="text-xs text-[var(--brand-primary)] hover:underline flex items-center gap-1"
+                                                data-testid="email-template-toggle-source"
+                                            >
+                                                <Code size={12} /> {showSource ? 'WYSIWYG' : 'HTML-Code'}
+                                            </button>
+                                        </div>
+                                        {showSource || category === 'layout' ? (
+                                            <Textarea
+                                                value={bodyHtml}
+                                                onChange={(e) => setBodyHtml(e.target.value)}
+                                                rows={category === 'layout' ? 10 : 16}
+                                                className="font-mono text-xs"
+                                                data-testid="email-template-body-textarea"
+                                            />
+                                        ) : (
+                                            <div className="border border-border rounded bg-white" data-testid="email-template-wysiwyg">
+                                                <EditorProvider>
+                                                    <Editor value={bodyHtml} onChange={(e) => setBodyHtml(e.target.value)} style={{ minHeight: 300 }}>
+                                                        <Toolbar>
+                                                            <BtnBold /> <BtnItalic /> <BtnUnderline />
+                                                            <Separator />
+                                                            <BtnBulletList /> <BtnNumberedList />
+                                                            <Separator />
+                                                            <BtnLink />
+                                                            <BtnClearFormatting />
+                                                            <Separator />
+                                                            <BtnStyles />
+                                                        </Toolbar>
+                                                    </Editor>
+                                                </EditorProvider>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4" data-testid="notification-message-editor">
+                                    <div>
+                                        <Label>Notification-Titel</Label>
+                                        <Input
+                                            value={notificationTitle}
+                                            onChange={(event) => setNotificationTitle(event.target.value)}
+                                            placeholder="Kurzer Titel für Browser und App"
+                                            maxLength={120}
+                                            data-testid="notification-title-input"
+                                        />
+                                        <p className="mt-1 text-right text-[11px] text-muted-foreground">{notificationTitle.length}/120</p>
+                                    </div>
+                                    <div>
+                                        <Label>Notification-Text</Label>
+                                        <Textarea
+                                            value={notificationBody}
+                                            onChange={(event) => setNotificationBody(event.target.value)}
+                                            placeholder="Kompakte Nachricht für Push-Notifications"
+                                            maxLength={320}
+                                            rows={5}
+                                            data-testid="notification-body-input"
+                                        />
+                                        <p className="mt-1 text-right text-[11px] text-muted-foreground">{notificationBody.length}/320</p>
+                                    </div>
+                                    <div className="rounded-sm border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                                        Die Inhalte sind providerneutral gespeichert. Event-Handler legen daraus Outbox-Einträge für Browser und/oder App an; konkrete Push-Provider werden später angebunden.
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Variable chips */}
                             {availableVariables.length > 0 && (
@@ -401,8 +505,10 @@ export function EmailTemplateEditor() {
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <Eye size={16} className="text-[var(--brand-primary)]" />
-                                    <h3 className="font-semibold text-foreground">Live-Vorschau</h3>
-                                    {category !== 'layout' && (
+                                    <h3 className="font-semibold text-foreground">
+                                        {activeChannel === 'notification' && category !== 'layout' ? 'Notification-Vorschau' : 'E-Mail-Vorschau'}
+                                    </h3>
+                                    {category !== 'layout' && activeChannel === 'email' && (
                                         <span className="text-xs text-muted-foreground">(Header + Body + Footer)</span>
                                     )}
                                 </div>
@@ -438,21 +544,80 @@ export function EmailTemplateEditor() {
                                 </div>
                             )}
 
-                            {category !== 'layout' && (
-                                <div className="mb-3 bg-slate-50 dark:bg-slate-900/40 border border-border rounded px-3 py-2">
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Betreff:</span>
-                                    <div className="text-sm font-medium text-foreground" data-testid="email-preview-subject">
-                                        {(subject || '').replace(/{{\s*([\w.]+)\s*}}/g, (_, k) => previewVariables[k] != null ? String(previewVariables[k]) : '')}
-                                    </div>
+                            {(category === 'layout' || activeChannel === 'email') ? (
+                                <>
+                                    {category !== 'layout' && (
+                                        <div className="mb-3 bg-slate-50 dark:bg-slate-900/40 border border-border rounded px-3 py-2">
+                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">Betreff:</span>
+                                            <div className="text-sm font-medium text-foreground" data-testid="email-preview-subject">
+                                                {(subject || '').replace(/{{\s*([\w.]+)\s*}}/g, (_, k) => previewVariables[k] != null ? String(previewVariables[k]) : '')}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <iframe
+                                        title="Email Preview"
+                                        srcDoc={previewHtml}
+                                        className="w-full rounded border border-border bg-white"
+                                        style={{ minHeight: 560 }}
+                                        data-testid="email-preview-iframe"
+                                    />
+                                </>
+                            ) : (
+                                <div className="grid gap-6 lg:grid-cols-2" data-testid="notification-preview">
+                                    <section data-testid="notification-browser-preview">
+                                        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                                            <Browser size={17} className="text-[var(--brand-primary)]" /> Browser
+                                        </div>
+                                        <div className="rounded-lg bg-slate-100 p-4 sm:p-6">
+                                            <div className="ml-auto max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <div className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-primary)] text-xs font-bold text-white">G</div>
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-slate-900">GerDoctor</p>
+                                                        <p className="text-[10px] text-slate-500">ihca.de · jetzt</p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm font-semibold text-slate-950" data-testid="notification-preview-title">
+                                                    {notificationPreview.title || 'Notification-Titel'}
+                                                </p>
+                                                <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-700" data-testid="notification-preview-body">
+                                                    {notificationPreview.body || 'Notification-Text'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section data-testid="notification-app-preview">
+                                        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                                            <DeviceMobile size={17} className="text-[var(--brand-primary)]" /> App
+                                        </div>
+                                        <div className="mx-auto max-w-[330px] rounded-[2rem] border-[6px] border-slate-800 bg-slate-50 p-3 shadow-lg">
+                                            <div className="mb-3 flex items-center justify-between px-2 text-[10px] font-semibold text-slate-700">
+                                                <span>09:41</span><span>● ● ●</span>
+                                            </div>
+                                            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--brand-primary)] text-sm font-bold text-white">G</div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <p className="text-xs font-semibold text-slate-950">GerDoctor</p>
+                                                            <span className="text-[10px] text-slate-500">jetzt</span>
+                                                        </div>
+                                                        <p className="mt-1 text-sm font-semibold text-slate-950">
+                                                            {notificationPreview.title || 'Notification-Titel'}
+                                                        </p>
+                                                        <p className="mt-1 whitespace-pre-wrap text-xs leading-4 text-slate-700">
+                                                            {notificationPreview.body || 'Notification-Text'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="h-24" />
+                                            <div className="mx-auto h-1 w-24 rounded-full bg-slate-800" />
+                                        </div>
+                                    </section>
                                 </div>
                             )}
-                            <iframe
-                                title="Email Preview"
-                                srcDoc={previewHtml}
-                                className="w-full rounded border border-border bg-white"
-                                style={{ minHeight: 560 }}
-                                data-testid="email-preview-iframe"
-                            />
                         </div>
                     </>
                 )}

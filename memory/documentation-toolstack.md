@@ -227,6 +227,52 @@ Testtext `test2`, weil sie keine fachliche Dokumentänderung darstellen.
 `docs/lastenheft.docx` wurde danach neu exportiert und enthält keine
 Word-Änderungsmarker.
 
+## Billing-Dokumentationserweiterung 2026-07-15
+
+Lastenheft und Pflichtenheft wurden für geplante Partnerregistrierung und
+Billing erweitert:
+
+- Partner können sich künftig über eine eigene Seite registrieren.
+- Abo-Buchung erfolgt über einen Zahlungsanbieter; Stripe ist als Beispiel
+  dokumentiert.
+- Abrechnung erfolgt pro abgeschlossenem Nutzer-Meilenstein durch den Partner.
+- Partner erhalten eine Übersicht eigener Umsätze, Abschlüsse, Perioden und
+  Billing Events.
+- Administratoren erhalten eine globale Übersicht über alle
+  Partnerabrechnungen mit Filter, Storno und Export.
+- Betroffene Bereiche sind dokumentiert: Public Frontend, Auth/Rollen,
+  Partner-/Admin-Module, Step Engine, Datenmodelle, Payment Webhooks, Tests,
+  Datenschutz/Sicherheit und Monitoring.
+
+## Rechte- und Gruppen-Dokumentationserweiterung 2026-07-15
+
+Lastenheft und Pflichtenheft wurden um ein erweitertes Nutzerrechte- und
+Nutzergruppensystem ergänzt:
+
+- Basisrollen `User`, `Partner` und `Admin` bleiben erhalten.
+- Nutzergruppen bündeln Berechtigungsprofile und können global, survey- oder
+  partnerbezogen wirken.
+- Effektive Rechte ergeben sich aus Rolle, Gruppenmitgliedschaften, Scope und
+  nutzerbezogenen Overrides.
+- Admins erhalten dokumentierte Verwaltungsfunktionen für Gruppen,
+  Berechtigungen, Mitgliedschaften, Overrides und Rechte-Audit.
+- Backend-Schnittstellen, Frontend-Route `/admin/access-control`,
+  Datenmodelle, Indizes, Tests, Sicherheitsregeln und Abnahmekriterien wurden
+  im Pflichtenheft ergänzt.
+- Im Lastenheft wurde Punkt 13 "Formale Angaben für Ausschreibungen" direkt
+  hinter das Inhaltsverzeichnis verschoben; Glossar und Anforderungskatalog
+  stehen nun am Ende.
+
+## Word-Änderungsübernahme Pflichtenheft 2026-07-15
+
+Aus `docs/pflichtenheft_new.docx` wurde die nachvollzogene Änderung übernommen:
+
+- Deckblatt im Pflichtenheft: Projektname geändert von
+  `GERdoctor / IHCA Multi-Survey-Plattform` zu
+  `IHCA Multi-Survey-Plattform`.
+
+Die DOCX enthielt keine Kommentare und keine weiteren Einfügungen.
+
 ## Aktueller Git-Status-Hinweis vor Commit
 
 Die Dokumentationsdateien sind neu beziehungsweise geändert:

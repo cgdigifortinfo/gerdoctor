@@ -3,10 +3,10 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('gj_theme') || 'light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('gerdoctor_theme') || 'light');
 
   useEffect(() => {
-    localStorage.setItem('gj_theme', theme);
+    localStorage.setItem('gerdoctor_theme', theme);
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');

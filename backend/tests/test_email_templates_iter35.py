@@ -1,7 +1,7 @@
 """Backend tests for the new Email Template Editor feature (iter 35).
 
 Covers:
-  - /api/admin/email-templates list (auth required, 10 templates, variables map)
+  - /api/admin/email-templates list (auth required, 11 templates, variables map)
   - get / update / reset / preview endpoints
   - Variable interpolation + header/footer wrapping
   - Partner-new-submission deep-link rendering via render_email
@@ -13,7 +13,7 @@ import asyncio
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://guided-journey-5.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@example.com"
@@ -45,16 +45,16 @@ class TestList:
         r = anon_session.get(f"{API}/admin/email-templates", timeout=10)
         assert r.status_code in (401, 403), f"unexpected {r.status_code}"
 
-    def test_list_returns_10_templates_with_variables(self, admin_session):
+    def test_list_returns_11_templates_with_variables(self, admin_session):
         r = admin_session.get(f"{API}/admin/email-templates", timeout=15)
         assert r.status_code == 200
         data = r.json()
         tpls = data.get("templates", [])
-        assert len(tpls) == 10, f"expected 10 templates, got {len(tpls)}"
+        assert len(tpls) == 11, f"expected 11 templates, got {len(tpls)}"
         keys = {t["key"] for t in tpls}
         expected = {
             "header", "footer", "partner_new_submission",
-            "user_awaiting_partner", "user_milestone_completed",
+            "user_awaiting_partner", "user_milestone_completed", "user_partner_step_rejected",
             "user_password_reset", "user_next_step_unlocked",
             "user_step_completed", "user_step_entered", "user_step_updated",
         }
@@ -72,6 +72,9 @@ class TestList:
             assert t.get("category") in ("layout", "partner", "user", "step"), \
                 f"template {t.get('key')} missing category"
             assert "subject" in t and "body_html" in t
+            if t.get("category") != "layout":
+                assert t.get("notification_title"), f"template {t.get('key')} missing notification title"
+                assert t.get("notification_body"), f"template {t.get('key')} missing notification body"
 
 
 # ---------- get single ----------
@@ -182,13 +185,56 @@ class TestPreview:
         # Should NOT contain the unreplaced token
         assert "{{app_url}}" not in html
 
+    def test_notification_preview_is_independent_and_interpolates_variables(self, admin_session):
+        payload = {
+            "title": "Korrektur: {{step_title}}",
+            "body": "{{partner_name}} sagt: {{rejection_reason}}",
+            "variables": {
+                "step_title": "Nachweise",
+                "partner_name": "FIA Academy",
+                "rejection_reason": "Dokument fehlt",
+            },
+        }
+        response = admin_session.post(
+            f"{API}/admin/email-templates/user_partner_step_rejected/notification-preview",
+            json=payload,
+            timeout=10,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json() == {
+            "title": "Korrektur: Nachweise",
+            "body": "FIA Academy sagt: Dokument fehlt",
+        }
+
+    def test_notification_content_persists_without_changing_email(self, admin_session):
+        key = "user_awaiting_partner"
+        original = admin_session.get(f"{API}/admin/email-templates/{key}", timeout=10).json()
+        response = admin_session.put(
+            f"{API}/admin/email-templates/{key}",
+            json={
+                "notification_title": "APP_TITLE_{{partner_name}}",
+                "notification_body": "APP_BODY_{{user_name}}",
+            },
+            timeout=10,
+        )
+        assert response.status_code == 200, response.text
+        saved = response.json()
+        assert saved["notification_title"] == "APP_TITLE_{{partner_name}}"
+        assert saved["notification_body"] == "APP_BODY_{{user_name}}"
+        assert saved["subject"] == original["subject"]
+        assert saved["body_html"] == original["body_html"]
+
+        reset = admin_session.post(f"{API}/admin/email-templates/{key}/reset", timeout=10)
+        assert reset.status_code == 200
+        assert reset.json()["notification_title"] != "APP_TITLE_{{partner_name}}"
+
 
 # ---------- partner_new_submission deep-link via render_email ----------
 class TestPartnerDeepLinkRendering:
     def test_rendered_html_contains_open_user_deep_link(self, admin_session):
         """Render partner_new_submission via the preview endpoint with open_user_link
         set to the real deep-link pattern and ensure it survives into HTML."""
-        frontend_url = "https://guided-journey-5.preview.emergentagent.com"
+        frontend_url = "http://localhost:3001"
         deep = f"{frontend_url}/partner-dashboard?openUser=abc123"
         r = admin_session.post(
             f"{API}/admin/email-templates/partner_new_submission/preview",

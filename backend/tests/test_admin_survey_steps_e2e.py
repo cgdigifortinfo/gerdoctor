@@ -15,6 +15,8 @@ import requests
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, expect
 
+from e2e_screenshots import capture_page, install_api_proxy
+
 
 load_dotenv("/app/frontend/.env")
 
@@ -94,6 +96,11 @@ def _goto_admin_steps(page, survey_slug):
         expect(page.locator('[data-testid="admin-survey-select"]')).to_be_visible(timeout=30000)
 
 
+def _show_all_steps(page):
+    _choose_select_option(page, "page-size-admin-steps", "Alle")
+    expect(page.locator('[data-testid="pagination-summary-admin-steps"]')).to_contain_text("Ergebnissen")
+
+
 def test_admin_steps_deep_link_and_survey_switch(admin_state):
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -104,10 +111,12 @@ def test_admin_steps_deep_link_and_survey_switch(admin_state):
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, BACKEND)
         _login_admin(page)
 
         _goto_admin_steps(page, "aerzte")
         expect(page.locator('[data-testid="step-row-order-1"]').first).to_contain_text("Persönliche Daten", timeout=30000)
+        capture_page(page, "admin-survey-steps", "01-aerzte-schrittliste")
 
         open_button_link = page.locator('a:has([data-testid="open-survey-url-btn"])').first
         expect(open_button_link).to_have_attribute("href", "/s/aerzte?preview=1")
@@ -124,8 +133,10 @@ def test_admin_steps_deep_link_and_survey_switch(admin_state):
             "href",
             "/s/pflege?preview=1",
         )
+        _show_all_steps(page)
         expect(page.get_by_text(admin_state["pflege_title"])).to_be_visible(timeout=15000)
         expect(page.get_by_text("Persönliche Daten")).to_have_count(0)
+        capture_page(page, "admin-survey-steps", "02-pflege-schrittliste-nach-wechsel")
 
         browser.close()
 
@@ -140,6 +151,7 @@ def test_admin_steps_url_survey_param_overrides_current_survey(admin_state):
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, BACKEND)
         _login_admin(page)
 
         _goto_admin_steps(page, "aerzte")
@@ -153,8 +165,10 @@ def test_admin_steps_url_survey_param_overrides_current_survey(admin_state):
             "href",
             "/s/pflege?preview=1",
         )
+        _show_all_steps(page)
         expect(page.get_by_text(admin_state["pflege_title"])).to_be_visible(timeout=15000)
         expect(page.get_by_text("Persönliche Daten")).to_have_count(0)
+        capture_page(page, "admin-survey-steps", "03-pflege-url-parameter")
 
         browser.close()
 
@@ -169,6 +183,7 @@ def test_step_editor_survey_switch_keeps_editor_open_and_reloads(admin_state):
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, BACKEND)
         _login_admin(page)
 
         _goto_admin_steps(page, "aerzte")
@@ -188,9 +203,11 @@ def test_step_editor_survey_switch_keeps_editor_open_and_reloads(admin_state):
             "/s/pflege?preview=1",
         )
         expect(page.locator('[data-testid="step-title-input"]')).to_have_value("", timeout=10000)
+        capture_page(page, "admin-survey-steps", "04-pflege-step-editor")
 
         page.keyboard.press("Escape")
         expect(page.get_by_role("dialog")).to_have_count(0)
+        _show_all_steps(page)
         expect(page.get_by_text(admin_state["pflege_title"])).to_be_visible(timeout=15000)
         expect(page.get_by_text("Persönliche Daten")).to_have_count(0)
 
@@ -207,6 +224,7 @@ def test_open_survey_url_opens_public_preview_for_logged_in_admin():
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, BACKEND)
         _login_admin(page)
         _goto_admin_steps(page, "pflege")
 
@@ -222,6 +240,7 @@ def test_open_survey_url_opens_public_preview_for_logged_in_admin():
         assert "/admin" not in preview.url
         expect(preview.get_by_text("Anerkennung als Pflegefachkraft in Deutschland")).to_be_visible(timeout=30000)
         expect(preview.locator('[data-testid="hero-cta-btn"]')).to_be_visible(timeout=10000)
+        capture_page(preview, "admin-survey-steps", "05-pflege-oeffentliche-vorschau")
 
         browser.close()
 
@@ -243,6 +262,7 @@ def test_admin_create_user_assigns_selected_survey():
                 ],
             )
             page = browser.new_page()
+            install_api_proxy(page.context, BACKEND)
             _login_admin(page)
             page.goto(f"{FRONTEND}/admin?tab=users", wait_until="domcontentloaded")
             expect(page.locator('[data-testid="create-user-btn"]')).to_be_visible(timeout=30000)
@@ -251,12 +271,14 @@ def test_admin_create_user_assigns_selected_survey():
             expect(page.locator('[data-testid="create-user-survey"]')).to_be_visible(timeout=10000)
             _choose_select_option(page, "create-user-survey", "FSP Pflege /s/pflege")
             expect(page.locator('[data-testid="create-user-survey"]')).to_contain_text("FSP Pflege")
+            capture_page(page, "admin-survey-steps", "06-benutzer-anlegen-dialog")
 
             page.locator('[data-testid="create-user-name"]').fill("Admin UI Survey Test")
             page.locator('[data-testid="create-user-email"]').fill(email)
             page.locator('[data-testid="create-user-password"]').fill("Test123!")
             page.locator('[data-testid="submit-create-user"]').click()
             expect(page.get_by_text("User erstellt")).to_be_visible(timeout=15000)
+            capture_page(page, "admin-survey-steps", "07-benutzer-erstellt")
 
             users = requests.get(f"{API}/admin/users", headers=_auth(token), timeout=15).json()
             created = next(user for user in users if user["email"] == email)
@@ -291,6 +313,7 @@ def test_admin_survey_switch_loads_list_and_flow_views(admin_state):
             ],
         )
         page = browser.new_page()
+        install_api_proxy(page.context, BACKEND)
         _login_admin(page)
 
         _goto_admin_steps(page, "aerzte")
@@ -300,9 +323,11 @@ def test_admin_survey_switch_loads_list_and_flow_views(admin_state):
         page.locator('[data-testid="steps-view-flow"]').click()
         expect(page.locator('[data-testid="steps-flow-builder"]')).to_be_visible(timeout=15000)
         expect(page.locator('[data-testid^="flow-node-"]').filter(has_text="Persönliche Daten").first).to_be_visible(timeout=15000)
+        capture_page(page, "admin-survey-steps", "08-aerzte-flow-ansicht")
 
         _choose_select_option(page, "admin-survey-select", "FSP Pflege /s/pflege")
         expect(page.locator('[data-testid="admin-survey-select"]')).to_contain_text("FSP Pflege", timeout=15000)
+        _show_all_steps(page)
         expect(page.get_by_text(admin_state["pflege_title"])).to_be_visible(timeout=15000)
         expect(page.locator('[data-testid="steps-list-empty-state"]')).to_have_count(0)
         expect(page.get_by_text("Persönliche Daten")).to_have_count(0)
@@ -312,9 +337,11 @@ def test_admin_survey_switch_loads_list_and_flow_views(admin_state):
         expect(page.locator('[data-testid="flow-empty-state"]')).to_have_count(0)
         expect(page.locator('[data-testid^="flow-node-"]').filter(has_text=admin_state["pflege_title"]).first).to_be_visible(timeout=15000)
         expect(page.locator('[data-testid^="flow-node-"]').filter(has_text=admin_state["pflege_second_title"]).first).to_be_visible(timeout=15000)
+        capture_page(page, "admin-survey-steps", "09-pflege-flow-ansicht")
 
         page.locator('[data-testid="steps-view-list"]').click()
         expect(page.get_by_text(admin_state["pflege_title"])).to_be_visible(timeout=15000)
         expect(page.get_by_text(admin_state["pflege_second_title"])).to_be_visible(timeout=15000)
+        capture_page(page, "admin-survey-steps", "10-pflege-listenansicht")
 
         browser.close()

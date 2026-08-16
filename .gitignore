@@ -57,6 +57,11 @@ chainlit.md
 .chainlit
 .ipynb_checkpoints/
 .ac
+/.gitconfig
+/test_reports/
+cookies*.txt
+backend/*.backup
+backend/=*
 
 # Deployment
 .vercel

@@ -40,12 +40,12 @@ export function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex">
+        <div className="auth-view min-h-screen bg-background flex">
             {/* Left Side - Image */}
             <div className="hidden lg:block lg:w-1/2 relative">
                 <img 
-                    src="https://images.unsplash.com/photo-1747727350761-a607eae63dc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG1pbmltYWwlMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85"
-                    alt="Abstract architecture"
+                    src="/assets/auth-background.svg"
+                    alt="GerDoctor"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-white/20"></div>
@@ -176,12 +176,12 @@ export function Register() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex">
+        <div className="auth-view min-h-screen bg-background flex">
             {/* Left Side - Image */}
             <div className="hidden lg:block lg:w-1/2 relative">
                 <img 
-                    src="https://images.unsplash.com/photo-1747727350761-a607eae63dc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMG1pbmltYWwlMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85"
-                    alt="Abstract architecture"
+                    src="/assets/auth-background.svg"
+                    alt="GerDoctor"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-white/20"></div>
@@ -318,7 +318,7 @@ export function ForgotPassword() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-8">
+            <div className="auth-view min-h-screen bg-background flex items-center justify-center p-8">
                 <div className="w-full max-w-md text-center">
                     <h1 className="text-2xl font-bold text-foreground mb-4">Check your email</h1>
                     <p className="text-muted-foreground mb-8">
@@ -335,7 +335,7 @@ export function ForgotPassword() {
     }
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <div className="auth-view min-h-screen bg-background flex items-center justify-center p-8">
             <div className="w-full max-w-md">
                 <Link to="/login" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
                     <ArrowLeft size={16} className="mr-2" />
@@ -419,7 +419,7 @@ export function ResetPassword() {
 
     if (!token) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-8">
+            <div className="auth-view min-h-screen bg-background flex items-center justify-center p-8">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold text-foreground mb-4">Invalid Reset Link</h1>
                     <Link to="/forgot-password">
@@ -433,7 +433,7 @@ export function ResetPassword() {
     }
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <div className="auth-view min-h-screen bg-background flex items-center justify-center p-8">
             <div className="w-full max-w-md">
                 <h1 className="text-2xl font-bold text-foreground mb-2">Set new password</h1>
                 <p className="text-muted-foreground mb-8">

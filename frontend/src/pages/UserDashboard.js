@@ -703,7 +703,7 @@ export default function UserDashboard() {
                                         </span>
                                     )}
                                     <div className="flex items-start gap-4">
-                                        {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
+                                        {partner.logo_url && <img src={partner.logo_url || '/assets/partner-placeholder.svg'} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                         <div className="flex-1">
                                             <h3 className="font-semibold text-foreground">{partner.name}</h3>
                                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
@@ -757,7 +757,7 @@ export default function UserDashboard() {
                                             </span>
                                         )}
                                         <div className="flex items-start gap-4">
-                                            {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
+                                            {partner.logo_url && <img src={partner.logo_url || '/assets/partner-placeholder.svg'} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                             <div className="flex-1">
                                                 <h3 className="font-semibold text-foreground">{partner.name}</h3>
                                                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
@@ -838,14 +838,14 @@ export default function UserDashboard() {
         return withIndicator(stepContent);
     };
 
-    if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
+    if (loading) return <div className="app-view user-view min-h-screen bg-background flex items-center justify-center"><div className="text-muted-foreground">{t('loading')}</div></div>;
 
     const completedCount = visibleSteps.filter(s => getStepStatus(s.id) === 'completed').length;
     const mobileProgress = visibleSteps.length === 0 ? 0 : Math.round((completedCount / visibleSteps.length) * 100);
 
     return (
-        <div className="min-h-screen bg-background">
-            <header className="sticky top-0 z-50 glass">
+        <div className="app-view user-view min-h-screen bg-background">
+            <header className="app-topbar sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <Logo />
@@ -914,7 +914,7 @@ export default function UserDashboard() {
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
+            <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={containerRef}>
                 {/* ====== DESKTOP: Horizontal Step Cards in single row ====== */}
                 <div className="hidden md:block mb-8">
                     <div className="rounded-lg overflow-hidden overflow-x-auto shadow-sm border border-border">

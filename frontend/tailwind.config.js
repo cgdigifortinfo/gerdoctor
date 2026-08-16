@@ -9,10 +9,30 @@ module.exports = {
   	extend: {
   		borderRadius: {
   			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+			md: 'calc(var(--radius) - 0.125rem)',
+			sm: 'calc(var(--radius) - 0.25rem)',
+			control: 'var(--radius-control)',
+			card: 'var(--radius-card)',
+			dialog: 'var(--radius-dialog)'
   		},
+		boxShadow: {
+			floating: 'var(--shadow-floating)'
+		},
+		maxWidth: {
+			app: '96rem'
+		},
   		colors: {
+			surface: {
+				DEFAULT: 'var(--surface)',
+				subtle: 'var(--surface-subtle)',
+				hover: 'var(--surface-hover)'
+			},
+			ink: {
+				DEFAULT: 'var(--text-primary)',
+				secondary: 'var(--text-secondary)',
+				tertiary: 'var(--text-tertiary)'
+			},
+			'border-strong': 'var(--border-strong)',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

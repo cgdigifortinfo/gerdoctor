@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" role="img" aria-labelledby="title desc">
+  <title id="title">GerDoctor Hintergrund</title>
+  <desc id="desc">Abstrakte ruhige Formen in den GerDoctor Markenfarben</desc>
+  <rect width="900" height="1100" fill="#e6faf6"/>
+  <circle cx="730" cy="190" r="300" fill="#7ed9c6" opacity=".65"/>
+  <circle cx="150" cy="920" r="390" fill="#004856" opacity=".95"/>
+  <path d="M80 420c220-190 430-170 740 70v360C520 650 300 640 80 790z" fill="#fff" opacity=".7"/>
+  <path d="M185 655h130l55-128 82 286 75-158h176" fill="none" stroke="#004856" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
+</svg>

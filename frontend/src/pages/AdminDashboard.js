@@ -16,7 +16,7 @@ import {
     Eye, X, ChartBar, Notebook, MagnifyingGlass, Link as LinkIcon,
     LinkBreak, UserPlus, ArrowRight, Check, DownloadSimple, ClockCounterClockwise,
     ArrowUp, ArrowDown, UserCircle, Image as ImageIcon, GearSix, UserSwitch,
-    Envelope
+    Envelope, BellRinging
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
@@ -25,6 +25,8 @@ import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 import StepsFlowBuilder from '../components/StepsFlowBuilder';
 import EmailTemplateEditor from '../components/admin/EmailTemplateEditor';
+import EventManagement from '../components/admin/EventManagement';
+import { PaginationControls, usePagination } from '../components/PaginationControls';
 
 export default function AdminDashboard() {
     const { user, logout, impersonate } = useAuth();
@@ -125,7 +127,7 @@ export default function AdminDashboard() {
                 adminAPI.getCmsContent('about'),
                 adminAPI.getCmsContent('partners'),
                 adminAPI.getCmsContent('landing_pages'),
-                adminAPI.getAuditLog(50),
+                adminAPI.getAuditLog(0),
                 settingsAPI.get().catch(() => ({ data: {} })),
                 adminAPI.listStepTemplates().catch(() => ({ data: [] }))
             ]);
@@ -189,15 +191,6 @@ export default function AdminDashboard() {
         if (params.get('step')) setStepsView('list');
     }, [location.search]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const stepOrder = params.get('step');
-        if (!stepOrder || activeTab !== 'steps' || stepsView !== 'list' || steps.length === 0) return;
-        window.requestAnimationFrame(() => {
-            document.querySelector(`[data-testid="step-row-order-${stepOrder}"]`)?.scrollIntoView({ block: 'start' });
-        });
-    }, [location.search, activeTab, stepsView, steps]);
-
     const handleLogout = async () => {
         await logout();
         navigate('/');
@@ -213,6 +206,52 @@ export default function AdminDashboard() {
             return matchesSearch && matchesRole;
         });
     }, [users, userSearch, userRoleFilter]);
+
+    const sortedSteps = useMemo(
+        () => [...steps].sort((a, b) => a.order - b.order),
+        [steps],
+    );
+    const analyticsSteps = useMemo(
+        () => analytics?.step_analytics || [],
+        [analytics],
+    );
+    const usersPagination = usePagination(filteredUsers, 'admin-users', {
+        resetKey: `${userSearch}|${userRoleFilter}`,
+    });
+    const analyticsPagination = usePagination(analyticsSteps, 'admin-analytics-steps');
+    const templatesPagination = usePagination(stepTemplates, 'admin-step-templates');
+    const stepsPagination = usePagination(sortedSteps, 'admin-steps', {
+        resetKey: activeSurveyId,
+    });
+    const {
+        isAll: showAllSteps,
+        pageSize: stepsPageSize,
+        page: stepsPage,
+        setPage: setStepsPage,
+    } = stepsPagination;
+    const partnersPagination = usePagination(partners, 'admin-partners');
+    const auditPagination = usePagination(auditLogs, 'admin-audit', {
+        resetKey: `${auditFilter}|${auditDateFrom}|${auditDateTo}`,
+    });
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const stepOrder = params.get('step');
+        if (!stepOrder || activeTab !== 'steps' || stepsView !== 'list' || sortedSteps.length === 0) return;
+
+        const targetIndex = sortedSteps.findIndex(step => String(step.order) === String(stepOrder));
+        if (targetIndex < 0) return;
+        if (!showAllSteps) {
+            const targetPage = Math.floor(targetIndex / Number(stepsPageSize)) + 1;
+            if (stepsPage !== targetPage) {
+                setStepsPage(targetPage);
+                return;
+            }
+        }
+        window.requestAnimationFrame(() => {
+            document.querySelector(`[data-testid="step-row-order-${stepOrder}"]`)?.scrollIntoView({ block: 'start' });
+        });
+    }, [location.search, activeTab, stepsView, sortedSteps, showAllSteps, stepsPageSize, stepsPage, setStepsPage]);
 
     // User handlers
     const handleViewUser = async (userId) => {
@@ -454,7 +493,7 @@ export default function AdminDashboard() {
     const handleAuditFilter = async () => {
         try {
             const actionVal = auditFilter === 'all' ? '' : auditFilter;
-            const res = await adminAPI.getAuditLog(100, 0, actionVal, auditDateFrom, auditDateTo);
+            const res = await adminAPI.getAuditLog(0, 0, actionVal, auditDateFrom, auditDateTo);
             setAuditLogs(res.data.logs || []);
             setAuditActionTypes(res.data.action_types || []);
         } catch (error) {
@@ -467,7 +506,7 @@ export default function AdminDashboard() {
         setAuditDateFrom('');
         setAuditDateTo('');
         try {
-            const res = await adminAPI.getAuditLog(100, 0);
+            const res = await adminAPI.getAuditLog(0, 0);
             setAuditLogs(res.data.logs || []);
         } catch {}
     };
@@ -544,16 +583,16 @@ export default function AdminDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="app-view admin-view min-h-screen bg-background flex items-center justify-center">
                 <div className="text-muted-foreground">Loading...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="app-view admin-view min-h-screen bg-background">
             {/* Header */}
-            <header className="sticky top-0 z-50 glass">
+            <header className="app-topbar sticky top-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
@@ -573,22 +612,22 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
+                    <TabsList className="main-navigation mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
                         <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
                             {t('admin_dashboard')}
                         </TabsTrigger>
-                        <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-users-tab">
                             <Users size={18} className="mr-2" />
                             {t('admin_users')}
                         </TabsTrigger>
-                        <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-steps-tab">
                             <ListChecks size={18} className="mr-2" />
                             {t('admin_steps')}
                         </TabsTrigger>
-                        <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-partners-tab">
                             <Buildings size={18} className="mr-2" />
                             {t('admin_partners')}
                         </TabsTrigger>
@@ -598,9 +637,13 @@ export default function AdminDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="email-templates" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
                             <Envelope size={18} className="mr-2" />
-                            E-Mail-Vorlagen
+                            Nachrichten
                         </TabsTrigger>
-                        <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        <TabsTrigger value="events" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-events-tab">
+                            <BellRinging size={18} className="mr-2" />
+                            Events
+                        </TabsTrigger>
+                        <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-audit-tab">
                             <ClockCounterClockwise size={18} className="mr-2" />
                             {t('admin_audit')}
                         </TabsTrigger>
@@ -645,7 +688,7 @@ export default function AdminDashboard() {
                                 <div className="bg-card border border-border rounded-sm p-6">
                                     <h3 className="text-lg font-semibold text-foreground mb-4">Step Completion Rates</h3>
                                     <div className="space-y-4">
-                                        {analytics.step_analytics?.map((step) => (
+                                        {analyticsPagination.paginatedItems.map((step) => (
                                             <div key={step.step_id} className="space-y-2">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-2">
@@ -663,6 +706,7 @@ export default function AdminDashboard() {
                                             </div>
                                         ))}
                                     </div>
+                                    <PaginationControls pagination={analyticsPagination} id="admin-analytics-steps" className="-mx-6 -mb-6 mt-6" />
                                 </div>
                             </div>
                         )}
@@ -753,7 +797,7 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredUsers.map((u) => (
+                                        {usersPagination.paginatedItems.map((u) => (
                                             <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[var(--brand-primary)]/5' : ''}`}>
                                                 <td className="px-4 py-3">
                                                     <Checkbox
@@ -845,6 +889,7 @@ export default function AdminDashboard() {
                                     </tbody>
                                 </table>
                             </div>
+                            <PaginationControls pagination={usersPagination} id="admin-users" />
                         </div>
                     </TabsContent>
 
@@ -921,8 +966,9 @@ export default function AdminDashboard() {
                                             Noch keine Templates gespeichert. Klicke bei einem Schritt auf „Als Template speichern".
                                         </p>
                                     ) : (
+                                        <>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {stepTemplates.map(tpl => (
+                                            {templatesPagination.paginatedItems.map(tpl => (
                                                 <div key={tpl.id} className="border border-border rounded-sm p-3 bg-card" data-testid={`template-card-${tpl.id}`}>
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="min-w-0">
@@ -944,6 +990,8 @@ export default function AdminDashboard() {
                                                 </div>
                                             ))}
                                         </div>
+                                        <PaginationControls pagination={templatesPagination} id="admin-step-templates" className="-mx-4 -mb-4 mt-4" />
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -1030,7 +1078,7 @@ export default function AdminDashboard() {
                                         </Button>
                                     </div>
                                 )}
-                                {[...steps].sort((a, b) => a.order - b.order).map((step, idx) => (
+                                {stepsPagination.paginatedItems.map((step) => (
                                     <div key={step.id} className="border border-border rounded-sm p-4" data-testid={`step-row-order-${step.order}`}>
                                         <div className="flex justify-between items-start">
                                             {/* Reorder arrows */}
@@ -1039,7 +1087,7 @@ export default function AdminDashboard() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleMoveStep(step.id, 'up')}
-                                                    disabled={idx === 0}
+                                                    disabled={sortedSteps[0]?.id === step.id}
                                                     className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20"
                                                     data-testid={`step-move-up-${step.id}`}
                                                 >
@@ -1049,7 +1097,7 @@ export default function AdminDashboard() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleMoveStep(step.id, 'down')}
-                                                    disabled={idx === steps.length - 1}
+                                                    disabled={sortedSteps[sortedSteps.length - 1]?.id === step.id}
                                                     className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20"
                                                     data-testid={`step-move-down-${step.id}`}
                                                 >
@@ -1090,6 +1138,9 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                 ))}
+                                {steps.length > 0 && (
+                                    <PaginationControls pagination={stepsPagination} id="admin-steps" className="-mx-4 -mb-4" />
+                                )}
                             </div>
                             )}
                         </div>
@@ -1118,13 +1169,13 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {partners.map((partner) => {
+                                        {partnersPagination.paginatedItems.map((partner) => {
                                             const linkedUser = users.find(u => u.id === partner.user_id);
                                             return (
                                                 <tr key={partner.id} className="border-t border-border table-row-hover">
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
-                                                            {partner.logo_url && <img src={partner.logo_url} alt="" className="w-10 h-10 rounded-sm object-cover" />}
+                                                            {partner.logo_url && <img src={partner.logo_url || '/assets/partner-placeholder.svg'} alt="" className="w-10 h-10 rounded-sm object-cover" />}
                                                             <div>
                                                                 <p className="font-medium text-foreground">{partner.name}</p>
                                                                 <p className="text-xs text-muted-foreground">{partner.contact_email}</p>
@@ -1187,6 +1238,7 @@ export default function AdminDashboard() {
                                     </tbody>
                                 </table>
                             </div>
+                            <PaginationControls pagination={partnersPagination} id="admin-partners" />
                         </div>
                     </TabsContent>
 
@@ -1258,9 +1310,14 @@ export default function AdminDashboard() {
                         </div>
                     </TabsContent>
 
-                    {/* ============ EMAIL TEMPLATES TAB ============ */}
+                    {/* ============ MESSAGE TEMPLATES TAB ============ */}
                     <TabsContent value="email-templates">
                         <EmailTemplateEditor />
+                    </TabsContent>
+
+                    {/* ============ DOMAIN EVENTS TAB ============ */}
+                    <TabsContent value="events">
+                        <EventManagement />
                     </TabsContent>
 
                     {/* ============ AUDIT LOG TAB ============ */}
@@ -1311,8 +1368,8 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {auditLogs.map((log, idx) => (
-                                            <tr key={idx} className="border-t border-border">
+                                        {auditPagination.paginatedItems.map((log, idx) => (
+                                            <tr key={`${log.timestamp || 'log'}-${auditPagination.startIndex + idx}`} className="border-t border-border">
                                                 <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                                                     {log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}
                                                 </td>
@@ -1339,6 +1396,7 @@ export default function AdminDashboard() {
                                     </tbody>
                                 </table>
                             </div>
+                            <PaginationControls pagination={auditPagination} id="admin-audit" />
                         </div>
                     </TabsContent>
 

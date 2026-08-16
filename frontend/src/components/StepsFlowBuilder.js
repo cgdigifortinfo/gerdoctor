@@ -67,6 +67,7 @@ function StepNode({ data }) {
             className={`rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ${ring} ${extraClass}`}
             style={{ borderColor: isPlayback ? '#f59e0b' : style.color }}
             data-testid={`flow-node-${data.id}`}
+            data-step-type={data.step_type}
             data-sim-state={sim || 'none'}
             data-playback={isPlayback ? 'true' : 'false'}
         >
@@ -563,8 +564,9 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     return (
         <div
             ref={rootRef}
-            className={`relative border border-border rounded-sm bg-muted/20 flex ${isFullscreen ? 'h-screen w-screen' : 'h-[640px]'}`}
+            className={`flow-workspace relative border border-border rounded-sm bg-muted/20 flex ${isFullscreen ? 'h-screen w-screen' : 'h-[640px]'}`}
             data-testid="steps-flow-builder"
+            data-fullscreen={isFullscreen ? 'true' : 'false'}
         >
             <Palette />
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
@@ -636,7 +638,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         </button>
                     </div>
                 )}
-                <div className="absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none">
+                <div className="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none">
                     {Object.entries(ACTION_LABELS).map(([k, v]) => (
                         <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm">
                             <span className="w-3 h-[1.5px]" style={{ background: v.color }} />

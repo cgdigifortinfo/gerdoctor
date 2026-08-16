@@ -22,6 +22,8 @@ import sys
 import requests
 from dotenv import load_dotenv
 
+from e2e_screenshots import capture_page_async, install_api_proxy_async
+
 load_dotenv("/app/backend/.env")
 load_dotenv("/app/frontend/.env")
 
@@ -141,7 +143,11 @@ async def run_test():
                 args=["--no-sandbox", "--host-resolver-rules=MAP localhost host.docker.internal"],
             )
             context = await browser.new_context(viewport={"width": 1920, "height": 1000})
+            await install_api_proxy_async(context, BACKEND)
             page = await context.new_page()
+
+            async def screenshot(name):
+                return await capture_page_async(page, "email-template-editor", name)
 
             # --- Case 1: Login + open tab ---
             await login_as_admin(page)
@@ -149,6 +155,7 @@ async def run_test():
             await open_email_templates_tab(page)
             print("  ✓ Case 1: E-Mail-Vorlagen tab opened")
             results.append(("Case 1: login + open tab", "PASS"))
+            await screenshot("01-email-vorlagen-uebersicht")
 
             # --- Case 2: Select dropdown lists templates grouped by category ---
             await page.locator('[data-testid="email-template-select"]').click()
@@ -156,7 +163,7 @@ async def run_test():
             expected_keys = [
                 "header", "footer",
                 "partner_new_submission",
-                "user_awaiting_partner", "user_milestone_completed",
+                "user_awaiting_partner", "user_milestone_completed", "user_partner_step_rejected",
                 "user_password_reset", "user_next_step_unlocked",
                 "user_step_entered", "user_step_updated", "user_step_completed",
             ]
@@ -168,8 +175,9 @@ async def run_test():
             assert not missing, f"missing template items in dropdown: {missing}"
             await page.keyboard.press("Escape")
             await page.wait_for_timeout(400)
-            print(f"  ✓ Case 2: dropdown lists all 10 templates")
+            print(f"  ✓ Case 2: dropdown lists all 11 templates")
             results.append(("Case 2: dropdown lists templates", "PASS"))
+            await screenshot("02-vorlagen-auswahl")
 
             # --- Case 3: Selecting partner_new_submission loads subject+body ---
             await select_template(page, "partner_new_submission")
@@ -181,6 +189,7 @@ async def run_test():
             assert "{{" not in iframe_html and "partner" in iframe_html.lower(), "iframe should render template content with variables resolved"
             print(f"  ✓ Case 3: template loads subject '{subject_val[:40]}...' + preview renders")
             results.append(("Case 3: selecting loads editor fields", "PASS"))
+            await screenshot("03-partner-vorlage-mit-vorschau")
 
             # --- Case 4: Preview reactivity — change Vorschau-User ---
             subj_before = await get_preview_subject(page)
@@ -206,6 +215,7 @@ async def run_test():
                 print(f"           subject before: {subj_before[:60]}")
                 print(f"           subject after:  {subj_after[:60]}")
                 results.append(("Case 4: preview reacts to user picker", "PASS"))
+                await screenshot("04-vorschau-mit-benutzer")
             else:
                 print("  • Case 4 skipped: no real preview user option available")
                 results.append(("Case 4: preview reacts to user picker", "SKIP"))
@@ -237,6 +247,7 @@ async def run_test():
                 print(f"           subject before: {subj_before[:60]}")
                 print(f"           subject after:  {subj_after[:60]}")
                 results.append(("Case 5: preview reacts to step picker", "PASS"))
+                await screenshot("05-vorschau-mit-schritt")
             else:
                 print("  • Case 5 skipped: no preview step option available")
                 results.append(("Case 5: preview reacts to step picker", "SKIP"))
@@ -268,6 +279,7 @@ async def run_test():
             assert marker in reloaded, f"Save did not persist. Body: {reloaded[:200]}"
             print(f"  ✓ Case 6: Save persists edit (marker found after reload)")
             results.append(("Case 6: save → reload round-trip", "PASS"))
+            await screenshot("06-html-bearbeitung-gespeichert")
 
             # --- Case 7: Reset → restores default ---
             await page.locator('[data-testid="email-template-reset-btn"]').click()
@@ -284,6 +296,7 @@ async def run_test():
             edited_keys.discard("user_awaiting_partner")
             print(f"  ✓ Case 7: Reset restores default (marker cleared)")
             results.append(("Case 7: reset restores default", "PASS"))
+            await screenshot("07-vorlage-zurueckgesetzt")
 
             # --- Case 8: Variable chip click triggers toast + no overlay ---
             # Switch back to WYSIWYG for variable chips visibility
@@ -300,6 +313,7 @@ async def run_test():
             assert overlay == 0, "webpack error overlay visible after chip click"
             print(f"  ✓ Case 8: variable chip shows toast, no error overlay")
             results.append(("Case 8: variable chip click", "PASS"))
+            await screenshot("08-variablen-chip-toast")
 
             # --- Case 9: HTML-Code toggle works ---
             toggle = page.locator('[data-testid="email-template-toggle-source"]')
@@ -313,6 +327,7 @@ async def run_test():
                 f"HTML toggle didn't change label (was '{toggle_text}', still '{new_toggle_text}')"
             print(f"  ✓ Case 9: HTML-Code toggle works ('{toggle_text}' → '{new_toggle_text}')")
             results.append(("Case 9: HTML/WYSIWYG toggle", "PASS"))
+            await screenshot("09-html-wysiwyg-umschaltung")
 
             # --- Case 10: Test-Mail Dialog öffnet, Cookie wird gespeichert/gelesen ---
             # Delete ONLY our template cookie so the JWT auth stays intact.
@@ -389,6 +404,7 @@ async def run_test():
             print(f"           initial textbox: ''")
             print(f"           after reopen:    '{refilled[:60]}'")
             results.append(("Case 10: test-mail dialog + cookie", "PASS"))
+            await screenshot("10-test-mail-dialog")
 
             # Close dialog before shutting down
             try:

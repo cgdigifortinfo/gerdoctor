@@ -28,7 +28,7 @@ from models import (
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
     StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk,
-    SurveyCreate, SurveyUpdate
+    SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -38,13 +38,17 @@ from helpers import (
     init_storage, put_object, get_object, APP_NAME,
     send_email_notification, create_audit_log, notify_partner_of_new_submission,
     notify_user_awaiting_partner, notify_user_milestone_completed,
-    render_email, send_rendered_email, _partner_deep_link,
+    render_email, render_notification, send_rendered_email, _partner_deep_link,
     calculate_completion_pct, calculate_estimated_completion,
     calculate_users_metrics, calculate_metrics_from_loaded_context,
     apply_auto_completes, _get_step_context,
     apply_anerkennungsstatus_skips
 )
 from email_template_defaults import DEFAULT_TEMPLATES
+from event_system import (
+    ensure_event_configs, emit_domain_event, process_domain_event,
+    retry_domain_event, serialize_event_document,
+)
 
 logger = logging.getLogger("server")
 logging.basicConfig(level=logging.INFO)
@@ -1214,8 +1218,12 @@ async def admin_get_audit_log(request: Request, limit: int = 100, skip: int = 0,
         query.setdefault("timestamp", {})["$gte"] = date_from
     if date_to:
         query.setdefault("timestamp", {})["$lte"] = date_to
-    logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
     total = await db.audit_logs.count_documents(query)
+    cursor = db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).skip(max(skip, 0))
+    if limit > 0:
+        logs = await cursor.limit(limit).to_list(limit)
+    else:
+        logs = await cursor.to_list(total)
     return {"logs": logs, "total": total, "action_types": await db.audit_logs.distinct("action")}
 
 # ========================
@@ -1609,6 +1617,33 @@ async def get_partner_other_users(request: Request):
         result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": metrics.get("completion_pct", 0), "estimated_completion": metrics.get("estimated_completion"), "field_of_study": s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", ""), "bundesland": s1data.get("anerkennungsverfahren_bundesland", ""), "created_at": u.get("created_at", "")})
     return result
 
+
+def _compute_partner_managed_step_ids(all_steps: list, progress: list, partner_id: str, partner_name: str) -> list[str]:
+    """Return only steps this user explicitly assigned to the current partner."""
+    progress_by_step_id = {p.get("step_id"): p for p in progress}
+    managed: list[str] = []
+    for step in all_steps:
+        if step.get("step_type") not in ("partner_selection", "partner_multiselection"):
+            continue
+        step_data = (progress_by_step_id.get(step["id"]) or {}).get("data") or {}
+        selected_ids = set()
+        if step_data.get("selected_partner_id"):
+            selected_ids.add(str(step_data["selected_partner_id"]))
+        selected_ids.update(str(value) for value in (step_data.get("selected_partner_ids") or []))
+        name_match = bool(partner_name) and step_data.get("selected_partner_name") == partner_name
+        if str(partner_id) not in selected_ids and not name_match:
+            continue
+        managed.append(step["id"])
+        for next_step in all_steps:
+            if next_step["order"] <= step["order"]:
+                continue
+            if next_step.get("step_type") == "milestone":
+                managed.append(next_step["id"])
+                break
+            if next_step.get("step_type") == "decision":
+                break
+    return list(dict.fromkeys(managed))
+
 @api_router.get("/partner/users/{user_id}")
 async def get_partner_user_detail(user_id: str, request: Request):
     partner_user = await require_role("partner")(request)
@@ -1620,8 +1655,11 @@ async def get_partner_user_detail(user_id: str, request: Request):
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
     progress = await db.user_progress.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    step_query = {"is_active": True}
+    if target_user.get("survey_id"):
+        step_query["survey_id"] = target_user["survey_id"]
     all_steps = []
-    async for s in db.steps.find({"is_active": True}).sort("order", 1):
+    async for s in db.steps.find(step_query).sort("order", 1):
         all_steps.append({**{k: v for k, v in s.items() if k != "_id"}, "id": str(s["_id"])})
     partner_step_id = None
     partner_tags = set(partner_doc.get("tags", [])) if partner_doc else set()
@@ -1634,33 +1672,7 @@ async def get_partner_user_detail(user_id: str, request: Request):
     # All partner_selection/partner_multiselection steps where this user picked THIS partner,
     # PLUS the next milestone step in the same block (by order).
     partner_name = (partner_doc or {}).get("name") or ""
-    progress_by_step_id = {p.get("step_id"): p for p in progress}
-    managed: list[str] = []
-
-    for s in all_steps:
-        if s.get("step_type") not in ("partner_selection", "partner_multiselection"):
-            continue
-        pr = progress_by_step_id.get(s["id"]) or {}
-        d = pr.get("data") or {}
-        picks = set()
-        if d.get("selected_partner_id"):
-            picks.add(str(d["selected_partner_id"]))
-        for pid in (d.get("selected_partner_ids") or []):
-            picks.add(str(pid))
-        name_match = (d.get("selected_partner_name") == partner_name) and bool(partner_name)
-        # For multi-partner, match against partner tag on the step (only this partner's tag steps)
-        if str(partner_id) in picks or name_match:
-            managed.append(s["id"])
-            # Walk forward in order to find the next milestone step in the same block
-            for nxt in all_steps:
-                if nxt["order"] <= s["order"]:
-                    continue
-                if nxt.get("step_type") == "milestone":
-                    managed.append(nxt["id"])
-                    break
-                # stop at the next decision → means we left this block
-                if nxt.get("step_type") == "decision":
-                    break
+    managed = _compute_partner_managed_step_ids(all_steps, progress, partner_id, partner_name)
 
     sanitized_progress = []
     for p in progress:
@@ -1680,6 +1692,215 @@ async def get_partner_user_detail(user_id: str, request: Request):
         "partner_managed_step_ids": managed,
     }
 
+
+async def _partner_step_action_context(user_id: str, partner_id: str, partner_doc: dict | None) -> tuple[dict, list, list, list[str]]:
+    target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    progress_query = {"user_id": user_id}
+    step_query = {"is_active": True}
+    if target_user.get("survey_id"):
+        progress_query["survey_id"] = target_user["survey_id"]
+        step_query["survey_id"] = target_user["survey_id"]
+    progress = await db.user_progress.find(progress_query, {"_id": 0}).to_list(500)
+    step_docs = await db.steps.find(step_query).sort("order", 1).to_list(200)
+    steps = [{**{k: v for k, v in step.items() if k != "_id"}, "id": str(step["_id"])} for step in step_docs]
+    partner_name = (partner_doc or {}).get("name") or ""
+    managed = _compute_partner_managed_step_ids(steps, progress, partner_id, partner_name)
+    return target_user, progress, steps, managed
+
+
+@api_router.post("/partner/users/{user_id}/steps/{step_id}/action")
+async def partner_step_action(user_id: str, step_id: str, payload: PartnerStepAction, request: Request):
+    """Approve or reject a step that is explicitly managed by this partner."""
+    partner_user = await require_role("partner")(request)
+    partner_id = partner_user.get("partner_id")
+    if not partner_id:
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    if payload.action not in ("complete", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'complete' or 'reject'")
+    if payload.action == "reject" and not (payload.reason or "").strip():
+        raise HTTPException(status_code=422, detail="A rejection reason is required")
+
+    partner_doc = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    target_user, progress, steps, managed = await _partner_step_action_context(user_id, partner_id, partner_doc)
+    if step_id not in managed:
+        raise HTTPException(status_code=403, detail="This step is not managed by your partner organization")
+    step = next((item for item in steps if item["id"] == step_id), None)
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing = next((item for item in progress if item.get("step_id") == step_id), {})
+    existing_data = existing.get("data") or {}
+    merged_data = {**existing_data, **(payload.data or {})}
+    partner_name = (partner_doc or {}).get("name") or partner_user.get("name") or "Partner"
+    actor = {
+        "id": str(partner_user.get("_id") or ""),
+        "email": partner_user.get("email", ""),
+        "role": "partner",
+        "partner_id": partner_id,
+        "partner_name": partner_name,
+    }
+    base_event_payload = {
+        "user_id": user_id,
+        "user_name": target_user.get("name", ""),
+        "user_email": target_user.get("email", ""),
+        "user_email_notifications_enabled": (target_user.get("notification_preferences") or {}).get("email_on_step_leave", True),
+        "partner_id": partner_id,
+        "partner_name": partner_name,
+        "step_id": step_id,
+        "step_title": step.get("title", ""),
+        "milestone_title": step.get("title", ""),
+        "step_order": step.get("order", 0),
+        "step_description": step.get("description", ""),
+    }
+
+    old_upload_ids = {
+        entry.get("file_id") for entry in (existing_data.get("partner_uploads") or [])
+        if isinstance(entry, dict) and entry.get("file_id")
+    }
+    new_uploads = [
+        entry for entry in (merged_data.get("partner_uploads") or [])
+        if isinstance(entry, dict) and entry.get("file_id") not in old_upload_ids
+    ]
+    emitted_events = []
+    for upload in new_uploads:
+        emitted_events.append(await emit_domain_event(
+            "partner.document.uploaded",
+            {**base_event_payload, "file_id": upload.get("file_id"), "filename": upload.get("filename", "")},
+            actor,
+        ))
+
+    if payload.action == "complete":
+        was_rejected = bool(existing_data.get("partner_rejection"))
+        merged_data.pop("partner_rejection", None)
+        await db.user_progress.update_one(
+            {"user_id": user_id, "step_id": step_id},
+            {"$set": {
+                "user_id": user_id,
+                "step_id": step_id,
+                "survey_id": target_user.get("survey_id"),
+                "step_order": step.get("order", 0),
+                "status": "completed",
+                "data": merged_data,
+                "started_at": existing.get("started_at") or now_iso,
+                "updated_at": now_iso,
+                "completed_at": now_iso,
+            }},
+            upsert=True,
+        )
+        if was_rejected:
+            _, _, hidden_ids_before_completion, _ = await _get_step_context(user_id)
+            previous_steps = [item for item in steps if item["order"] < step["order"] and item["id"] not in hidden_ids_before_completion]
+            corrected_step = previous_steps[-1] if previous_steps else None
+            if corrected_step:
+                corrected_progress = await db.user_progress.find_one({"user_id": user_id, "step_id": corrected_step["id"]})
+                await db.user_progress.update_one(
+                    {"user_id": user_id, "step_id": corrected_step["id"]},
+                    {"$set": {
+                        "status": "completed",
+                        "started_at": (corrected_progress or {}).get("started_at") or now_iso,
+                        "completed_at": now_iso,
+                        "updated_at": now_iso,
+                    }},
+                    upsert=True,
+                )
+        await apply_auto_completes(user_id)
+        _, _, hidden_ids, _ = await _get_step_context(user_id)
+        next_step = next((item for item in steps if item["order"] > step["order"] and item["id"] not in hidden_ids), None)
+        if next_step:
+            next_progress = await db.user_progress.find_one({"user_id": user_id, "step_id": next_step["id"]})
+            if not next_progress or next_progress.get("status") != "completed":
+                await db.user_progress.update_one(
+                    {"user_id": user_id, "step_id": next_step["id"]},
+                    {"$set": {
+                        "user_id": user_id,
+                        "step_id": next_step["id"],
+                        "survey_id": target_user.get("survey_id"),
+                        "step_order": next_step.get("order", 0),
+                        "status": "in_progress",
+                        "started_at": (next_progress or {}).get("started_at") or now_iso,
+                        "updated_at": now_iso,
+                    }},
+                    upsert=True,
+                )
+        event = await emit_domain_event("partner.step.completed", base_event_payload, actor)
+        emitted_events.append(event)
+        history_action = "completed_by_partner"
+        reopened_step = None
+    else:
+        _, _, hidden_ids, _ = await _get_step_context(user_id)
+        previous_steps = [item for item in steps if item["order"] < step["order"] and item["id"] not in hidden_ids]
+        reopened_step = previous_steps[-1] if previous_steps else None
+        rejection = {
+            "reason": payload.reason.strip(),
+            "partner_id": partner_id,
+            "partner_name": partner_name,
+            "rejected_at": now_iso,
+        }
+        merged_data["partner_rejection"] = rejection
+        await db.user_progress.update_one(
+            {"user_id": user_id, "step_id": step_id},
+            {"$set": {
+                "user_id": user_id,
+                "step_id": step_id,
+                "survey_id": target_user.get("survey_id"),
+                "step_order": step.get("order", 0),
+                "status": "pending",
+                "data": merged_data,
+                "updated_at": now_iso,
+            }, "$unset": {"completed_at": ""}},
+            upsert=True,
+        )
+        if reopened_step:
+            await db.user_progress.update_one(
+                {"user_id": user_id, "step_id": reopened_step["id"]},
+                {"$set": {
+                    "user_id": user_id,
+                    "step_id": reopened_step["id"],
+                    "survey_id": target_user.get("survey_id"),
+                    "step_order": reopened_step.get("order", 0),
+                    "status": "in_progress",
+                    "updated_at": now_iso,
+                }, "$unset": {"completed_at": ""}},
+                upsert=True,
+            )
+        event_payload = {
+            **base_event_payload,
+            "rejection_reason": payload.reason.strip(),
+            "reopened_step_id": reopened_step["id"] if reopened_step else "",
+            "reopened_step_title": reopened_step.get("title", "") if reopened_step else "",
+            "reopened_step_order": reopened_step.get("order", "") if reopened_step else "",
+        }
+        event = await emit_domain_event("partner.step.rejected", event_payload, actor)
+        emitted_events.append(event)
+        history_action = "rejected_by_partner"
+
+    await db.progress_history.insert_one({
+        "user_id": user_id,
+        "step_id": step_id,
+        "step_title": step.get("title", ""),
+        "step_order": step.get("order", 0),
+        "action": history_action,
+        "reason": payload.reason or "",
+        "changed_by": partner_user.get("email", ""),
+        "partner_id": partner_id,
+        "timestamp": now_iso,
+    })
+    await create_audit_log(
+        str(partner_user.get("_id") or ""), partner_user.get("email", ""), history_action,
+        "user_step", step_id,
+        {"user_id": user_id, "step_order": step.get("order"), "reason": payload.reason or ""},
+    )
+    return {
+        "message": "Step completed" if payload.action == "complete" else "Step rejected",
+        "step_id": step_id,
+        "status": "completed" if payload.action == "complete" else "pending",
+        "reopened_step": reopened_step,
+        "events": emitted_events,
+    }
+
 @api_router.put("/partner/users/{user_id}/progress")
 async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, request: Request):
     partner_user = await require_role("partner")(request)
@@ -1693,6 +1914,9 @@ async def partner_update_user_progress(user_id: str, data: UserProgressUpdate, r
     target_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
+    _, _, _, managed = await _partner_step_action_context(user_id, partner_id, partner_doc)
+    if data.step_id not in managed:
+        raise HTTPException(status_code=403, detail="This step is not managed by your partner organization")
     now_iso = datetime.now(timezone.utc).isoformat()
     existing = await db.user_progress.find_one({"user_id": user_id, "step_id": data.step_id})
     update_fields = {"status": data.status, "updated_at": now_iso}
@@ -1953,6 +2177,90 @@ async def get_public_settings():
     return settings or {}
 
 # ========================
+# DOMAIN EVENTS (Admin)
+# ========================
+
+@admin_router.get("/event-configs")
+async def admin_list_event_configs(request: Request):
+    await require_role("admin")(request)
+    await ensure_event_configs()
+    configs = await db.event_configs.find({}, {"_id": 0}).sort("event_type", 1).to_list(100)
+    return configs
+
+
+@admin_router.put("/event-configs/{event_type}")
+async def admin_update_event_config(event_type: str, payload: EventConfigUpdate, request: Request):
+    admin_user = await require_role("admin")(request)
+    await ensure_event_configs()
+    existing = await db.event_configs.find_one({"event_type": event_type})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Event type not found")
+    update = payload.model_dump(exclude_none=True)
+    if "handlers" in update:
+        normalized_handlers = []
+        for index, handler in enumerate(update["handlers"]):
+            handler_type = handler.get("type")
+            if handler_type not in ("email", "notification"):
+                raise HTTPException(status_code=422, detail="Only email and notification handlers are currently supported")
+            normalized = {
+                "id": handler.get("id") or f"handler-{index + 1}",
+                "type": handler_type,
+                "label": handler.get("label") or ("E-Mail senden" if handler_type == "email" else "Browser/App Notification"),
+                "enabled": handler.get("enabled", True),
+                "recipient": handler.get("recipient") or "user",
+                "template_key": handler.get("template_key") or "",
+            }
+            if handler_type == "notification":
+                normalized["channels"] = [
+                    channel for channel in (handler.get("channels") or [])
+                    if channel in ("browser", "app")
+                ]
+                normalized["provider"] = handler.get("provider") or "unconfigured"
+            normalized_handlers.append(normalized)
+        update["handlers"] = normalized_handlers
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.event_configs.update_one({"event_type": event_type}, {"$set": update})
+    await create_audit_log(
+        str(admin_user.get("_id") or ""), admin_user.get("email", ""), "event_config_update",
+        "event_config", event_type, {"fields": list(update.keys())},
+    )
+    return await db.event_configs.find_one({"event_type": event_type}, {"_id": 0})
+
+
+@admin_router.get("/events")
+async def admin_list_domain_events(
+    request: Request,
+    limit: int = Query(default=100, ge=0, le=1000),
+    skip: int = Query(default=0, ge=0),
+    event_type: str = "",
+    status: str = "",
+):
+    await require_role("admin")(request)
+    query = {}
+    if event_type:
+        query["event_type"] = event_type
+    if status:
+        query["status"] = status
+    total = await db.domain_events.count_documents(query)
+    cursor = db.domain_events.find(query).sort("created_at", -1).skip(skip)
+    documents = await (cursor.limit(limit).to_list(limit) if limit > 0 else cursor.to_list(total))
+    return {"events": [serialize_event_document(document) for document in documents], "total": total}
+
+
+@admin_router.post("/events/{event_id}/retry")
+async def admin_retry_domain_event(event_id: str, request: Request):
+    admin_user = await require_role("admin")(request)
+    try:
+        event = await retry_domain_event(event_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Event not found")
+    await create_audit_log(
+        str(admin_user.get("_id") or ""), admin_user.get("email", ""), "event_retry",
+        "domain_event", event_id, {},
+    )
+    return event
+
+# ========================
 # EMAIL TEMPLATES (Admin)
 # ========================
 # Curated set of variables per category — exposed to the Admin UI as a
@@ -1961,7 +2269,8 @@ _EMAIL_TEMPLATE_VARIABLES = {
     "layout":  ["app_url"],
     "partner": ["partner_name", "user_name", "user_email", "field_of_study",
                 "bundesland", "step_order", "open_user_link", "app_url"],
-    "user":    ["user_name", "partner_name", "milestone_title", "reset_link", "app_url"],
+    "user":    ["user_name", "partner_name", "milestone_title", "step_title",
+                "rejection_reason", "reopened_step_title", "reset_link", "app_url"],
     "step":    ["user_name", "step_title", "step_order", "step_description",
                 "total_steps", "partner_name", "app_url"],
 }
@@ -1992,7 +2301,10 @@ async def admin_update_email_template(key: str, payload: dict, request: Request)
     existing = await db.email_templates.find_one({"key": key})
     if not existing:
         raise HTTPException(status_code=404, detail="Template not found")
-    allowed = {k: v for k, v in (payload or {}).items() if k in ("subject", "body_html", "description")}
+    allowed = {
+        k: v for k, v in (payload or {}).items()
+        if k in ("subject", "body_html", "notification_title", "notification_body", "description")
+    }
     if not allowed:
         raise HTTPException(status_code=400, detail="No editable fields provided")
     allowed["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -2017,6 +2329,8 @@ async def admin_reset_email_template(key: str, request: Request):
         "category": tpl.get("category", "user"),
         "subject": tpl["subject"],
         "body_html": tpl["body_html"],
+        "notification_title": tpl.get("notification_title", ""),
+        "notification_body": tpl.get("notification_body", ""),
         "description": tpl["description"],
         "updated_at": now,
     }
@@ -2029,6 +2343,12 @@ async def admin_reset_email_template(key: str, request: Request):
 class _EmailPreviewPayload(BaseModel):
     subject: Optional[str] = ""
     body_html: Optional[str] = ""
+    variables: Optional[Dict[str, Any]] = None
+
+
+class _NotificationPreviewPayload(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
     variables: Optional[Dict[str, Any]] = None
 
 
@@ -2053,6 +2373,21 @@ async def admin_preview_email_template(key: str, payload: _EmailPreviewPayload, 
     )
     if not rendered:
         raise HTTPException(status_code=404, detail="Template not found")
+    return rendered
+
+
+@admin_router.post("/email-templates/{key}/notification-preview")
+async def admin_preview_notification(key: str, payload: _NotificationPreviewPayload, request: Request):
+    """Render Browser/App copy independently from the email subject and HTML."""
+    await require_role("admin")(request)
+    rendered = await render_notification(
+        key,
+        payload.variables or {},
+        override_title=payload.title,
+        override_body=payload.body,
+    )
+    if not rendered:
+        raise HTTPException(status_code=404, detail="Notification content not found")
     return rendered
 
 
@@ -2196,10 +2531,10 @@ async def startup():
                 "primary": "#004856",
                 "secondary": "#7ed9c6",
                 "accent": "#ff6b6b",
-                "font_heading": "Varela Round",
-                "font_body": "Montserrat",
-                "logo_url": "https://fsp-pflege.de/wp-content/uploads/2025/02/FSPP-Logo-Final.png",
-                "icon_url": "https://fsp-pflege.de/wp-content/uploads/2025/03/FSPP-Icon-Vektor.svg",
+                "font_heading": "system-ui",
+                "font_body": "system-ui",
+                "logo_url": "/assets/gerdoctor-logo.svg",
+                "icon_url": "/assets/gerdoctor-logo.svg",
             },
             "created_at": now,
             "updated_at": now,
@@ -2282,7 +2617,7 @@ async def startup():
                     "hero_subtitle": "Von der Vorbereitung bis zum Arbeitseinstieg unterstuetzen wir vollumfaenglich",
                     "hero_cta": "Jetzt starten",
                     "learn_more_label": "Mehr erfahren",
-                    "hero_image_url": "https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png",
+                    "hero_image_url": "/assets/hero-journey.svg",
                     "stat_value": "100%",
                     "stat_label": "Der schnellste Weg zur Approbation",
                     "box1_title": "Begleitetes Onboarding",
@@ -2313,7 +2648,7 @@ async def startup():
                     "hero_subtitle": "Wir begleiten internationale Pflegekräfte von Registrierung, Fachsprache und Anerkennung bis zum Arbeitseinstieg in Deutschland.",
                     "hero_cta": "Jetzt registrieren",
                     "learn_more_label": "Mehr zur Pflege-Anerkennung",
-                    "hero_image_url": "https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png",
+                    "hero_image_url": "/assets/hero-journey.svg",
                     "stat_value": "100%",
                     "stat_label": "Von der Anerkennung bis zum Pflegejob",
                     "box1_title": "Geführte Anerkennung",
@@ -2386,6 +2721,8 @@ async def startup():
                 "category": _tpl.get("category", "user"),
                 "subject": _tpl["subject"],
                 "body_html": _tpl["body_html"],
+                "notification_title": _tpl.get("notification_title", ""),
+                "notification_body": _tpl.get("notification_body", ""),
                 "description": _tpl["description"],
                 "updated_at": _now,
             }
@@ -2399,6 +2736,10 @@ async def startup():
                 await db.email_templates.insert_one(_doc)
     except Exception as _e:
         logger.warning(f"email_templates seed failed: {_e}")
+    try:
+        await ensure_event_configs()
+    except Exception as _e:
+        logger.warning(f"event config seed failed: {_e}")
     logger.info("Startup seeding complete")
 
 @app.on_event("shutdown")

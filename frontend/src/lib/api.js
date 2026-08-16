@@ -154,7 +154,19 @@ export const adminAPI = {
     updateEmailTemplate: (key, data) => api.put(`/admin/email-templates/${key}`, data),
     resetEmailTemplate: (key) => api.post(`/admin/email-templates/${key}/reset`),
     previewEmailTemplate: (key, payload) => api.post(`/admin/email-templates/${key}/preview`, payload),
+    previewNotificationTemplate: (key, payload) => api.post(`/admin/email-templates/${key}/notification-preview`, payload),
     sendTestEmail: (key, payload) => api.post(`/admin/email-templates/${key}/send-test`, payload),
+
+    // Domain Events
+    listEventConfigs: () => api.get('/admin/event-configs'),
+    updateEventConfig: (eventType, payload) => api.put(`/admin/event-configs/${encodeURIComponent(eventType)}`, payload),
+    listEvents: (limit = 0, eventType = '', status = '') => {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (eventType) params.set('event_type', eventType);
+        if (status) params.set('status', status);
+        return api.get(`/admin/events?${params.toString()}`);
+    },
+    retryEvent: (eventId) => api.post(`/admin/events/${encodeURIComponent(eventId)}/retry`),
 };
 
 export const surveysAPI = {
@@ -185,6 +197,8 @@ export const partnerDashboardAPI = {
     getUserDetail: (userId) => api.get(`/partner/users/${userId}`),
     updateUserProgress: (userId, step_id, status, data) =>
         api.put(`/partner/users/${userId}/progress`, { step_id, status, data }),
+    performStepAction: (userId, stepId, action, reason = '', data = {}) =>
+        api.post(`/partner/users/${userId}/steps/${stepId}/action`, { action, reason, data }),
     reopenMilestone: (userId) => api.put(`/partner/users/${userId}/reopen`),
 };
 

@@ -129,9 +129,9 @@ export default function Landing() {
     const isCustomLanding = Boolean(currentLanding);
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="app-view public-view min-h-screen bg-background text-foreground">
             {/* Header */}
-            <header className="fixed top-0 left-0 right-0 z-50 glass">
+            <header className="app-topbar fixed top-0 left-0 right-0 z-50 glass">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
@@ -259,7 +259,7 @@ export default function Landing() {
                         </div>
                         <div className="relative">
                             <img 
-                                src={lp('hero_image_url', 'https://static.prod-images.emergentagent.com/jobs/315e3c10-27eb-4e13-8f67-587e823053ba/images/5fd3c87e94b794ef345545f4831b1564009ab10cecdbca63c977b897e96e5b8a.png')}
+                                src={lp('hero_image_url') || '/assets/hero-journey.svg'}
                                 alt={lp('hero_image_alt', lp('hero_title', 'Anerkennungsprozess in Deutschland'))}
                                 className="rounded-sm shadow-2xl max-h-[60vh] w-full object-cover"
                             />
@@ -326,8 +326,8 @@ export default function Landing() {
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="order-2 md:order-1">
                             <img 
-                                src="https://images.unsplash.com/photo-1758873271902-a63ecd5b5235?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBzdGFydHVwJTIwdGVhbSUyMHdvcmtpbmd8ZW58MHx8fHwxNzc2MTUyMzY3fDA&ixlib=rb-4.1.0&q=85" 
-                                alt="Team working"
+                                src="/assets/about-network.svg"
+                                alt="GerDoctor Partnernetzwerk"
                                 className="rounded-sm shadow-lg max-h-[50vh] w-full object-cover"
                             />
                         </div>
@@ -375,7 +375,7 @@ export default function Landing() {
                             >
                                 {partner.logo_url && (
                                     <img 
-                                        src={partner.logo_url} 
+                                        src={partner.logo_url || '/assets/partner-placeholder.svg'}
                                         alt={partner.name}
                                         className="w-16 h-16 object-cover rounded-sm mb-4"
                                     />
@@ -424,7 +424,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <img src={lp('footer_logo_url', 'https://fsp-pflege.de/wp-content/uploads/2025/02/FSPP-Logo-Final.png')} alt={lp('title', 'FSP Pflege')} className="h-9 w-auto object-contain" />
+                            <img src={lp('footer_logo_url') || '/assets/gerdoctor-logo.svg'} alt={lp('title', 'GerDoctor')} className="h-9 w-auto object-contain" />
                             <span className="text-[10px] font-medium text-muted-foreground">Powered by DigiFORT</span>
                         </div>
                         <p className="text-sm text-muted-foreground">{lp('footer_text', isCustomLanding ? '' : '© 2026 FSP Pflege. Alle Rechte vorbehalten.')}</p>

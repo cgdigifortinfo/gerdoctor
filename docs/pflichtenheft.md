@@ -4,7 +4,7 @@
 
 | Feld | Inhalt |
 |---|---|
-| Projekt | GERdoctor / IHCA Multi-Survey-Plattform |
+| Projekt | IHCA Multi-Survey-Plattform |
 | Dokument | Pflichtenheft |
 | Stand | 2026-07-14 |
 | Status | Technischer Entwurf auf Basis des aktuellen lokalen Projektstands |
@@ -33,6 +33,8 @@
 - [18. Test- und Abnahmekonzept](#18-test--und-abnahmekonzept)
 - [19. Migration, Wartung und Support](#19-migration-wartung-und-support)
 - [20. Ausschreibungsannahmen](#20-ausschreibungsannahmen)
+- [21. Partnerregistrierung und Billing-Erweiterung](#21-partnerregistrierung-und-billing-erweiterung)
+- [22. Nutzerrechte und Nutzergruppen](#22-nutzerrechte-und-nutzergruppen)
 
 ## 1. Zweck des Dokuments
 
@@ -67,10 +69,11 @@ Szenarien über dieselbe Survey-/Step-Engine. Anwendernahe Beispiele verwenden
 | Bereich | Technologie | Kurzbeschreibung |
 |---|---|---|
 | Backend | Python / FastAPI | HTTP-API, Authentifizierung, Rollen, Survey-/Step-Logik |
-| Datenbank | MongoDB | Persistenz für Nutzer, Surveys, Steps, Progress, Partner, Dateien |
+| Datenbank | MongoDB | Persistenz für Nutzer, Surveys, Steps, Progress, Partner, Dateien, Billing Events |
 | Frontend | React / CRACO | Single Page Application mit User-, Partner- und Admin-Dashboard |
 | Betrieb | Docker Compose | Lokaler Betrieb von MongoDB und Backend |
 | Uploads | Lokaler Object Storage | Persistente Ablage von Upload-Dateien über Docker-Volume |
+| Payment Provider | Stripe als Beispiel, provider-neutral abstrahiert | Partner-Abo, Checkout, Webhooks und nutzungsbezogene Abrechnung |
 | Tests | Pytest / Playwright | Backend-, Performance-, Security- und Browser-Regressionen |
 | Dokumentation | Markdown, PNG-/SVG-Diagramme, Pandoc | Versionierbare Quelldokumente und DOCX-Export |
 
@@ -109,12 +112,48 @@ User repräsentieren normale Nutzer, Partnerkonten und Admins.
 | `password_hash` | `string` | Gehashter Passwortwert |
 | `name` | `string` | Anzeigename |
 | `role` | `enum` | Rolle: `user`, `partner` oder `admin` |
+| `group_ids` | `array<string>` | Zugeordnete Nutzergruppen für erweiterte Rechte |
+| `permission_overrides` | `object` | Explizite nutzerbezogene Rechteabweichungen |
 | `survey_id` | `string` / `null` | Zugeordneter Survey für normale Nutzer |
 | `survey_slug` | `string` / `null` | Lesbarer Survey-Schlüssel |
 | `partner_id` | `string` / `null` | Zugeordnete Partnerorganisation bei Partner-Usern |
 | `notification_prefs` | `object` | Benachrichtigungseinstellungen, z. B. E-Mail Opt-out |
 | `created_at` | `datetime string` | Erstellzeitpunkt |
 | `updated_at` | `datetime string` | Letzte Änderung |
+
+### 4.2.1 User Group
+
+User Groups bündeln Berechtigungen und können Nutzern ergänzend zur Basisrolle
+zugewiesen werden.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `name` | `string` | Anzeigename der Gruppe, z. B. Fachadmin oder Abrechnung |
+| `description` | `string` | Kurzbeschreibung des Einsatzzwecks |
+| `scope` | `enum` | Geltungsbereich: global, survey-spezifisch oder partner-spezifisch |
+| `survey_ids` | `array<string>` | Optionale Survey-Einschränkung |
+| `partner_ids` | `array<string>` | Optionale Partner-Einschränkung |
+| `permissions` | `array<string>` | Zugeordnete Berechtigungsschlüssel |
+| `is_active` | `boolean` | Aktivierungsstatus |
+| `created_at` | `datetime string` | Erstellzeitpunkt |
+| `updated_at` | `datetime string` | Letzte Änderung |
+
+### 4.2.2 Permission Audit
+
+Permission Audits dokumentieren Änderungen an Gruppen, Mitgliedschaften und
+Rechte-Overrides.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `actor_user_id` | `string` | Auslösender Admin oder Systemnutzer |
+| `target_user_id` | `string` / `null` | Betroffener Nutzer bei Mitgliedschafts- oder Override-Änderung |
+| `group_id` | `string` / `null` | Betroffene Gruppe |
+| `action` | `enum` | `group_created`, `group_updated`, `member_added`, `member_removed`, `override_changed` |
+| `before` | `object` / `null` | Vorheriger Zustand |
+| `after` | `object` / `null` | Neuer Zustand |
+| `created_at` | `datetime string` | Änderungszeitpunkt |
 
 ### 4.3 Step
 
@@ -173,6 +212,7 @@ Partnerzugriff sowie Partnerbearbeitung.
 | `status` | `enum` | Submission-Status, z. B. `submitted` |
 | `created_at` | `datetime string` | Zeitpunkt der Einreichung |
 | `partner_work_completed` | `boolean` | Kennzeichnet abgeschlossene Partnerarbeit |
+| `billing_event_id` | `string` / `null` | Referenz auf erzeugtes Billing Event bei abrechnungsrelevantem Abschluss |
 
 ### 4.6 File
 
@@ -189,6 +229,88 @@ Files speichern Metadaten zu Uploads. Binärdaten liegen im lokalen Storage.
 | `size` | `integer` | Dateigröße in Bytes |
 | `is_deleted` | `boolean` | Soft-Delete-Status |
 | `created_at` | `datetime string` | Upload-Zeitpunkt |
+
+### 4.7 Partner Account
+
+Partner Accounts erweitern Partnerorganisationen um Registrierungs-, Prüf- und
+Zahlungsstatus. Bestehende Partner-Stammdaten können technisch in derselben
+Collection oder in einer ergänzenden Collection gespeichert werden.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `partner_id` | `string` | Referenz auf Partnerorganisation |
+| `company_name` | `string` | Name der Organisation |
+| `contact_name` | `string` | Ansprechpartner |
+| `contact_email` | `string` | E-Mail für Registrierung, Login und Abrechnung |
+| `registration_status` | `enum` | Status: `pending`, `approved`, `rejected`, `suspended` |
+| `billing_status` | `enum` | Status: `none`, `checkout_pending`, `active`, `past_due`, `canceled`, `unpaid` |
+| `stripe_customer_id` | `string` / `null` | Stripe Customer ID als Beispielanbieterreferenz |
+| `stripe_subscription_id` | `string` / `null` | Stripe Subscription ID |
+| `billing_email` | `string` | E-Mail für Rechnungs- und Zahlungsinformationen |
+| `created_at` | `datetime string` | Registrierungszeitpunkt |
+| `updated_at` | `datetime string` | Letzte Änderung |
+
+### 4.8 Partner Subscription
+
+Partner Subscriptions speichern den lokalen Abo-Zustand unabhängig vom konkreten
+Zahlungsanbieter.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `partner_id` | `string` | Referenz auf Partnerorganisation |
+| `provider` | `enum` | Zahlungsanbieter, z. B. `stripe` |
+| `provider_customer_id` | `string` | Customer-ID beim Zahlungsanbieter |
+| `provider_subscription_id` | `string` | Subscription-ID beim Zahlungsanbieter |
+| `plan_id` | `string` | Interner Tarif oder Preisplan |
+| `status` | `enum` | `incomplete`, `trialing`, `active`, `past_due`, `unpaid`, `canceled` |
+| `current_period_start` | `datetime string` | Beginn der aktuellen Abrechnungsperiode |
+| `current_period_end` | `datetime string` | Ende der aktuellen Abrechnungsperiode |
+| `cancel_at_period_end` | `boolean` | Kündigung zum Periodenende vorgemerkt |
+| `created_at` | `datetime string` | Erstellzeitpunkt |
+| `updated_at` | `datetime string` | Letzte Synchronisierung |
+
+### 4.9 Billing Event
+
+Billing Events sind die interne, revisionsfähige Grundlage der Abrechnung pro
+abgeschlossenem Nutzer-Meilenstein.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `event_key` | `string` | Idempotenzschlüssel, z. B. `partner_id:user_id:step_id` |
+| `partner_id` | `string` | Abzurechnender Partner |
+| `user_id` | `string` | Nutzer, dessen Meilenstein abgeschlossen wurde |
+| `survey_id` | `string` | Zugehöriger Survey |
+| `step_id` | `string` | Abrechnungsrelevanter Meilenstein |
+| `step_order` | `integer` | Step-Reihenfolge |
+| `milestone_title` | `string` | Anzeigename des Meilensteins |
+| `amount_net` | `integer` | Nettobetrag in kleinster Währungseinheit, z. B. Cent |
+| `currency` | `string` | Währung, z. B. `EUR` |
+| `status` | `enum` | `pending`, `reported`, `invoiced`, `paid`, `void`, `error` |
+| `provider` | `string` / `null` | Zahlungsanbieterreferenz, z. B. `stripe` |
+| `provider_usage_record_id` | `string` / `null` | Referenz auf Usage-/Metering-Event beim Anbieter |
+| `billing_period` | `string` | Abrechnungsperiode, z. B. `2026-07` |
+| `completed_at` | `datetime string` | Zeitpunkt des fachlichen Abschlusses |
+| `created_at` | `datetime string` | Erzeugungszeitpunkt |
+
+### 4.10 Payment Provider Event
+
+Payment Provider Events speichern eingehende Webhooks, damit Verarbeitung
+idempotent und nachvollziehbar bleibt.
+
+| Feld | Datentyp | Kurzbeschreibung |
+|---|---|---|
+| `_id` | `ObjectId` | Eindeutige technische ID |
+| `provider` | `string` | Zahlungsanbieter, z. B. `stripe` |
+| `provider_event_id` | `string` | Eindeutige Event-ID des Anbieters |
+| `event_type` | `string` | Webhook-Typ, z. B. `checkout.session.completed` |
+| `payload` | `object` | Signiert empfangener Webhook-Payload |
+| `processing_status` | `enum` | `received`, `processed`, `ignored`, `failed` |
+| `error_message` | `string` / `null` | Fehlerdetails bei Verarbeitung |
+| `received_at` | `datetime string` | Empfangszeitpunkt |
+| `processed_at` | `datetime string` / `null` | Verarbeitungszeitpunkt |
 
 ## 5. Step Engine
 
@@ -238,6 +360,7 @@ sein oder über Conditions alternative Pfade enthalten.
 | Blocked Steps | Bleiben sichtbar, können aber noch nicht bearbeitet werden |
 | Auto-Complete | Schließt Meilensteine ab, wenn Uploads, Partnerdaten oder Statusbedingungen erfüllt sind |
 | Partnerauswahl | Erzeugt Partner Submissions und ermöglicht Partnerzugriff |
+| Billing Event | Erzeugt bei abrechnungsrelevantem Partner-Meilenstein genau ein idempotentes Abrechnungsereignis |
 
 ### 5.4 Beispielszenarien
 
@@ -264,6 +387,7 @@ verstehen.
 | Auth | `POST /api/auth/register` | Body: `email`, `password`, `name`, optional `survey_slug` | `AuthPayload` | Registriert Nutzer und initialisiert Progress für den Survey |
 | Auth | `POST /api/auth/login` | Body: `email`, `password` | `AuthPayload` | Meldet Nutzer an und liefert Tokens/User-Payload |
 | Auth | `GET /api/auth/me` | Auth-Token | `UserPayload` | Liefert aktuellen eingeloggten Nutzer |
+| Auth | `GET /api/auth/permissions` | Auth-Token | `EffectivePermissions` | Liefert effektive Rechte aus Rolle, Gruppen und Overrides |
 | Auth | Passwort-Reset-Endpunkte | E-Mail, Reset-Token, neues Passwort | `StatusPayload` | Unterstützt Passwort-Vergessen- und Reset-Flows |
 | User Steps | `GET /api/steps/bootstrap` | Query: optional `survey_slug`; Auth-Token | `StepsBootstrapPayload` | Initialer Sammelrequest für User-Dashboard |
 | User Steps | `GET /api/steps` | Query: optional `survey_slug`; Auth-Token | `array<Step>` | Liefert aktive Steps des relevanten Surveys |
@@ -275,6 +399,12 @@ verstehen.
 | Partner | `GET /api/partner/insights` | Partner-Auth | `PartnerInsights` | Liefert Funnel-, Timeline- und Profilstatistiken |
 | Partner | `GET /api/partner/users/{id}` | Pfad: `id`; Partner-Auth | `PartnerUserDetail` | Detailansicht eines berechtigten Nutzers |
 | Partner | `PUT /api/partner/users/{id}/progress` | Pfad: `id`; Body: Progressdaten | `UserProgress` | Aktualisiert berechtigten Nutzerfortschritt |
+| Partner Billing | `GET /api/partner/billing/summary` | Partner-Auth; optional Zeitraum | `PartnerBillingSummary` | Zeigt eigene Umsätze, Abschlüsse und offene Beträge |
+| Partner Billing | `GET /api/partner/billing/events` | Partner-Auth; Filter: Zeitraum, Status, Survey | `array<BillingEvent>` | Listet eigene abrechnungsrelevante Meilensteine |
+| Partner Billing | `GET /api/partner/billing/subscription` | Partner-Auth | `PartnerSubscription` | Liefert lokalen Abo- und Zahlungsstatus |
+| Partner Billing | `POST /api/partners/register` | Body: Organisations-, Kontakt- und Rechnungsdaten | `PartnerRegistrationPayload` | Registriert neue Partnerorganisation mit Prüfstatus |
+| Partner Billing | `POST /api/partners/billing/checkout-session` | Body: `partner_id`, Tarif/Plan | `CheckoutSessionPayload` | Erstellt Checkout Session beim Zahlungsanbieter |
+| Partner Billing | `POST /api/webhooks/stripe` | Signierter Stripe-Payload | `StatusPayload` | Verarbeitet Provider-Events idempotent |
 | Partner-Auswahl | `POST /api/partners/submit` | Body: `partner_id`, `step_id`, optionale Profildaten | `PartnerSubmission` | Reicht Nutzer bei einem Partner ein |
 | Partner-Auswahl | `POST /api/partners/submit-multi` | Body: mehrere `partner_ids`, `step_id` | `array<PartnerSubmission>` | Reicht Nutzer bei mehreren Partnern ein |
 | Admin Surveys | `GET /api/admin/surveys` | Admin-Auth | `array<Survey>` | Listet Surveys für Admin-Verwaltung |
@@ -286,7 +416,17 @@ verstehen.
 | Admin Steps | `POST /api/admin/steps/reorder` | Body: `step_ids`, optional `survey_id` | `StatusPayload` | Speichert Reihenfolge innerhalb eines Surveys |
 | Admin Templates | `GET, POST, PUT, DELETE /api/admin/step-templates` | Template-Daten | `StepTemplate` / `StatusPayload` | Verwaltet Step-Templates |
 | Admin Users | `GET, POST, PUT, DELETE /api/admin/users` | User-Daten, optional `survey_id` | `UserPayload` / `StatusPayload` | Verwaltet Nutzer und Survey-Zuweisung |
+| Admin Access | `GET /api/admin/user-groups` | Admin-Auth | `array<UserGroup>` | Listet Nutzergruppen und Berechtigungsprofile |
+| Admin Access | `POST /api/admin/user-groups` | Body: Gruppenfelder und Berechtigungen | `UserGroup` | Erstellt neue Nutzergruppe |
+| Admin Access | `PUT /api/admin/user-groups/{id}` | Pfad: `id`; Body: Gruppenfelder | `UserGroup` | Aktualisiert Gruppe, Scope und Berechtigungen |
+| Admin Access | `POST /api/admin/users/{id}/groups` | Pfad: `id`; Body: `group_ids` | `UserPayload` | Setzt Gruppenmitgliedschaften eines Nutzers |
+| Admin Access | `PUT /api/admin/users/{id}/permission-overrides` | Pfad: `id`; Body: Overrides | `UserPayload` | Setzt explizite nutzerbezogene Rechteabweichungen |
+| Admin Access | `GET /api/admin/permission-audit` | Filter: Nutzer, Gruppe, Zeitraum | `array<PermissionAudit>` | Zeigt Audit-Historie für Rechteänderungen |
 | Admin Partners | `GET, POST, PUT, DELETE /api/admin/partners` | Partner-Daten | `Partner` / `StatusPayload` | Verwaltet Partnerorganisationen |
+| Admin Billing | `GET /api/admin/billing/summary` | Admin-Auth; Filter: Zeitraum, Partner, Status | `AdminBillingSummary` | Aggregiert Abrechnungen über alle Partner |
+| Admin Billing | `GET /api/admin/billing/events` | Admin-Auth; Filter: Zeitraum, Partner, Status, Survey | `array<BillingEvent>` | Listet alle Billing Events mit Partnerbezug |
+| Admin Billing | `GET /api/admin/billing/export` | Admin-Auth; Filter wie Übersicht | `file` | Exportiert Abrechnungsdaten als CSV/XLSX |
+| Admin Billing | `POST /api/admin/billing/events/{id}/void` | Pfad: `id`; Body: Begründung | `BillingEvent` | Storniert ein Billing Event revisionsfähig |
 | Admin E-Mail | `GET, PUT, POST /api/admin/email-templates` | Template-Key, HTML, Variablen | `EmailTemplate` / `PreviewPayload` | Verwaltet und rendert E-Mail-Vorlagen |
 | Dateien | `POST /api/files/upload` | Multipart: `file`; Auth-Token | `FileMetadata` | Speichert Upload nach Sicherheitsprüfung |
 | Dateien | `GET /api/files/{file_id}` | Pfad: `file_id`; Auth oder Download-Token | `binary` | Liefert Datei nur bei Berechtigung |
@@ -303,9 +443,14 @@ verstehen.
 | `/s/:surveySlug` | URL: `surveySlug` | Survey-Landing | Survey-spezifische Landingpage, z. B. Pflege oder Ärzte |
 | `/s/:surveySlug/login` | URL: `surveySlug` | Auth-Ansicht | Login im Kontext eines Surveys |
 | `/s/:surveySlug/register` | URL: `surveySlug` | Auth-Ansicht | Registrierung mit Survey-Zuweisung |
+| `/partner/register` | Keine oder Referral-/Plan-Parameter | PartnerRegister | Öffentliche Partnerregistrierung |
+| `/partner/billing/checkout` | Partnerkontext, Plan | Checkout-Redirect/Status | Startet oder prüft Abo-Checkout beim Zahlungsanbieter |
 | `/dashboard` | Auth-Session | UserDashboard | Nutzer-Journey für den dem User zugeordneten Survey |
-| `/partner-dashboard` | Partner-Auth | PartnerDashboard | Partnerfälle, Completed Users und Insights |
-| `/admin` | Admin-Auth | AdminDashboard | Verwaltung von Surveys, Steps, Nutzern, Partnern, CMS und E-Mails |
+| `/partner-dashboard` | Partner-Auth | PartnerDashboard | Partnerfälle, Completed Users, Insights und Billing-Einstieg |
+| `/partner-dashboard/billing` | Partner-Auth | PartnerBillingPage | Eigene Umsätze, Abschlüsse, Abo-Status und Export |
+| `/admin` | Admin-Auth | AdminDashboard | Verwaltung von Surveys, Steps, Nutzern, Partnern, Billing, CMS und E-Mails |
+| `/admin/access-control` | Admin-Auth mit Rechteverwaltung | AccessControlPage | Verwaltung von Nutzergruppen, Berechtigungen und Overrides |
+| `/admin/billing` | Admin-Auth | AdminBillingPage | Globale Abrechnungsübersicht über alle Partner |
 
 ### 7.2 Kernseiten
 
@@ -313,9 +458,13 @@ verstehen.
 |---|---|---|---|
 | `Landing.js` | Optional `surveySlug` | React Page | Rendert Landing-Copy und CTA je Survey |
 | `Auth.js` | Optional `surveySlug`, Modus Login/Register | React Page | Login und Registrierung, übergibt Survey-Slug an API |
+| `PartnerRegister.js` | Organisations-, Kontakt- und Rechnungsdaten | React Page | Registriert Partner und führt zum Abo-Checkout |
 | `UserDashboard.js` | Auth-User mit `survey_id` | React Page | Lädt Bootstrap-Daten und rendert Step-Journey |
 | `PartnerDashboard.js` | Partner-User mit `partner_id` | React Page | Rendert Partnerlisten, Details, Uploads und Insights |
-| `AdminDashboard.js` | Admin-User | React Page | Rendert Admin-Module für Survey-, Step- und Stammdatenpflege |
+| `PartnerBillingPage.js` | Partner-User mit `partner_id` | React Page | Rendert eigene Billing-Kennzahlen, Ereignisse und Abo-Status |
+| `AdminDashboard.js` | Admin-User | React Page | Rendert Admin-Module für Survey-, Step-, Billing- und Stammdatenpflege |
+| `AccessControlPage.js` | Admin-User mit Rechteverwaltung | React Page | Rendert Gruppen, Berechtigungsprofile, Mitgliedschaften und Audit-Historie |
+| `AdminBillingPage.js` | Admin-User | React Page | Rendert globale Partnerabrechnungen, Filter, Storno und Export |
 
 ### 7.3 Frontend API Client
 
@@ -328,6 +477,14 @@ verstehen.
 | `adminAPI.reorderSteps` | `step_ids`, `survey_id` | `StatusPayload` | Speichert Step-Reihenfolge |
 | `surveysAPI.listPublic` | Keine | `array<SurveySummary>` | Lädt öffentliche Surveys |
 | `surveysAPI.getBySlug` | `slug` | `SurveyDetail` | Lädt Survey-Metadaten anhand Slug |
+| `authAPI.getPermissions` | Keine | `EffectivePermissions` | Lädt effektive Rechte für UI-Gating |
+| `adminAccessAPI.getGroups` | Filter optional | `array<UserGroup>` | Lädt Nutzergruppen und Berechtigungsprofile |
+| `adminAccessAPI.updateUserGroups` | `userId`, `group_ids` | `UserPayload` | Speichert Gruppenmitgliedschaften |
+| `adminAccessAPI.updatePermissionOverrides` | `userId`, Overrides | `UserPayload` | Speichert nutzerbezogene Rechteabweichungen |
+| `partnerBillingAPI.getSummary` | Zeitraum/Filter | `PartnerBillingSummary` | Lädt eigene Umsatz- und Abschlussübersicht |
+| `partnerBillingAPI.createCheckoutSession` | `partner_id`, Plan | `CheckoutSessionPayload` | Startet Abo-Buchung beim Zahlungsanbieter |
+| `adminBillingAPI.getSummary` | Zeitraum, Partner, Status | `AdminBillingSummary` | Lädt globale Abrechnungskennzahlen |
+| `adminBillingAPI.export` | Zeitraum, Partner, Status | `file` | Exportiert Abrechnungsdaten |
 
 ## 8. Rechte- und Sicherheitskonzept
 
@@ -338,11 +495,18 @@ verstehen.
 | User | Eigener Survey, eigener Progress, eigene Dateien |
 | Partner | Zugewiesene Nutzer, Partner-Submissions, berechtigte Dateien |
 | Admin | Vollständige Verwaltung und Einsicht |
+| Sondergruppen | Erweiterte oder eingeschränkte Rechte gemäß Gruppenprofil und Scope |
+
+Effektive Berechtigungen werden aus Basisrolle, aktiven Nutzergruppen,
+Scope-Regeln und nutzerbezogenen Overrides berechnet. Die Backend-Prüfung ist
+führend; Frontend-Gating dient nur der Bedienbarkeit.
 
 ### 8.2 Sicherheitsmaßnahmen
 
 - Tokenbasierte Authentifizierung.
 - Rollenprüfung pro geschütztem Endpoint.
+- Berechtigungsprüfung pro geschütztem Endpoint auf Basis effektiver Rechte.
+- Scope-Prüfung für Survey-, Partner- und Billing-Kontexte.
 - Survey-Scoping für Steps und Progress.
 - Upload-Extension- und Content-Type-Prüfung.
 - Download-Autorisierung pro Datei.
@@ -370,7 +534,12 @@ verstehen.
 | `users` | `email` eindeutig | Login und Eindeutigkeit |
 | `users` | `(role,survey_id)` | Admin-Listen und Survey-Filter |
 | `users` | `partner_id` | Partner-User-Zuordnung |
+| `users` | `group_ids` | Gruppenbasierte Nutzerfilter |
 | `users` | `(role,created_at)` | Sortierte Rollenlisten |
+| `user_groups` | `name` eindeutig | Eindeutige Gruppenverwaltung |
+| `user_groups` | `(is_active,scope)` | Effektive Rechteberechnung |
+| `permission_audits` | `(target_user_id,created_at)` | Audit-Historie je Nutzer |
+| `permission_audits` | `(group_id,created_at)` | Audit-Historie je Gruppe |
 | `surveys` | `slug` eindeutig | Slug-Auflösung |
 | `surveys` | `(is_active,is_default)` | Public- und Fallback-Auswahl |
 | `steps` | `(survey_id,is_active,order)` | Survey-spezifische Step-Listen |
@@ -389,6 +558,11 @@ verstehen.
 | `partners` | `(is_active,tags)` | Partner-Matching |
 | `progress_history` | `(user_id,timestamp)` | Historie |
 | `audit_logs` | `timestamp` | Audit-Anzeige |
+| `billing_events` | `event_key` eindeutig | Verhindert Doppelabrechnung pro Partner/User/Step |
+| `billing_events` | `(partner_id,billing_period,status)` | Partner- und Periodenübersichten |
+| `billing_events` | `(survey_id,step_id,completed_at)` | Milestone-Auswertungen |
+| `partner_subscriptions` | `(partner_id,status)` | Abo-Statusprüfung |
+| `payment_provider_events` | `(provider,provider_event_id)` eindeutig | Webhook-Idempotenz |
 
 ## 10. Betrieb
 
@@ -462,6 +636,7 @@ Letzter dokumentierter Stand: `24 passed`.
 | `backend/tests/test_partner_insights_alignment.py` | Partner-Insights-Konsistenz |
 | `backend/tests/test_partner_milestone_complete.py` | Partner-Meilenstein-Abschluss |
 | `backend/tests/test_admin_user_survey_assignment.py` | Admin-Survey-Zuweisung |
+| `backend/tests/test_access_control.py` | Effektive Rechte, Gruppenmitgliedschaften und Overrides |
 
 ## 12. Abgrenzungen und offene Punkte
 
@@ -485,6 +660,7 @@ Letzter dokumentierter Stand: `24 passed`.
 | Upload-Sicherheit | Upload aktiver Inhalte wird abgelehnt |
 | Admin-Step-Listen | Step-Listen werden survey-spezifisch geladen |
 | Tests | Gezielte Performance-/Security-Suite besteht |
+| Rechteverwaltung | Gruppen, Mitgliedschaften, Overrides und Audit Logs funktionieren konsistent |
 
 ## 14. Produktionsbetrieb und Deployment
 
@@ -512,6 +688,11 @@ Letzter dokumentierter Stand: `24 passed`.
 | `LOCAL_STORAGE_ROOT` | `/var/lib/app/uploads` | Upload-Speicherort | Nein |
 | `MAX_UPLOAD_BYTES` | `20971520` | Upload-Limit, Standard 20 MB | Nein |
 | SMTP-Host/User/Pass | Providerabhängig | E-Mail-Versand | Ja |
+| `PAYMENT_PROVIDER` | `stripe` | Aktivierter Zahlungsanbieter | Nein |
+| `STRIPE_SECRET_KEY` | Stripe Secret Key | API-Zugriff auf Stripe | Ja |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Signing Secret | Webhook-Signaturprüfung | Ja |
+| `STRIPE_PARTNER_PLAN_PRICE_ID` | Stripe Price ID | Abo-Tarif für Partner | Nein |
+| `MILESTONE_BILLING_PRICE_ID` | Stripe Price/Meter ID | Abrechnung abgeschlossener Meilensteine | Nein |
 
 Secrets sind produktiv über Secret-Management der Zielplattform zu verwalten und
 dürfen nicht im Git-Repository gespeichert werden.
@@ -543,6 +724,14 @@ dürfen nicht im Git-Repository gespeichert werden.
 | Steps und Conditions | Kein Zugriff | Kein Zugriff | Lesen/Schreiben |
 | Nutzerverwaltung | Kein Zugriff | Kein Zugriff | Lesen/Schreiben |
 | Partnerverwaltung | Kein Zugriff | Eigene Profildaten eingeschränkt | Lesen/Schreiben |
+| Nutzergruppen | Kein Zugriff | Kein Zugriff | Lesen/Schreiben bei Admin-Recht `access.manage` |
+| Berechtigungsprofile | Kein Zugriff | Kein Zugriff | Lesen/Schreiben bei Admin-Recht `access.manage` |
+| Rechte-Audit | Kein Zugriff | Kein Zugriff | Lesen bei Admin-Recht `audit.read` |
+| Partnerregistrierung | Kein Zugriff | Erzeugen vor Login/Freigabe | Lesen/Schreiben |
+| Partner-Abo | Kein Zugriff | Eigenen Status lesen, Checkout starten | Lesen/Schreiben |
+| Partner-Umsätze | Kein Zugriff | Eigene Umsätze lesen/exportieren | Lesen/Export |
+| Billing Events | Kein Zugriff | Eigene Ereignisse lesen | Lesen/Schreiben/Storno |
+| Zahlungsanbieter-Daten | Kein Zugriff | Keine Zahlungsinstrumentdaten | Providerstatus lesen, keine Karten speichern |
 | E-Mail-Vorlagen | Kein Zugriff | Kein Zugriff | Lesen/Schreiben |
 | CMS / Landing-Inhalte | Kein Zugriff | Kein Zugriff | Lesen/Schreiben |
 | Audit Logs | Kein Zugriff | Kein Zugriff | Lesen |
@@ -561,6 +750,7 @@ dürfen nicht im Git-Repository gespeichert werden.
 | Löschung | Nutzer, Progress, Submissions und Uploads müssen nachvollziehbar löschbar sein |
 | Protokollierung | Admin- und sicherheitsrelevante Aktionen werden auditierbar gespeichert |
 | Aufbewahrung | Konkrete Fristen werden durch Auftraggeber vorgegeben |
+| Zahlungsdaten | Zahlungsinstrumentdaten werden nicht lokal gespeichert; Speicherung erfolgt beim Zahlungsanbieter |
 
 ### 16.2 Technische Sicherheitsmaßnahmen
 
@@ -570,9 +760,13 @@ dürfen nicht im Git-Repository gespeichert werden.
 | Passwortschutz | Hashing im Backend; produktiv Rate-Limiting und starke Secrets |
 | Token-Sicherheit | Signierte Tokens mit ausreichend starkem `JWT_SECRET` |
 | Rollenprüfung | Backend prüft Rollen und Berechtigungen pro Endpoint |
+| Effektive Rechte | Backend berechnet Rechte aus Rolle, Gruppen, Scope und Overrides |
+| Rechte-Audit | Änderungen an Gruppen, Mitgliedschaften und Overrides werden revisionsfähig protokolliert |
 | Dateizugriff | Owner, Admin oder berechtigter Partner; sonst Ablehnung |
 | Upload-Filter | Extension-Allowlist, Content-Type-Blocklist, Größenlimit |
 | Eingabevalidierung | Pydantic-Modelle und serverseitige Validierung |
+| Webhook-Sicherheit | Stripe-Signaturprüfung und eindeutige Provider-Event-ID verhindern Replay-/Doppelverarbeitung |
+| Billing-Zugriff | Partner sehen ausschließlich eigene Billing Events; Admin sieht mandantenübergreifend |
 | Audit | Admin-Aktionen und sicherheitsrelevante Vorgänge werden protokolliert |
 | Dependency Management | Regelmäßige Prüfung und Aktualisierung von Abhängigkeiten |
 | Backup-Schutz | Backups sind vor unberechtigtem Zugriff zu schützen |
@@ -600,6 +794,9 @@ dürfen nicht im Git-Repository gespeichert werden.
 | Fehlerraten | 4xx/5xx-Raten erkennen |
 | Speicherverbrauch | Upload-Storage und Datenbankvolumen überwachen |
 | Login-/Auth-Fehler | Auffällige Authentifizierungsversuche erkennen |
+| Rechteänderungen | Ungewöhnliche Gruppen- oder Berechtigungsänderungen erkennen |
+| Payment Webhooks | Fehler, Replay-Versuche und Verzögerungen bei Zahlungsanbieter-Events erkennen |
+| Billing Events | Ausstehende, fehlerhafte oder stornierte Abrechnungsereignisse überwachen |
 
 ### 17.2 Logging
 
@@ -609,6 +806,7 @@ dürfen nicht im Git-Repository gespeichert werden.
 | Audit Logs | Admin- und sicherheitsrelevante Aktionen | 180-365 Tage |
 | Access Logs | HTTP-Zugriffe, Statuscodes, Latenzen | 30-90 Tage |
 | Security Logs | Auth-Fehler, Zugriffsablehnungen, Upload-Ablehnungen | 180 Tage |
+| Billing Logs | Webhook-Verarbeitung, Providerfehler, Billing-Statuswechsel | 180-365 Tage |
 
 Konkrete Aufbewahrungsfristen sind durch den Auftraggeber datenschutzrechtlich
 festzulegen.
@@ -630,6 +828,8 @@ festzulegen.
 | Security-Regression | Upload-Filter, Dateizugriff, Rollenprüfung | Testprotokoll |
 | Performance-Test | Dashboard-Hotpaths, Admin-/Partnerlisten | Laufzeitmessung |
 | E2E-Test | Login, Survey-Flow, Admin-Step-Verwaltung, Landingpages | Playwright-Protokoll |
+| Billing-Test | Partnerregistrierung, Checkout, Webhooks, Idempotenz, Partner-/Adminübersicht | Testprotokoll |
+| Access-Control-Test | Gruppen, effektive Rechte, Overrides, Scope-Regeln und Audit Logs | Testprotokoll |
 | Accessibility-Test | Tastatur, Kontrast, Labels, Semantik | Audit-Checkliste |
 | Abnahmetest | Muss-Anforderungen und Beispielszenarien Ärzte/Pflege | Abnahmeprotokoll |
 
@@ -644,6 +844,7 @@ festzulegen.
 | Uploads | Metadaten und Binärdaten gemeinsam sichern und wiederherstellen |
 | Rollback | Backup-Restore und Rückkehr auf vorherigen Containerstand |
 | Baseline | Lokaler Referenzstand über `backend/seed_baseline.py` reproduzierbar |
+| Billing-Daten | Partner-Subscriptions, Billing Events und Provider-Event-IDs werden idempotent migriert |
 
 ### 19.2 Wartung und Support
 
@@ -663,8 +864,145 @@ festzulegen.
 | Hosting | Containerfähige Linux-Umgebung mit persistentem Storage | Auftraggeber |
 | Datenbank | MongoDB lokal oder Managed MongoDB-kompatibel | Auftraggeber |
 | Mailversand | SMTP-/Transaktionsmaildienst wird bereitgestellt | Auftraggeber |
+| Zahlungsanbieter | Stripe-Test- und Produktivkonto mit Preis-/Meter-Konfiguration wird bereitgestellt | Auftraggeber |
+| Abrechnungsmodell | Standardannahme: aktives Partner-Abo plus Abrechnung pro abgeschlossenem Nutzer-Meilenstein | Auftraggeber |
 | Datenschutz | Zwecke, Rechtsgrundlagen und Löschfristen werden beigestellt | Auftraggeber |
 | Barrierefreiheit | WCAG 2.1 AA / EN 301 549 als Zielstandard | Auftraggeber |
 | Mengengerüst | 10.000 Nutzer, 50 Surveys, 100 gleichzeitige Sessions als Startannahme | Auftraggeber |
 | Support | Werktags 09:00-17:00 Uhr | Auftraggeber |
 | Abnahme | Abnahme anhand Muss-Anforderungen, Tests und Beispielszenarien | Auftraggeber |
+
+## 21. Partnerregistrierung und Billing-Erweiterung
+
+### 21.1 Betroffene Softwarebereiche
+
+| Bereich | Erweiterung |
+|---|---|
+| Public Frontend | Neue Partnerregistrierungsseite und Einstieg in den Abo-Checkout |
+| Auth/Rollen | Anlage oder Freigabe von Partner-Usern mit Zahlungs-/Registrierungsstatus |
+| Partner-Modul | Abo-Status, Umsätze, abrechnungsrelevante Abschlüsse und Exportansicht |
+| Admin-Modul | Globale Abrechnungsübersicht, Filter, Storno, Export und Providerstatus |
+| Step Engine | Markierung abrechnungsrelevanter Partner-Meilensteine |
+| Partner Milestones | Erzeugung idempotenter Billing Events bei Abschluss |
+| Payment Provider | Stripe Checkout, Subscriptions, Webhooks und optional usage-based Billing als Beispiel |
+| Datenmodell | Partner Account, Partner Subscription, Billing Event, Payment Provider Event |
+| E-Mail | Benachrichtigungen zu Registrierung, Abo-Status, Zahlungsproblemen und Abrechnung |
+| Tests | Webhook-Idempotenz, Doppelabrechnungsschutz, Rollenrechte und Reporting |
+
+### 21.2 Stripe-Beispielintegration
+
+Stripe wird als Beispielanbieter verwendet. Die technische Umsetzung soll über
+eine Provider-Abstraktion erfolgen, damit ein alternativer Zahlungsanbieter
+später angebunden werden kann.
+
+| Stripe-Baustein | Einsatz im System |
+|---|---|
+| Checkout Session | Partner startet Abo-Buchung über gehostete Zahlungsseite |
+| Customer | Partnerorganisation wird als Customer beim Zahlungsanbieter geführt |
+| Subscription | Aktiver oder inaktiver Abo-Status des Partners |
+| Invoice | Zahlungs- und Rechnungsstatus für Abo und nutzungsabhängige Abrechnung |
+| Webhook Event | Synchronisiert Checkout-, Subscription-, Invoice- und Payment-Status |
+| Usage-based Billing / Metering | Beispielhafte Abbildung abgeschlossener Meilensteine als abrechenbare Nutzung |
+
+### 21.3 Fachlicher Billing-Ablauf
+
+| Schritt | Systemverhalten |
+|---|---|
+| 1. Partnerregistrierung | Partner gibt Organisations-, Kontakt- und Rechnungsdaten ein |
+| 2. Prüfung/Freigabe | Partner erhält Status `pending` oder wird automatisch/administrativ freigegeben |
+| 3. Abo-Checkout | System erstellt Checkout Session beim Zahlungsanbieter |
+| 4. Webhook-Synchronisierung | Erfolgreicher Checkout setzt Subscription auf `active` |
+| 5. Partnerarbeit | Partner bearbeitet zugeordnete Nutzer und schließt Meilensteine ab |
+| 6. Billing Event | Abrechnungsrelevanter Abschluss erzeugt ein eindeutiges Billing Event |
+| 7. Provider-Meldung | Billing Event wird an Stripe/Provider als Nutzung oder Rechnungsposition übertragen |
+| 8. Reporting | Partner und Admin sehen Umsätze, Status, Perioden und Einzelereignisse |
+
+### 21.4 Idempotenz- und Konsistenzregeln
+
+| Regel | Beschreibung |
+|---|---|
+| Eindeutiger Event-Key | Pro `partner_id`, `user_id`, `step_id` darf nur ein aktives Billing Event entstehen |
+| Webhook-Idempotenz | `provider_event_id` wird eindeutig gespeichert; wiederholte Webhooks werden ignoriert |
+| Statusübergänge | Billing Events wechseln kontrolliert zwischen `pending`, `reported`, `invoiced`, `paid`, `void`, `error` |
+| Storno | Admin kann Billing Events mit Begründung auf `void` setzen |
+| Nachvollziehbarkeit | Partner- und Adminübersicht zeigen dieselbe Datengrundlage mit rollenabhängigem Scope |
+| Kein lokaler Kartenbestand | Zahlungsinstrumentdaten verbleiben beim Zahlungsanbieter |
+
+### 21.5 Abnahmekriterien Billing
+
+| Kriterium | Erwartung |
+|---|---|
+| Partnerregistrierung | Neuer Partner kann sich registrieren und erhält einen prüfbaren Status |
+| Aboabschluss | Stripe-Test-Checkout führt zu aktivem lokalen Subscription-Status |
+| Abo-Sperre | Inaktives oder überfälliges Abo kann Partnerfunktionen einschränken |
+| Milestone-Abrechnung | Abgeschlossener Partner-Meilenstein erzeugt genau ein Billing Event |
+| Doppelabrechnungsschutz | Wiederholtes Abschließen oder Webhook-Replay erzeugt kein zweites aktives Billing Event |
+| Partnerübersicht | Partner sieht nur eigene Umsätze, Perioden und Einzelereignisse |
+| Adminübersicht | Admin sieht alle Partnerabrechnungen mit Filter und Export |
+| Datenschutz | Zahlungsinstrumentdaten werden nicht lokal gespeichert |
+
+## 22. Nutzerrechte und Nutzergruppen
+
+### 22.1 Zielbild
+
+Das bestehende Rollenmodell `user`, `partner` und `admin` bleibt als
+Basisschutz erhalten. Darauf aufbauend ergänzt das System Nutzergruppen und
+granulare Berechtigungsschlüssel, damit fachliche Sonderrollen ohne neue
+Hardcode-Rollen abgebildet werden können.
+
+Typische Gruppen sind:
+
+| Gruppe | Beispielhafte Rechte |
+|---|---|
+| Fachadmin | Surveys und Steps lesen/schreiben, Nutzerfortschritt bearbeiten |
+| Support | Nutzer lesen, Dateien nach Berechtigung lesen, keine Löschrechte |
+| Abrechnung | Billing lesen/exportieren, Billing Events stornieren |
+| Partner-Manager | Partner verwalten, Partnerregistrierungen freigeben |
+| Auditor | Audit Logs und Rechte-Audit lesen, keine Schreibrechte |
+
+### 22.2 Berechtigungsschlüssel
+
+| Bereich | Beispielrechte |
+|---|---|
+| Surveys | `surveys.read`, `surveys.write`, `surveys.publish` |
+| Steps | `steps.read`, `steps.write`, `steps.reorder`, `steps.templates.manage` |
+| Nutzer | `users.read`, `users.write`, `users.impersonate` |
+| Partner | `partners.read`, `partners.write`, `partners.approve` |
+| Billing | `billing.read`, `billing.export`, `billing.void` |
+| Dateien | `files.read`, `files.upload`, `files.delete` |
+| CMS/E-Mail | `cms.write`, `email_templates.write` |
+| Zugriffskontrolle | `access.read`, `access.manage` |
+| Audit | `audit.read` |
+
+### 22.3 Effektive Rechteberechnung
+
+| Schritt | Beschreibung |
+|---|---|
+| 1. Basisrolle | Startrechte aus `user`, `partner` oder `admin` werden geladen |
+| 2. Gruppen | Aktive Gruppen des Nutzers werden additiv berücksichtigt |
+| 3. Scope | Survey-, Partner- oder globale Einschränkungen werden angewendet |
+| 4. Overrides | Explizite Nutzer-Overrides ergänzen oder beschränken Rechte |
+| 5. Endpoint-Prüfung | Backend prüft die erforderlichen Rechte und den Ressourcenscope |
+| 6. Audit | Änderungen an Gruppen, Mitgliedschaften und Overrides werden protokolliert |
+
+### 22.4 Sicherheitsregeln
+
+| Regel | Umsetzung |
+|---|---|
+| Backend führend | Frontend blendet Funktionen aus, Backend entscheidet verbindlich |
+| Least Privilege | Neue Gruppen starten ohne kritische Schreib- oder Exportrechte |
+| Kritische Rechte | `users.impersonate`, `billing.void`, `access.manage` und `audit.read` sind separat zu vergeben |
+| Mandantenscope | Survey- und Partnerrechte gelten nur im zugewiesenen Scope |
+| Auditierbarkeit | Jede Änderung an Rechten erzeugt einen Permission-Audit-Eintrag |
+
+### 22.5 Abnahmekriterien Access Control
+
+| Kriterium | Erwartung |
+|---|---|
+| Gruppenverwaltung | Admin kann Gruppen anlegen, ändern, deaktivieren und Nutzer zuordnen |
+| Effektive Rechte | Kombinierte Gruppen ergeben reproduzierbar die erwarteten Rechte |
+| Scope-Prüfung | Survey-/Partner-spezifische Gruppen greifen nur im erlaubten Kontext |
+| Overrides | Nutzerbezogene Abweichungen wirken nachvollziehbar und auditierbar |
+| Endpoint-Schutz | API lehnt fehlende Berechtigungen mit eindeutigem Fehler ab |
+| UI-Gating | Frontend zeigt nicht verfügbare Funktionen nicht als aktive Aktionen an |
+| Audit | Rechteänderungen enthalten Akteur, Ziel, Änderung und Zeitpunkt |

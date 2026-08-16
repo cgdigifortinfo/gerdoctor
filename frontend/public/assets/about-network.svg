@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 680" role="img" aria-labelledby="title desc">
+  <title id="title">GerDoctor Netzwerk</title>
+  <desc id="desc">Abstrakte Darstellung vernetzter Fachkräfte und Partner</desc>
+  <rect width="960" height="680" rx="40" fill="#004856"/>
+  <g fill="none" stroke="#7ed9c6" stroke-width="8" opacity=".55">
+    <path d="M220 190 480 340 740 180M480 340 245 515M480 340l250 190"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="220" cy="190" r="70"/><circle cx="480" cy="340" r="88"/><circle cx="740" cy="180" r="62"/><circle cx="245" cy="515" r="60"/><circle cx="730" cy="530" r="68"/>
+  </g>
+  <g fill="#7ed9c6">
+    <circle cx="220" cy="175" r="22"/><path d="M180 230c12-45 68-45 80 0z"/>
+    <circle cx="480" cy="318" r="28"/><path d="M428 388c15-58 89-58 104 0z"/>
+    <circle cx="740" cy="167" r="19"/><path d="M705 215c10-38 60-38 70 0z"/>
+    <circle cx="245" cy="502" r="18"/><path d="M211 548c10-36 58-36 68 0z"/>
+    <circle cx="730" cy="515" r="21"/><path d="M690 570c12-43 68-43 80 0z"/>
+  </g>
+</svg>

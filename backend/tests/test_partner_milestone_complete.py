@@ -47,16 +47,6 @@ def main() -> int:
     atoken = login(*ADMIN)
     ptoken = login(*PARTNER)
     users = requests.get(f"{API}/admin/users", headers=headers(atoken), timeout=15).json()
-    peter = next(
-        (u for u in users
-         if any(pat in u["email"].lower() for pat in TARGET_USER_EMAIL_PATTERNS)),
-        None,
-    )
-    if not peter:
-        print(f"!! no demo user matching {TARGET_USER_EMAIL_PATTERNS} found — skipping")
-        return 0  # don't fail CI if fixture is missing
-    peter_id = peter["id"]
-
     # --- 1. Admin user list includes partner_names ---
     partner_users = [u for u in users if u.get("role") == "partner" and u.get("partner_names")]
     if not partner_users:
@@ -64,14 +54,32 @@ def main() -> int:
     else:
         print(f"  ✓ {len(partner_users)} partner-role users carry partner_names")
 
+    # Pick a current submission that is actually managed by this partner. The
+    # old Silva-name fixture could belong to a different partner organization.
+    detail = None
+    peter = None
+    for submission in requests.get(f"{API}/partner/submissions", headers=headers(ptoken), timeout=30).json():
+        candidate = requests.get(
+            f"{API}/partner/users/{submission['user_id']}", headers=headers(ptoken), timeout=15
+        ).json()
+        candidate_steps = {step["id"]: step for step in candidate.get("steps", [])}
+        if any(candidate_steps.get(step_id, {}).get("step_type") == "milestone"
+               for step_id in candidate.get("partner_managed_step_ids", [])):
+            detail = candidate
+            peter = next((user for user in users if user["id"] == submission["user_id"]), None)
+            break
+    if not detail or not peter:
+        print("!! no managed partner milestone fixture found — skipping")
+        return 0
+    peter_id = peter["id"]
+
     peter_partners = peter.get("partner_names", [])
     if not peter_partners:
-        failures.append(f"silva user has no partner_names (expected at least one match)")
+        failures.append("managed partner user has no partner_names")
     else:
-        print(f"  ✓ silva.partner_names = {peter_partners}")
+        print(f"  ✓ managed-user.partner_names = {peter_partners}")
 
     # --- 2. Partner user-detail returns partner_managed_step_ids ---
-    detail = requests.get(f"{API}/partner/users/{peter_id}", headers=headers(ptoken), timeout=15).json()
     managed = detail.get("partner_managed_step_ids", [])
     steps_by_id = {s["id"]: s for s in detail["steps"]}
     if not managed:

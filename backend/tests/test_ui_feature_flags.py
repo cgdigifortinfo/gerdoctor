@@ -11,7 +11,7 @@ import os
 import requests
 import pytest
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://guided-journey-5.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = BASE + "/api"
 
 ADMIN = {"email": "admin@example.com", "password": "Admin123!"}
