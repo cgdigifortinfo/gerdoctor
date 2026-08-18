@@ -1,6 +1,11 @@
-"""Pydantic models for request/response validation."""
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
-from typing import List, Optional, Any
+"""Pydantic models for request/response validation.
+
+Nested models intentionally allow additional keys where survey configuration is
+extensible. This keeps old MongoDB documents readable while validating the
+stable fields consumed by the application.
+"""
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator, model_validator
+from typing import List, Optional, Any, Dict
 
 
 class UserRegister(BaseModel):
@@ -99,6 +104,48 @@ class StepFieldCreate(BaseModel):
     max_length: Optional[int] = None
     validation_pattern: Optional[str] = None
 
+
+class FlowPosition(BaseModel):
+    """Canvas coordinates shared by React Flow and the layout API."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    x: float
+    y: float
+
+
+class StepFieldMapping(BaseModel):
+    """Copies a field value from an earlier step into the current step."""
+
+    model_config = ConfigDict(extra="allow")
+    source_step_order: int = Field(ge=1)
+    source_field: str = Field(min_length=1)
+    target_field: str = Field(min_length=1)
+
+
+class StepCondition(BaseModel):
+    """A leaf condition or recursive AND/OR condition group.
+
+    Child conditions may inherit ``action`` from their parent, which is why the
+    action is optional here. Unknown keys remain available for future operators.
+    """
+
+    model_config = ConfigDict(extra="allow")
+    action: Optional[str] = None
+    source_step_order: Optional[int] = Field(default=None, ge=1)
+    field: Optional[str] = None
+    operator: Optional[str] = None
+    value: Optional[Any] = None
+    target_step_order: Optional[int] = Field(default=None, ge=1)
+    message: Optional[str] = None
+    all_of: Optional[List["StepCondition"]] = None
+    any_of: Optional[List["StepCondition"]] = None
+
+    @model_validator(mode="after")
+    def one_compound_operator(self):
+        if self.all_of is not None and self.any_of is not None:
+            raise ValueError("condition cannot contain both all_of and any_of")
+        return self
+
 class StepCreate(BaseModel):
     title: str
     description: str
@@ -115,8 +162,8 @@ class StepCreate(BaseModel):
     complete_message: Optional[str] = None
     required_fields: Optional[List[str]] = None
     required_uploads: Optional[List[str]] = None
-    field_mappings: Optional[List[dict]] = None
-    conditions: Optional[List[dict]] = None
+    field_mappings: Optional[List[StepFieldMapping]] = None
+    conditions: Optional[List[StepCondition]] = None
     duration_value: int = 0
     duration_unit: str = "days"
     email_on_enter: bool = False
@@ -129,7 +176,7 @@ class StepCreate(BaseModel):
     email_subject_leave: Optional[str] = None
     email_body_leave: Optional[str] = None
     translations: Optional[dict] = None
-    flow_position: Optional[dict] = None  # {x, y}
+    flow_position: Optional[FlowPosition] = None
 
 class StepUpdate(BaseModel):
     title: Optional[str] = None
@@ -147,8 +194,8 @@ class StepUpdate(BaseModel):
     complete_message: Optional[str] = None
     required_fields: Optional[List[str]] = None
     required_uploads: Optional[List[str]] = None
-    field_mappings: Optional[List[dict]] = None
-    conditions: Optional[List[dict]] = None
+    field_mappings: Optional[List[StepFieldMapping]] = None
+    conditions: Optional[List[StepCondition]] = None
     duration_value: Optional[int] = None
     duration_unit: Optional[str] = None
     email_on_enter: Optional[bool] = None
@@ -162,10 +209,19 @@ class StepUpdate(BaseModel):
     email_body_leave: Optional[str] = None
     is_active: Optional[bool] = None
     translations: Optional[dict] = None
-    flow_position: Optional[dict] = None  # {x, y}
+    flow_position: Optional[FlowPosition] = None
 
 class StepLayoutBulk(BaseModel):
-    positions: dict  # {step_id: {x, y}}
+    positions: Dict[str, FlowPosition]
+
+
+class StepResponse(StepCreate):
+    """Stable API representation returned by the admin step endpoints."""
+
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    survey_id: str = ""
+    is_active: bool = True
 
 class StepReorder(BaseModel):
     step_ids: List[str]

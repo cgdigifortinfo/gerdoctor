@@ -30,6 +30,7 @@ import { SearchableMultiSelect, SearchableSelect } from '../components/admin/Ent
 import SurveyFormBuilder, { CONTENT_FIELD_TYPES } from '../components/admin/SurveyFormBuilder';
 import PermissionGroupsManager from '../components/admin/PermissionGroupsManager';
 import { PaginationControls, usePagination } from '../components/PaginationControls';
+import { HelpLabel, HelpTooltip } from '../components/ui/help-tooltip';
 
 export default function AdminDashboard() {
     const { user, logout, impersonate } = useAuth();
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
     const [showStepDialog, setShowStepDialog] = useState(false);
     const [stepTemplates, setStepTemplates] = useState([]);
     const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
-    const [stepsView, setStepsView] = useState('flow'); // 'flow' | 'list'
+    const [stepsView, setStepsView] = useState('flow'); // 'flow' | 'dependency' | 'list'
 
     // Partner management state
     const [editingPartner, setEditingPartner] = useState(null);
@@ -1027,6 +1028,13 @@ export default function AdminDashboard() {
                                             Flow-Ansicht
                                         </button>
                                         <button
+                                            onClick={() => setStepsView('dependency')}
+                                            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-border ${stepsView === 'dependency' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                                            data-testid="steps-view-dependency"
+                                        >
+                                            Abhängigkeiten
+                                        </button>
+                                        <button
                                             onClick={() => setStepsView('list')}
                                             className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-border ${stepsView === 'list' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
                                             data-testid="steps-view-list"
@@ -1085,10 +1093,11 @@ export default function AdminDashboard() {
                                     )}
                                 </div>
                             )}
-                            {stepsView === 'flow' ? (
+                            {stepsView !== 'list' ? (
                                 <div className="p-4">
                                     <StepsFlowBuilder
                                         key={activeSurveyId}
+                                        layoutMode={stepsView === 'dependency' ? 'dependency' : 'editor'}
                                         steps={steps}
                                         onEdit={(s) => { setEditingStep(s); setShowStepDialog(true); }}
                                         onDelete={(s) => handleDeleteStep(s.id)}
@@ -2469,16 +2478,16 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
     };
 
     const sectionMeta = [
-        { id: 'basic', label: t('step_basic'), description: 'Identität, Typ und Dauer' },
+        { id: 'basic', label: t('step_basic'), description: 'Identität, Typ und Dauer', help: 'Legt Survey, sichtbare Texte, Position und Step-Typ fest. Der Step-Typ bestimmt die grundlegende Darstellung und Verarbeitung.' },
         ...((['partner_selection', 'partner_multiselection', 'milestone', 'display'].includes(formData.step_type))
-            ? [{ id: 'type', label: t('step_type_settings'), description: 'Verhalten dieses Schritttyps' }]
+            ? [{ id: 'type', label: t('step_type_settings'), description: 'Verhalten dieses Schritttyps', help: 'Enthält nur Einstellungen des aktuell gewählten Step-Typs, etwa Partnerfilter oder Statusmeldungen eines Meilensteins.' }]
             : []),
-        ...(['form', 'decision'].includes(formData.step_type) ? [{ id: 'fields', label: t('step_fields'), description: 'Formular visuell aufbauen', count: formData.fields.length }] : []),
-        { id: 'requirements', label: t('step_requirements'), description: 'Pflichtangaben und Dokumente', count: formData.required_fields.length + formData.required_uploads.length },
-        { id: 'mappings', label: t('step_mappings'), description: 'Daten automatisch übernehmen', count: formData.field_mappings.length },
-        { id: 'conditions', label: t('step_conditions'), description: 'Sichtbarkeit und Zugriff steuern', count: formData.conditions.length },
-        { id: 'notifications', label: t('step_notifications'), description: 'E-Mail-Auslöser und Inhalte' },
-        { id: 'translations', label: 'Englisch', description: 'Übersetzte Texte pflegen' },
+        ...(['form', 'decision'].includes(formData.step_type) ? [{ id: 'fields', label: t('step_fields'), description: 'Formular visuell aufbauen', count: formData.fields.length, help: 'Fügt Eingaben, Auswahlen, Uploads und Inhaltselemente hinzu. Reihenfolge und Breite bestimmen die spätere Nutzeransicht.' }] : []),
+        { id: 'requirements', label: t('step_requirements'), description: 'Pflichtangaben und Dokumente', count: formData.required_fields.length + formData.required_uploads.length, help: 'Definiert serverseitig geprüfte Voraussetzungen für den Abschluss: ausgefüllte Felder und vorhandene Dokumenttypen.' },
+        { id: 'mappings', label: t('step_mappings'), description: 'Daten automatisch übernehmen', count: formData.field_mappings.length, help: 'Kopiert einen Wert aus einem früheren Step in ein Feld dieses Steps und vermeidet dadurch Doppeleingaben.' },
+        { id: 'conditions', label: t('step_conditions'), description: 'Sichtbarkeit und Zugriff steuern', count: formData.conditions.length, help: 'Wertet Status oder Feldwerte anderer Steps aus. Treffer können den Step verbergen, blockieren, automatisch abschließen oder umleiten.' },
+        { id: 'notifications', label: t('step_notifications'), description: 'E-Mail-Auslöser und Inhalte', help: 'Versendet E-Mails beim Eintritt, bei Bearbeitung oder Abschluss. Ohne individuellen Text greift die globale Standardvorlage.' },
+        { id: 'translations', label: 'Englisch', description: 'Übersetzte Texte pflegen', help: 'Hinterlegt englische Varianten sichtbarer Texte. Leere Werte fallen auf den deutschen Originaltext zurück.' },
     ];
     const currentSection = sectionMeta.find((section) => section.id === activeSection) || sectionMeta[0];
     const previousStep = [...sortedReferenceSteps].reverse().find((candidate) => candidate.order < formData.order);
@@ -2505,14 +2514,17 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                 className="flex h-[94vh] max-h-[980px] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 xl:max-w-[1500px]"
                 data-testid="step-editor-dialog"
                 onEscapeKeyDown={(event) => {
-                    if (document.querySelector('[data-entity-picker-open="true"]')) event.preventDefault();
+                    if (document.querySelector('[data-entity-picker-open="true"], [role="tooltip"]')) event.preventDefault();
                 }}
             >
                 <DialogHeader className="border-b border-border px-6 py-5 pr-16">
-                    <DialogTitle>{step ? t('step_edit') : t('step_create')}</DialogTitle>
+                    <DialogTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span>{step ? t('step_edit') : t('step_create')}</span>
+                        <span className="text-[var(--brand-primary)]" data-testid="step-editor-title">
+                            {formData.title || (step ? `Step #${formData.order || '–'}` : 'Neuer Schritt')}
+                        </span>
+                    </DialogTitle>
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-                        <span>{formData.title || 'Neuer Schritt'}</span>
-                        <span aria-hidden="true">·</span>
                         <span>Position {formData.order || '–'}</span>
                         <span aria-hidden="true">·</span>
                         <span>{formData.step_type}</span>
@@ -2532,7 +2544,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                         data-testid={`step-section-${section.id}`}
                                     >
                                         <span className="flex items-center justify-between gap-2 text-sm font-semibold">
-                                            {section.label}
+                                            <span className="inline-flex items-center gap-1.5">{section.label}<HelpTooltip content={section.help} side="right" testId={`step-section-help-${section.id}`} /></span>
                                             {section.count > 0 && <span className="rounded-full bg-[var(--brand-primary)]/10 px-2 py-0.5 text-[11px] text-[var(--brand-primary)]">{section.count}</span>}
                                         </span>
                                         <span className="mt-0.5 hidden text-[11px] leading-4 text-muted-foreground md:block">{section.description}</span>
@@ -2542,14 +2554,14 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                         </aside>
                         <section className="min-h-0 overflow-y-auto px-5 py-5 md:px-7" data-testid={`step-section-panel-${activeSection}`}>
                             <div className="mb-5">
-                                <h3 className="text-lg font-semibold text-foreground">{currentSection.label}</h3>
+                                <h3 className="inline-flex items-center gap-2 text-lg font-semibold text-foreground">{currentSection.label}<HelpTooltip content={currentSection.help} testId={`step-panel-help-${currentSection.id}`} /></h3>
                                 <p className="mt-1 text-sm text-muted-foreground">{currentSection.description}</p>
                             </div>
                     {/* BASIC */}
                     {activeSection === 'basic' && (
                         <div className="space-y-4">
                             <div>
-                                <Label>Survey</Label>
+                                <Label><HelpLabel help="Ordnet den Step einem Survey zu. Reihenfolge, Progress und Conditions gelten nur innerhalb dieses Surveys.">Survey</HelpLabel></Label>
                                 <div className="mt-1">
                                     <SearchableSelect
                                         options={surveyOptions}
@@ -2561,17 +2573,17 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                     />
                                 </div>
                             </div>
-                            <div><Label>{t('step_title')}</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
-                            <div><Label>{t('step_description')}</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
+                            <div><Label><HelpLabel help="Sichtbarer Name in Journey, Navigation, Adminansicht und E-Mails.">{t('step_title')}</HelpLabel></Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1" required data-testid="step-title-input" /></div>
+                            <div><Label><HelpLabel help="Erklärt Nutzern Ziel und Inhalt des Steps. Die Beschreibung kann auch in Benachrichtigungen verwendet werden.">{t('step_description')}</HelpLabel></Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" required data-testid="step-description-input" /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><Label>{t('step_order')}</Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
-                                <div><Label>{t('step_type')}</Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="decision">Entscheidung (2 Buttons)</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
+                                <div><Label><HelpLabel help="Position innerhalb des aktiven Surveys. Conditions referenzieren Steps über diese Nummer.">{t('step_order')}</HelpLabel></Label><Input type="number" min="1" value={formData.order} onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })} className="mt-1" required /></div>
+                                <div><Label><HelpLabel help="Formular sammelt Daten; Entscheidung zeigt Auswahlkarten; Partner-Typen vermitteln Partner; Meilenstein bildet Status ab; Anzeige zeigt Information.">{t('step_type')}</HelpLabel></Label><Select value={formData.step_type} onValueChange={(val) => setFormData({ ...formData, step_type: val })}><SelectTrigger className="mt-1" data-testid="step-type-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="form">{t('step_type_form')}</SelectItem><SelectItem value="decision">Entscheidung (2 Buttons)</SelectItem><SelectItem value="partner_selection">{t('step_type_partner')}</SelectItem><SelectItem value="partner_multiselection">{t('step_type_partner_multi')}</SelectItem><SelectItem value="milestone">{t('step_type_milestone')}</SelectItem><SelectItem value="display">{t('step_type_display')}</SelectItem></SelectContent></Select></div>
                             </div>
-                            <div className="flex items-center justify-between"><Label>{t('step_active')}</Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
-                            <div className="flex items-center justify-between"><Label>{t('step_skippable')}</Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
+                            <div className="flex items-center justify-between"><Label><HelpLabel help="Inaktive Steps werden nicht ausgeliefert und zählen nicht zum Fortschritt.">{t('step_active')}</HelpLabel></Label><Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} /></div>
+                            <div className="flex items-center justify-between"><Label><HelpLabel help="Erlaubt Nutzern, den Step ohne reguläre Eingaben als übersprungen abzuschließen.">{t('step_skippable')}</HelpLabel></Label><Switch checked={formData.skippable} onCheckedChange={(val) => setFormData({ ...formData, skippable: val })} /></div>
                             {formData.skippable && <div><Label>{t('step_skip_label')}</Label><Input value={formData.skip_label} onChange={(e) => setFormData({ ...formData, skip_label: e.target.value })} className="mt-1" placeholder="Vorerst überspringen" /></div>}
                             <div className="border-t border-border pt-4 mt-2">
-                                <Label className="text-sm font-semibold">{t('step_duration')}</Label>
+                                <Label className="text-sm font-semibold"><HelpLabel help="Schätzwert für die ETA-Berechnung. Freischaltungen werden ausschließlich über Conditions gesteuert.">{t('step_duration')}</HelpLabel></Label>
                                 <p className="text-xs text-muted-foreground mb-2">{t('step_duration_desc')}</p>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><Label>{t('step_duration_value')}</Label><Input type="number" min="0" value={formData.duration_value} onChange={(e) => setFormData({ ...formData, duration_value: parseInt(e.target.value) || 0 })} className="mt-1" data-testid="step-duration-value" /></div>
@@ -2586,7 +2598,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                         <div className="space-y-4">
                             {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && (
                                 <div>
-                                    <Label>{t('step_filter_tag')}</Label>
+                                    <Label><HelpLabel help="Zeigt nur aktive Partner mit exakt diesem Tag. Bei Mehrfachauswahl können mehrere passende Partner gewählt werden.">{t('step_filter_tag')}</HelpLabel></Label>
                                     <p className="mb-2 mt-1 text-xs text-muted-foreground">Nur Partner mit diesem Tag werden angeboten. Neue Tags können direkt angelegt werden.</p>
                                     <SearchableSelect
                                         options={withFallbackOption(partnerTagOptions, formData.filter_tag)}
@@ -2601,8 +2613,8 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                             )}
                             {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
                                 <>
-                                    <div><Label>{t('step_pending_msg')}</Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" /></div>
-                                    <div><Label>{t('step_complete_msg')}</Label><Textarea value={formData.complete_message} onChange={(e) => setFormData({ ...formData, complete_message: e.target.value })} className="mt-1" /></div>
+                                    <div><Label><HelpLabel help="Text, solange der Meilenstein noch offen oder die Anzeige noch nicht erledigt ist.">{t('step_pending_msg')}</HelpLabel></Label><Textarea value={formData.pending_message} onChange={(e) => setFormData({ ...formData, pending_message: e.target.value })} className="mt-1" /></div>
+                                    <div><Label><HelpLabel help="Text, nachdem der Meilenstein oder Anzeigeschritt abgeschlossen wurde.">{t('step_complete_msg')}</HelpLabel></Label><Textarea value={formData.complete_message} onChange={(e) => setFormData({ ...formData, complete_message: e.target.value })} className="mt-1" /></div>
                                 </>
                             )}
                             {formData.step_type === 'display' && <div><Label>{t('step_action_label')}</Label><Input value={formData.action_label} onChange={(e) => setFormData({ ...formData, action_label: e.target.value })} className="mt-1" /></div>}
@@ -2618,7 +2630,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     {activeSection === 'requirements' && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-border p-4">
-                                <Label className="block">Pflichtfelder</Label>
+                                <Label className="block"><HelpLabel help="Diese internen Feldnamen werden beim Abschluss serverseitig geprüft. Leere Werte verhindern den Abschluss.">Pflichtfelder</HelpLabel></Label>
                                 <p className="mb-3 mt-1 text-xs text-muted-foreground">Mehrere Formularfelder durchsuchen und auswählen. Nutzer können den Schritt erst abschließen, wenn alle ausgewählten Felder ausgefüllt sind.</p>
                                 <SearchableMultiSelect
                                     options={formData.required_fields.reduce((options, value) => withFallbackOption(options, value), currentFieldOptions)}
@@ -2636,7 +2648,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                 />
                             </div>
                             <div className="rounded-lg border border-border p-4">
-                                <Label className="block">Erforderliche Dokumenttypen</Label>
+                                <Label className="block"><HelpLabel help="Prüft Dokumentlisten auf Uploads mit passendem document_type. Alle ausgewählten Typen müssen vorhanden sein.">Erforderliche Dokumenttypen</HelpLabel></Label>
                                 <p className="mb-3 mt-1 text-xs text-muted-foreground">Dokumenttypen aus Upload-Feldern auswählen oder einen neuen Namen eingeben. Mehrfachauswahl ist möglich.</p>
                                 <SearchableMultiSelect
                                     options={documentTypeOptions}
@@ -2656,7 +2668,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                         <div className="space-y-4">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <Label>Automatische Feldübernahme</Label>
+                                    <Label><HelpLabel help="Mappings lesen einen gespeicherten Wert aus dem Quell-Step und schreiben ihn als Vorbelegung in das Zielfeld dieses Steps.">Automatische Feldübernahme</HelpLabel></Label>
                                     <p className="mt-1 text-xs text-muted-foreground">Übernimmt einen Wert aus einem anderen Schritt in ein Feld dieses Schritts.</p>
                                 </div>
                                 <Button type="button" variant="outline" size="sm" onClick={addMapping} data-testid="add-field-mapping"><Plus size={14} className="mr-1" /> Mapping</Button>
@@ -2669,7 +2681,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                     </div>
                                     <div className="grid gap-3 lg:grid-cols-3">
                                         <div>
-                                            <Label className="text-xs">Wert aus Schritt</Label>
+                                            <Label className="text-xs"><HelpLabel help="Step, dessen bereits gespeicherte Nutzerdaten gelesen werden.">Wert aus Schritt</HelpLabel></Label>
                                             <SearchableSelect
                                                 options={withFallbackOption(stepOptions, m.source_step_order, 'Nicht gefundener Schritt')}
                                                 value={m.source_step_order == null ? '' : String(m.source_step_order)}
@@ -2680,7 +2692,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">Quellfeld</Label>
+                                            <Label className="text-xs"><HelpLabel help="Technischer Feldname, aus dem der Wert übernommen wird.">Quellfeld</HelpLabel></Label>
                                             <SearchableSelect
                                                 options={sourceFieldOptions(m.source_step_order, m.source_field).filter((option) => option.value !== 'status')}
                                                 value={m.source_field || ''}
@@ -2691,7 +2703,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">Zielfeld in diesem Schritt</Label>
+                                            <Label className="text-xs"><HelpLabel help="Feld dieses Steps, das mit dem gelesenen Wert vorbelegt wird.">Zielfeld in diesem Schritt</HelpLabel></Label>
                                             <SearchableSelect
                                                 options={withFallbackOption(currentFieldOptions, m.target_field, 'Nicht gefundenes Feld')}
                                                 value={m.target_field || ''}
@@ -2713,7 +2725,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                         <div className="space-y-4">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <Label>Regeln für diesen Schritt</Label>
+                                    <Label><HelpLabel help="Jede Regel liest einen anderen Step. Mehrere Regeln werden unabhängig ausgewertet; jede zutreffende Aktion kann auf diesen Step wirken.">Regeln für diesen Schritt</HelpLabel></Label>
                                     <p className="mt-1 text-xs text-muted-foreground">Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.</p>
                                 </div>
                                 <Button type="button" variant="outline" size="sm" onClick={addCondition} data-testid="add-condition"><Plus size={14} className="mr-1" /> Regel</Button>
@@ -2752,7 +2764,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
 
                                         <div className="grid gap-3 lg:grid-cols-2">
                                             <div>
-                                                <Label className="text-xs">1. Schritt auswählen</Label>
+                                                <Label className="text-xs"><HelpLabel help="Quell-Step, dessen Status oder gespeicherte Felddaten ausgewertet werden.">1. Schritt auswählen</HelpLabel></Label>
                                                 <SearchableSelect
                                                     options={withFallbackOption(stepOptions, c.source_step_order, 'Nicht gefundener Schritt')}
                                                     value={c.source_step_order == null ? '' : String(c.source_step_order)}
@@ -2763,7 +2775,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                                 />
                                             </div>
                                             <div>
-                                                <Label className="text-xs">2. Status oder Feld auswählen</Label>
+                                                <Label className="text-xs"><HelpLabel help="Status prüft pending, in_progress oder completed. Ein Feld prüft den konkreten gespeicherten Nutzerwert.">2. Status oder Feld auswählen</HelpLabel></Label>
                                                 <SearchableSelect
                                                     options={sourceFieldOptions(c.source_step_order, c.field)}
                                                     value={c.field || ''}
@@ -2774,7 +2786,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                                 />
                                             </div>
                                             <div>
-                                                <Label className="text-xs">3. Vergleich</Label>
+                                                <Label className="text-xs"><HelpLabel help="Operator für den Vergleich: gleich/ungleich, eine Auswahlmenge, leer/gefüllt oder vorhandener/fehlender Upload.">3. Vergleich</HelpLabel></Label>
                                                 <Select value={c.operator} onValueChange={(value) => changeConditionOperator(i, value)}>
                                                     <SelectTrigger className="min-h-10" data-testid={`condition-operator-${i}`}><SelectValue /></SelectTrigger>
                                                     <SelectContent>
@@ -2783,7 +2795,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                                 </Select>
                                             </div>
                                             <div>
-                                                <Label className="text-xs">4. Vergleichswert</Label>
+                                                <Label className="text-xs"><HelpLabel help="Erwarteter Wert. Bei Status ist dies z. B. completed; bei Auswahlfeldern der technische Optionswert.">4. Vergleichswert</HelpLabel></Label>
                                                 {['empty', 'not_empty'].includes(c.operator) ? (
                                                     <div className="flex min-h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-muted-foreground">Kein Wert erforderlich</div>
                                                 ) : ['one_of', 'not_one_of'].includes(c.operator) ? (
@@ -2814,7 +2826,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
 
                                         <div className="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2">
                                             <div>
-                                                <Label className="text-xs">5. Aktion bei Treffer</Label>
+                                                <Label className="text-xs"><HelpLabel help="Verbergen entfernt den Step aus Journey und Fortschritt; Blockieren zeigt ihn gesperrt; Auto-Abschluss erledigt ihn; Weiterleitung öffnet das Ziel.">5. Aktion bei Treffer</HelpLabel></Label>
                                                 <Select value={c.action} onValueChange={(value) => updateCondition(i, { action: value, target_step_order: value === 'redirect' ? c.target_step_order : null })}>
                                                     <SelectTrigger className="min-h-10" data-testid={`condition-action-${i}`}><SelectValue /></SelectTrigger>
                                                     <SelectContent>
@@ -2824,7 +2836,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                             </div>
                                             {c.action === 'redirect' && (
                                                 <div>
-                                                    <Label className="text-xs">Ziel-Schritt</Label>
+                                                    <Label className="text-xs"><HelpLabel help="Step, zu dem bei einer zutreffenden Redirect-Regel gewechselt wird.">Ziel-Schritt</HelpLabel></Label>
                                                     <SearchableSelect
                                                         options={withFallbackOption(stepOptions, c.target_step_order, 'Nicht gefundener Schritt')}
                                                         value={c.target_step_order == null ? '' : String(c.target_step_order)}
@@ -2836,7 +2848,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                                 </div>
                                             )}
                                             <div className={c.action === 'redirect' ? 'lg:col-span-2' : ''}>
-                                                <Label className="text-xs">Hinweis für Nutzer (optional)</Label>
+                                                <Label className="text-xs"><HelpLabel help="Erklärt den Grund der Regel in verständlicher Sprache, besonders bei blockierten Steps.">Hinweis für Nutzer (optional)</HelpLabel></Label>
                                                 <Textarea value={c.message || ''} onChange={(event) => updateCondition(i, { message: event.target.value })} className="mt-1 min-h-[68px]" placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird." data-testid={`condition-message-${i}`} />
                                             </div>
                                         </div>
@@ -2852,7 +2864,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                         <div className="space-y-4">
                             <div className="space-y-3">
                                 {[['email_on_enter', 'Bei Schritt-Eintritt'], ['email_on_edit', 'Bei Bearbeitung'], ['email_on_leave', 'Bei Schritt-Abschluss']].map(([key, label]) => (
-                                    <div key={key} className="flex items-center justify-between"><span className="text-sm">{label}</span><Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} /></div>
+                                    <div key={key} className="flex items-center justify-between"><HelpLabel className="text-sm" help={{ email_on_enter: 'Sendet beim ersten Öffnen beziehungsweise Starten dieses Steps.', email_on_edit: 'Sendet bei späteren Änderungen gespeicherter Step-Daten, sofern Nutzer dies erlaubt haben.', email_on_leave: 'Sendet unmittelbar beim erfolgreichen Abschluss dieses Steps.' }[key]}>{label}</HelpLabel><Switch checked={formData[key]} onCheckedChange={(val) => setFormData({ ...formData, [key]: val })} /></div>
                                 ))}
                             </div>
                             

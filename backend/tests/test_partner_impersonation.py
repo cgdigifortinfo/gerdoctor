@@ -2,14 +2,8 @@
 Test: Admin impersonation of partner users.
 Verifies that impersonating a partner user gives access to the Partner Dashboard.
 """
-import pytest
 import httpx
-
-@pytest.fixture(scope="module")
-def base_url():
-    import subprocess
-    result = subprocess.run(["grep", "REACT_APP_BACKEND_URL", "/app/frontend/.env"], capture_output=True, text=True)
-    return result.stdout.strip().split("=", 1)[1]
+import pytest
 
 @pytest.fixture(scope="module")
 def admin_token(base_url):

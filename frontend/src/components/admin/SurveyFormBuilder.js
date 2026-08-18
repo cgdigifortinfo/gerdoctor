@@ -9,6 +9,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
+import { HelpLabel, HelpTooltip } from '../ui/help-tooltip';
 
 export const CONTENT_FIELD_TYPES = new Set(['heading', 'paragraph', 'html', 'image', 'divider']);
 export const CHOICE_FIELD_TYPES = new Set(['select', 'selectbox', 'radio', 'multiselect', 'decision']);
@@ -42,6 +43,16 @@ const FIELD_GROUPS = [
 ];
 
 const TYPE_LABELS = Object.fromEntries(FIELD_GROUPS.flatMap((group) => group.types));
+const FIELD_TYPE_HELP = {
+    text: 'Kurze einzeilige Texteingabe.', textarea: 'Mehrzeiliger Freitext mit Höhe und Zeichenbegrenzung.',
+    email: 'E-Mail-Eingabe mit Formatprüfung.', phone: 'Eingabe für Telefonnummern.', number: 'Numerischer Wert mit Minimum, Maximum und Schrittweite.',
+    date: 'Datumsauswahl.', time: 'Auswahl einer Uhrzeit.', checkbox: 'Einzelne Ja/Nein-Bestätigung.',
+    selectbox: 'Kompakte Liste mit genau einer Auswahl.', radio: 'Alle Optionen sichtbar; genau eine Auswahl.', multiselect: 'Mehrere Werte aus einer Optionsliste.',
+    decision: 'Große Entscheidungskarten; technische Werte werden von Conditions ausgewertet.', file: 'Einfacher Datei-Upload, optional mehrfach.',
+    multiupload: 'Dokumentenliste; Optionen werden als Dokumenttypen für Requirements und Upload-Conditions genutzt.',
+    heading: 'Reine Überschrift ohne Nutzereingabe.', paragraph: 'Erklärender Text ohne Nutzereingabe.', html: 'Formatierter HTML-Inhalt ohne Nutzereingabe.',
+    image: 'Bild über URL mit Alternativtext und Bildunterschrift.', divider: 'Visuelle Trennlinie zwischen Bereichen.',
+};
 
 const slugify = (value) => String(value || '')
     .toLowerCase()
@@ -160,16 +171,16 @@ function FieldSettings({ field, onChange }) {
         <div className="space-y-4 p-4" data-testid="form-builder-settings">
             <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Feldeinstellungen</p>
-                <h4 className="mt-1 font-semibold text-foreground">{TYPE_LABELS[field.field_type] || field.field_type}</h4>
+                <h4 className="mt-1 inline-flex items-center gap-1.5 font-semibold text-foreground">{TYPE_LABELS[field.field_type] || field.field_type}<HelpTooltip content={FIELD_TYPE_HELP[field.field_type]} testId="builder-field-type-help" /></h4>
             </div>
             {!['divider'].includes(field.field_type) && (
-                <div><Label>{isContent ? 'Interner Titel' : 'Bezeichnung'}</Label><Input className="mt-1" value={field.label || ''} onChange={(event) => update({ label: event.target.value })} data-testid="builder-field-label" /></div>
+                <div><Label><HelpLabel help={isContent ? 'Interne Bezeichnung zur Orientierung im Editor.' : 'Sichtbare Beschriftung des Felds in der Nutzeransicht.'}>{isContent ? 'Interner Titel' : 'Bezeichnung'}</HelpLabel></Label><Input className="mt-1" value={field.label || ''} onChange={(event) => update({ label: event.target.value })} data-testid="builder-field-label" /></div>
             )}
             {!isContent && (
                 <>
-                    <div><Label>Technischer Feldname</Label><Input className="mt-1 font-mono" value={field.name || ''} onChange={(event) => update({ name: slugify(event.target.value) })} data-testid="builder-field-name" /></div>
-                    <div><Label>Hilfetext</Label><Input className="mt-1" value={field.help_text || ''} onChange={(event) => update({ help_text: event.target.value })} placeholder="Optionaler Hinweis unter dem Feld" /></div>
-                    {!['checkbox', 'file', 'multiupload'].includes(field.field_type) && <div><Label>Platzhalter</Label><Input className="mt-1" value={field.placeholder || ''} onChange={(event) => update({ placeholder: event.target.value })} /></div>}
+                    <div><Label><HelpLabel help="Stabiler Schlüssel für gespeicherte Daten, Mappings und Conditions. Nach Produktivstart möglichst nicht umbenennen.">Technischer Feldname</HelpLabel></Label><Input className="mt-1 font-mono" value={field.name || ''} onChange={(event) => update({ name: slugify(event.target.value) })} data-testid="builder-field-name" /></div>
+                    <div><Label><HelpLabel help="Optionaler erklärender Text, der Nutzern direkt unter dem Feld angezeigt wird.">Hilfetext</HelpLabel></Label><Input className="mt-1" value={field.help_text || ''} onChange={(event) => update({ help_text: event.target.value })} placeholder="Optionaler Hinweis unter dem Feld" /></div>
+                    {!['checkbox', 'file', 'multiupload'].includes(field.field_type) && <div><Label><HelpLabel help="Beispiel oder Eingabehinweis im leeren Feld; wird nicht als Wert gespeichert.">Platzhalter</HelpLabel></Label><Input className="mt-1" value={field.placeholder || ''} onChange={(event) => update({ placeholder: event.target.value })} /></div>}
                     <div className="grid grid-cols-2 gap-3">
                         <div><Label>Breite</Label><Select value={field.width || 'full'} onValueChange={(width) => update({ width })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="full">Ganze Zeile</SelectItem><SelectItem value="half">Halbe Zeile</SelectItem><SelectItem value="third">Drittel</SelectItem></SelectContent></Select></div>
                         <div className="flex items-end justify-between rounded border border-border px-3 pb-2.5"><Label>Pflichtfeld</Label><Switch checked={!!field.required} onCheckedChange={(required) => update({ required })} data-testid="builder-field-required" /></div>
@@ -233,7 +244,19 @@ export default function SurveyFormBuilder({ fields = [], onChange }) {
                     <Label className="text-xs">Elemente</Label>
                     <div className="relative mt-2"><MagnifyingGlass size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input className="h-9 pl-8" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Feldtyp suchen …" data-testid="form-builder-search" /></div>
                     <div className="mt-3 space-y-4">
-                        {filteredGroups.map((group) => <div key={group.label}><div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"><group.icon size={14} />{group.label}</div><div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">{group.types.map(([type, label]) => <button key={type} type="button" onClick={() => addField(type)} className="flex items-center justify-between rounded-md border border-border bg-card px-2.5 py-2 text-left text-xs font-medium text-foreground transition hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]" data-testid={`add-field-${type}`}><span>{label}</span><Plus size={13} /></button>)}</div></div>)}
+                        {filteredGroups.map((group) => (
+                            <div key={group.label}>
+                                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"><group.icon size={14} />{group.label}</div>
+                                <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+                                    {group.types.map(([type, label]) => (
+                                        <div key={type} className="flex items-center rounded-md border border-border bg-card pr-1 transition hover:border-[var(--brand-primary)]">
+                                            <button type="button" onClick={() => addField(type)} className="flex min-w-0 flex-1 items-center justify-between px-2.5 py-2 text-left text-xs font-medium text-foreground hover:text-[var(--brand-primary)]" data-testid={`add-field-${type}`}><span>{label}</span><Plus size={13} /></button>
+                                            <HelpTooltip content={FIELD_TYPE_HELP[type]} side="right" testId={`field-type-help-${type}`} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </aside>
                 <main className="border-b border-border bg-muted/10 p-4 lg:border-b-0 lg:border-r" data-testid="form-builder-canvas">

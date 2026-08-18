@@ -268,6 +268,53 @@ def test_step_editor_survey_switch_keeps_editor_open_and_reloads(admin_state):
         browser.close()
 
 
+def test_step_editor_help_tooltips_open_on_hover_and_keyboard_focus(admin_state):
+    """Tooltips must escape the editor's overflow containers and remain accessible."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--host-resolver-rules=MAP localhost host.docker.internal"],
+        )
+        page = browser.new_page(viewport={"width": 1600, "height": 1000})
+        install_api_proxy(page.context, BACKEND)
+        _login_admin(page)
+        _goto_admin_steps(page, "pflege")
+        _show_all_steps(page)
+
+        target_row = page.locator('[data-testid="step-row-order-902"]')
+        expect(target_row).to_contain_text(admin_state["pflege_second_title"], timeout=30000)
+        target_row.locator('[data-testid^="edit-step-"]').click()
+        expect(page.locator('[data-testid="step-editor-dialog"]')).to_be_visible(timeout=10000)
+
+        category_help = page.locator('[data-testid="step-section-help-basic"]')
+        category_help.hover()
+        category_tooltip = page.locator('[data-testid="step-section-help-basic-content"]')
+        expect(category_tooltip).to_be_visible(timeout=3000)
+        expect(category_tooltip).to_contain_text("Survey")
+        assert category_tooltip.evaluate("element => element.parentElement === document.body")
+
+        page.locator('[data-testid="step-section-conditions"]').click()
+        panel_help = page.locator('[data-testid="step-panel-help-conditions"]')
+        panel_help.focus()
+        panel_tooltip = page.locator('[data-testid="step-panel-help-conditions-content"]')
+        expect(panel_tooltip).to_be_visible(timeout=3000)
+        expect(panel_tooltip).to_contain_text("Status oder Feldwerte")
+        page.keyboard.press("Escape")
+        expect(panel_tooltip).to_have_count(0)
+        expect(page.locator('[data-testid="step-editor-dialog"]')).to_be_visible()
+
+        page.locator('[data-testid="step-section-fields"]').click()
+        field_help = page.locator('[data-testid="field-type-help-multiupload"]')
+        field_help.hover()
+        expect(page.locator('[data-testid="field-type-help-multiupload-content"]')).to_contain_text(
+            "Dokumenttypen",
+            timeout=3000,
+        )
+
+        page.context.unroute_all(behavior="ignoreErrors")
+        browser.close()
+
+
 def test_step_editor_searchable_references_multiselect_and_mappings(admin_state):
     token = _admin_token()
     with sync_playwright() as p:
@@ -686,4 +733,44 @@ def test_admin_survey_switch_loads_list_and_flow_views(admin_state):
         expect(page.get_by_text(admin_state["pflege_second_title"])).to_be_visible(timeout=15000)
         capture_page(page, "admin-survey-steps", "10-pflege-listenansicht")
 
+        browser.close()
+
+
+def test_dependency_graph_shows_real_branching_without_sequence_edges(admin_state):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--host-resolver-rules=MAP localhost host.docker.internal",
+            ],
+        )
+        page = browser.new_page(viewport={"width": 1600, "height": 1000})
+        install_api_proxy(page.context, BACKEND)
+        _login_admin(page)
+        _goto_admin_steps(page, "aerzte")
+
+        page.locator('[data-testid="steps-view-dependency"]').click()
+        graph = page.locator('[data-testid="steps-flow-builder"]')
+        expect(graph).to_be_visible(timeout=15000)
+        expect(graph).to_have_attribute("data-layout-mode", "dependency")
+        expect(page.locator('[data-testid="dependency-graph-stats"]')).to_contain_text("Nur echte Abhängigkeiten")
+        expect(page.locator('[data-testid="flow-palette"]')).to_have_count(0)
+
+        condition_edges = page.locator('[data-testid^="rf__edge-cond-"]')
+        expect(condition_edges.first).to_be_attached(timeout=15000)
+        assert condition_edges.count() > 1
+        assert page.locator('[data-testid^="rf__edge-seq-"]').count() == 0
+
+        nodes = page.locator('[data-testid^="flow-node-"]')
+        expect(nodes.first).to_be_visible(timeout=15000)
+        y_positions = nodes.evaluate_all(
+            "elements => elements.map(element => Math.round(element.getBoundingClientRect().y / 20) * 20)"
+        )
+        assert len(set(y_positions)) > 1, "dependency layout must use multiple vertical lanes"
+        capture_page(page, "admin-survey-steps", "11-aerzte-abhaengigkeitsgraph")
+
+        page.locator('[data-testid="steps-view-flow"]').click()
+        expect(graph).to_have_attribute("data-layout-mode", "editor")
+        expect(page.locator('[data-testid="flow-palette"]')).to_be_visible(timeout=10000)
         browser.close()

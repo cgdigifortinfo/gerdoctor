@@ -183,30 +183,55 @@ function linearLayout(steps) {
     return positions;
 }
 
-function buildGraph(steps, callbacks) {
+function conditionLeaves(condition, inheritedAction = null, group = null) {
+    const action = condition.action || inheritedAction;
+    const children = Array.isArray(condition.all_of)
+        ? { values: condition.all_of, label: 'UND' }
+        : Array.isArray(condition.any_of)
+            ? { values: condition.any_of, label: 'ODER' }
+            : null;
+    if (!children) return [{ condition: { ...condition, action }, group }];
+    return children.values.flatMap(child => conditionLeaves(child, action, group ? `${group} / ${children.label}` : children.label));
+}
+
+function conditionValueLabel(condition) {
+    const value = Array.isArray(condition.value) ? condition.value.join(', ') : condition.value;
+    if (value === undefined || value === null || value === '') return '';
+    const operator = {
+        equals: '=', not_equals: '≠', contains: 'enthält', not_contains: 'enthält nicht',
+        in: 'ist in', not_in: 'ist nicht in', completed: 'abgeschlossen', not_completed: 'nicht abgeschlossen',
+    }[condition.operator] || condition.operator || '=';
+    return ` ${operator} ${value}`;
+}
+
+function buildGraph(steps, callbacks, layoutMode = 'editor') {
     const sorted = [...steps].sort((a, b) => a.order - b.order);
     const byOrder = Object.fromEntries(sorted.map(s => [s.order, s]));
 
     // First compute raw edges (so dagre can consider them)
     const edges = [];
     sorted.forEach(s => {
-        (s.conditions || []).forEach((c, idx) => {
-            const src = byOrder[c.source_step_order];
-            if (!src) return;
-            const action = ACTION_LABELS[c.action] || { label: c.action, color: '#64748b' };
-            const valueLabel = c.value ? ` = ${c.value}` : '';
-            const fieldLabel = c.field ? `${c.field}` : '(status)';
-            edges.push({
-                id: `cond-${s.id}-${idx}`,
+        (s.conditions || []).forEach((rootCondition, idx) => {
+            const leaves = conditionLeaves(rootCondition);
+            leaves.forEach(({ condition: c, group }, leafIndex) => {
+              const src = byOrder[c.source_step_order];
+              if (!src) return;
+              const action = ACTION_LABELS[c.action] || { label: c.action || 'Bedingung', color: '#64748b' };
+              const fieldLabel = c.field || '(Status)';
+              const groupLabel = group ? `${group} · ` : '';
+              edges.push({
+                id: `cond-${s.id}-${idx}-${leafIndex}`,
                 source: src.id, target: s.id,
-                label: `${action.label}: ${fieldLabel}${valueLabel}`,
+                type: 'smoothstep',
+                label: `${groupLabel}${action.label}: ${fieldLabel}${conditionValueLabel(c)}`,
                 labelStyle: { fontSize: 10, fill: action.color, fontWeight: 600, cursor: 'pointer' },
                 labelBgPadding: [4, 2], labelBgBorderRadius: 2,
                 labelBgStyle: { fill: 'white', fillOpacity: 0.95, cursor: 'pointer' },
                 style: { stroke: action.color, strokeWidth: 1.6, strokeDasharray: c.action === 'hide' ? '4 3' : undefined, cursor: 'pointer' },
                 animated: c.action === 'auto_complete',
                 markerEnd: { type: MarkerType.ArrowClosed, color: action.color },
-                data: { stepId: s.id, condIndex: idx, condition: c, isCondition: true },
+                data: { stepId: s.id, condIndex: idx, condition: rootCondition, isCondition: !group, isDependency: true, group },
+              });
             });
         });
     });
@@ -214,7 +239,9 @@ function buildGraph(steps, callbacks) {
     // Positions: use saved flow_position if present; otherwise use the linear (order-based) layout
     const anyWithPosition = sorted.some(s => s.flow_position && typeof s.flow_position.x === 'number');
     let positions = {};
-    if (anyWithPosition) {
+    if (layoutMode === 'dependency') {
+        positions = dagreLayout(sorted, edges);
+    } else if (anyWithPosition) {
         sorted.forEach((s, i) => {
             positions[s.id] = s.flow_position || { x: i * 280, y: 140 };
         });
@@ -240,8 +267,9 @@ function buildGraph(steps, callbacks) {
         },
     }));
 
-    // Sequence arrows between consecutive steps (soft grey, not clickable)
-    for (let i = 0; i < sorted.length - 1; i++) {
+    // Sequence arrows are useful in the editor, but deliberately omitted from the
+    // dependency graph: there only real condition references define structure.
+    for (let i = 0; layoutMode !== 'dependency' && i < sorted.length - 1; i++) {
         const from = sorted[i], to = sorted[i + 1];
         const hasCondEdge = edges.some(e => e.source === from.id && e.target === to.id);
         if (!hasCondEdge) {
@@ -437,9 +465,10 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
 }
 
 // ===== Inner component with ReactFlow hooks =====
-function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onConditionAdd, onConditionUpdate, onConditionDelete, onSaveLayout }) {
+function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onConditionAdd, onConditionUpdate, onConditionDelete, onSaveLayout, layoutMode = 'editor' }) {
+    const isDependency = layoutMode === 'dependency';
     const callbacks = useMemo(() => ({ onEdit, onDelete }), [onEdit, onDelete]);
-    const initial = useMemo(() => buildGraph(steps, callbacks), [steps, callbacks]);
+    const initial = useMemo(() => buildGraph(steps, callbacks, layoutMode), [steps, callbacks, layoutMode]);
     const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
     const [modalState, setModalState] = useState(null);
@@ -498,7 +527,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     }, []);
 
     useEffect(() => {
-        const fresh = buildGraph(steps, callbacks);
+        const fresh = buildGraph(steps, callbacks, layoutMode);
         const simMap = simStates;
         const currentPlaybackId = playbackIndex >= 0 ? playbackStepIds[playbackIndex] : null;
         setNodes(fresh.nodes.map((n) => {
@@ -508,7 +537,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
             return { ...n, data };
         }));
         setEdges(fresh.edges);
-    }, [steps, callbacks, simStates, playbackIndex, playbackStepIds, setNodes, setEdges]);
+    }, [steps, callbacks, layoutMode, simStates, playbackIndex, playbackStepIds, setNodes, setEdges]);
 
     // Playback timer — advances one step every 1500ms, accumulating ETA
     useEffect(() => {
@@ -554,11 +583,12 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
 
     // Edge drag → open modal (create)
     const handleConnect = useCallback((params) => {
+        if (isDependency) return;
         const source = steps.find(s => s.id === params.source);
         const target = steps.find(s => s.id === params.target);
         if (!source || !target || source.id === target.id) return;
         setModalState({ mode: 'create', source, target, initial: null });
-    }, [steps]);
+    }, [steps, isDependency]);
 
     // Edge click → edit existing condition
     const handleEdgeClick = useCallback((event, edge) => {
@@ -590,24 +620,38 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
 
     // Persist a single node's position when user stops dragging it
     const handleNodeDragStart = useCallback(() => {
+        if (isDependency) return;
         // Snapshot BEFORE the drag mutates positions
         history.push(nodesToSnapshot(nodes));
-    }, [history, nodes, nodesToSnapshot]);
+    }, [history, nodes, nodesToSnapshot, isDependency]);
 
     const handleNodeDragStop = useCallback((_event, node) => {
+        if (isDependency) return;
         if (!node?.id || !node.position) return;
         onSaveLayout?.({ [node.id]: { x: node.position.x, y: node.position.y } });
-    }, [onSaveLayout]);
+    }, [onSaveLayout, isDependency]);
 
     // Apply automatic layout (order-respecting, parallel alternatives) + persist
     const runAutoLayout = useCallback(() => {
         try {
             history.push(nodesToSnapshot(nodes));
-            const positions = linearLayout(steps);
+            const conditionEdges = buildGraph(steps, callbacks, 'dependency').edges;
+            const positions = isDependency ? dagreLayout(steps, conditionEdges) : linearLayout(steps);
             setNodes(nds => nds.map(n => positions[n.id] ? { ...n, position: positions[n.id] } : n));
-            onSaveLayout?.(positions);
+            if (!isDependency) onSaveLayout?.(positions);
         } catch (e) { console.warn('Auto-layout failed:', e); }
-    }, [steps, setNodes, onSaveLayout, history, nodes, nodesToSnapshot]);
+    }, [steps, callbacks, isDependency, setNodes, onSaveLayout, history, nodes, nodesToSnapshot]);
+
+    const dependencyStats = useMemo(() => {
+        const actualEdges = edges.filter(edge => edge.data?.isDependency);
+        const incoming = new Set(actualEdges.map(edge => edge.target));
+        const outgoingCounts = actualEdges.reduce((counts, edge) => ({ ...counts, [edge.source]: (counts[edge.source] || 0) + 1 }), {});
+        return {
+            conditions: actualEdges.length,
+            roots: nodes.filter(node => !incoming.has(node.id)).length,
+            branches: Object.values(outgoingCounts).filter(count => count > 1).length,
+        };
+    }, [edges, nodes]);
 
     // ----- Undo / Redo -----
     const applySnapshot = useCallback((snapshot) => {
@@ -646,22 +690,23 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
             ref={rootRef}
             className={`flow-workspace relative border border-border rounded-sm bg-muted/20 flex ${isFullscreen ? 'h-screen w-screen' : 'h-[640px]'}`}
             data-testid="steps-flow-builder"
+            data-layout-mode={layoutMode}
             data-fullscreen={isFullscreen ? 'true' : 'false'}
         >
-            <Palette />
+            {!isDependency && <Palette />}
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center">
-                    <Button size="sm" onClick={() => onAddStep?.()} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
+                    {!isDependency && <Button size="sm" onClick={() => onAddStep?.()} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
                         <Plus size={14} className="mr-1" /> Step
-                    </Button>
+                    </Button>}
                     <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
-                        <Graph size={14} className="mr-1" /> Auto-Layout
+                        <Graph size={14} className="mr-1" /> {isDependency ? 'Graph neu ordnen' : 'Auto-Layout'}
                     </Button>
                     <Button size="sm" variant="outline" onClick={toggleFullscreen} className="bg-card border-border shadow" data-testid="flow-fullscreen-btn" title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}>
                         {isFullscreen ? <ArrowsIn size={14} className="mr-1" /> : <ArrowsOut size={14} className="mr-1" />}
                         {isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
                     </Button>
-                    <div className="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden">
+                    {!isDependency && <div className="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden">
                         <button
                             type="button"
                             onClick={handleUndo}
@@ -682,9 +727,9 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         >
                             <ArrowUUpRight size={14} /> Redo
                         </button>
-                    </div>
-                    <FlowSimulatorPanel value={simulatorKey} onChange={setSimulatorKey} />
-                    <Button
+                    </div>}
+                    {!isDependency && <FlowSimulatorPanel value={simulatorKey} onChange={setSimulatorKey} />}
+                    {!isDependency && <Button
                         size="sm"
                         variant="outline"
                         onClick={playbackIndex >= 0 ? stopPlayback : startPlayback}
@@ -695,8 +740,13 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                         {playbackIndex >= 0
                             ? (<><Stop size={14} className="mr-1" weight="fill" /> Stop</>)
                             : (<><Play size={14} className="mr-1" weight="fill" /> Abspielen</>)}
-                    </Button>
+                    </Button>}
                 </div>
+                {isDependency && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow px-3 py-2 text-xs text-muted-foreground" data-testid="dependency-graph-stats">
+                        Nur echte Abhängigkeiten · <strong className="text-foreground">{dependencyStats.conditions}</strong> Regeln · <strong className="text-foreground">{dependencyStats.roots}</strong> Startpunkte · <strong className="text-foreground">{dependencyStats.branches}</strong> Verzweigungen
+                    </div>
+                )}
                 {playbackIndex >= 0 && (
                     <div
                         className="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 bg-amber-50 dark:bg-amber-900/70 border border-amber-300 dark:border-amber-700 rounded-sm shadow-lg px-4 py-2 text-xs flex items-center gap-4"
@@ -749,6 +799,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     nodes={nodes} edges={edges}
                     onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                     onConnect={handleConnect}
+                    nodesConnectable={!isDependency}
                     onEdgeClick={handleEdgeClick}
                     onNodeDragStart={handleNodeDragStart}
                     onNodeDragStop={handleNodeDragStop}

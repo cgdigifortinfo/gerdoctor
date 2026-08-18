@@ -29,7 +29,7 @@ from models import (
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
     StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk,
-    SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate,
+    SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate, StepResponse,
     PermissionGroupCreate, PermissionGroupUpdate, UserPermissionsUpdate,
 )
 from auth import (
@@ -166,6 +166,44 @@ def _step_query_for_survey(survey_id: str, active_only: bool = True) -> dict:
     if active_only:
         query["is_active"] = True
     return query
+
+
+def _admin_step_payload(step: dict) -> dict:
+    """Serialize a MongoDB step document into the public admin contract."""
+    return {
+        "id": str(step["_id"]),
+        "survey_id": step.get("survey_id", ""),
+        "title": step["title"],
+        "description": step.get("description", ""),
+        "order": step["order"],
+        "step_type": step["step_type"],
+        "fields": step.get("fields", []),
+        "form_schema_version": step.get("form_schema_version", FORM_SCHEMA_VERSION),
+        "filter_tag": step.get("filter_tag", ""),
+        "skippable": step.get("skippable", False),
+        "skip_label": step.get("skip_label", ""),
+        "action_label": step.get("action_label", ""),
+        "pending_message": step.get("pending_message", ""),
+        "complete_message": step.get("complete_message", ""),
+        "required_fields": step.get("required_fields", []),
+        "required_uploads": step.get("required_uploads", []),
+        "field_mappings": step.get("field_mappings", []),
+        "conditions": step.get("conditions", []),
+        "email_on_enter": step.get("email_on_enter", False),
+        "email_on_edit": step.get("email_on_edit", False),
+        "email_on_leave": step.get("email_on_leave", False),
+        "email_subject_enter": step.get("email_subject_enter", ""),
+        "email_body_enter": step.get("email_body_enter", ""),
+        "email_subject_edit": step.get("email_subject_edit", ""),
+        "email_body_edit": step.get("email_body_edit", ""),
+        "email_subject_leave": step.get("email_subject_leave", ""),
+        "email_body_leave": step.get("email_body_leave", ""),
+        "is_active": step.get("is_active", True),
+        "duration_value": step.get("duration_value", 0),
+        "duration_unit": step.get("duration_unit", "days"),
+        "translations": step.get("translations", {}),
+        "flow_position": step.get("flow_position"),
+    }
 
 def _auth_cookie_kwargs(max_age: int) -> dict:
     frontend_url = os.environ.get("FRONTEND_URL", "")
@@ -1250,7 +1288,7 @@ async def admin_update_survey(survey_id: str, data: SurveyUpdate, request: Reque
     return {"message": "Survey updated"}
 
 # Admin Steps
-@admin_router.get("/steps")
+@admin_router.get("/steps", response_model=List[StepResponse])
 async def admin_get_steps(request: Request, survey_id: Optional[str] = Query(None), survey_slug: Optional[str] = Query(None)):
     await require_role("admin")(request)
     query = {}
@@ -1260,7 +1298,7 @@ async def admin_get_steps(request: Request, survey_id: Optional[str] = Query(Non
     elif survey_id:
         query["survey_id"] = survey_id
     steps = await db.steps.find(query).sort("order", 1).to_list(100)
-    return [{"id": str(s["_id"]), "survey_id": s.get("survey_id", ""), "title": s["title"], "description": s["description"], "order": s["order"], "step_type": s["step_type"], "fields": s.get("fields", []), "form_schema_version": s.get("form_schema_version", FORM_SCHEMA_VERSION), "filter_tag": s.get("filter_tag", ""), "skippable": s.get("skippable", False), "skip_label": s.get("skip_label", ""), "action_label": s.get("action_label", ""), "pending_message": s.get("pending_message", ""), "complete_message": s.get("complete_message", ""), "required_fields": s.get("required_fields", []), "required_uploads": s.get("required_uploads", []), "field_mappings": s.get("field_mappings", []), "conditions": s.get("conditions", []), "email_on_enter": s.get("email_on_enter", False), "email_on_edit": s.get("email_on_edit", False), "email_on_leave": s.get("email_on_leave", False), "email_subject_enter": s.get("email_subject_enter", ""), "email_body_enter": s.get("email_body_enter", ""), "email_subject_edit": s.get("email_subject_edit", ""), "email_body_edit": s.get("email_body_edit", ""), "email_subject_leave": s.get("email_subject_leave", ""), "email_body_leave": s.get("email_body_leave", ""), "is_active": s.get("is_active", True), "duration_value": s.get("duration_value", 0), "duration_unit": s.get("duration_unit", "days"), "translations": s.get("translations", {}), "flow_position": s.get("flow_position")} for s in steps]
+    return [_admin_step_payload(step) for step in steps]
 
 @admin_router.post("/steps")
 async def admin_create_step(data: StepCreate, request: Request):
@@ -1275,7 +1313,7 @@ async def admin_create_step(data: StepCreate, request: Request):
         if field.get("required") and field.get("field_type") not in CONTENT_FIELD_TYPES | {"multiupload"}
     ]
     required_fields = list(dict.fromkeys([*(data.required_fields or []), *inferred_required]))
-    step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": fields, "form_schema_version": FORM_SCHEMA_VERSION, "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": required_fields, "required_uploads": data.required_uploads or [], "field_mappings": data.field_mappings or [], "conditions": data.conditions or [], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": fields, "form_schema_version": FORM_SCHEMA_VERSION, "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": required_fields, "required_uploads": data.required_uploads or [], "field_mappings": [mapping.model_dump(exclude_none=True) for mapping in data.field_mappings or []], "conditions": [condition.model_dump(exclude_none=True) for condition in data.conditions or []], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.steps.insert_one(step_doc)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
@@ -1297,13 +1335,11 @@ async def admin_save_step_layout_bulk(data: StepLayoutBulk, request: Request):
     """Persist flow_position for many steps at once."""
     admin_user = await require_role("admin")(request)
     updated = 0
-    for sid, pos in (data.positions or {}).items():
-        if not isinstance(pos, dict) or "x" not in pos or "y" not in pos:
-            continue
+    for sid, pos in data.positions.items():
         try:
             await db.steps.update_one(
                 {"_id": ObjectId(sid)},
-                {"$set": {"flow_position": {"x": float(pos["x"]), "y": float(pos["y"])},
+                {"$set": {"flow_position": {"x": pos.x, "y": pos.y},
                            "updated_at": datetime.now(timezone.utc).isoformat()}},
             )
             updated += 1

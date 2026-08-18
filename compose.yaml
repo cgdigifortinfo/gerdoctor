@@ -10,6 +10,8 @@ services:
       - mongo_config:/data/configdb
 
   backend:
+    build:
+      context: ./backend
     image: gerdoctor-backend-local
     container_name: gerdoctor-backend
     restart: unless-stopped
@@ -22,7 +24,7 @@ services:
     environment:
       MONGO_URL: mongodb://mongo:27017
       DB_NAME: test_database
-      JWT_SECRET: gerdoctor-local-dev-secret
+      JWT_SECRET: gerdoctor-local-development-secret-2026
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       LOCAL_STORAGE_ROOT: /var/lib/gerdoctor/uploads
       TMPDIR: /tmp
@@ -30,6 +32,23 @@ services:
       - .:/app
       - uploads:/var/lib/gerdoctor/uploads
       - backend_tmp:/tmp
+
+  frontend:
+    build:
+      context: ./frontend
+    image: gerdoctor-frontend-local
+    container_name: gerdoctor-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3001:3001"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      BROWSER: none
+      REACT_APP_BACKEND_URL: http://localhost:8001
+      API_PROXY_TARGET: http://backend:8001
 
 volumes:
   mongo_data:

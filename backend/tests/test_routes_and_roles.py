@@ -3,14 +3,8 @@ Comprehensive route & role-based access test.
 Tests ALL API endpoints with all 3 roles (admin, partner, user) + unauthenticated.
 Verifies: correct access, correct 401/403 rejection, response structure.
 """
-import pytest
 import httpx
-
-@pytest.fixture(scope="module")
-def base_url():
-    import subprocess
-    result = subprocess.run(["grep", "REACT_APP_BACKEND_URL", "/app/frontend/.env"], capture_output=True, text=True)
-    return result.stdout.strip().split("=", 1)[1]
+import pytest
 
 @pytest.fixture(scope="module")
 def tokens(base_url):

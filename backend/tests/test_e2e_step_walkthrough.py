@@ -22,13 +22,6 @@ TEST_USER_PW = "TestWalk123!"
 TEST_USER_NAME = "Dr. E2E Walker"
 
 @pytest.fixture(scope="module")
-def base_url():
-    import subprocess
-    result = subprocess.run(["grep", "REACT_APP_BACKEND_URL", "/app/frontend/.env"], capture_output=True, text=True)
-    url = result.stdout.strip().split("=", 1)[1]
-    return url
-
-@pytest.fixture(scope="module")
 def admin_token(base_url):
     with httpx.Client(timeout=15) as c:
         r = c.post(f"{base_url}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PW})
