@@ -47,7 +47,8 @@ services:
       HOST: 0.0.0.0
       PORT: 3001
       BROWSER: none
-      REACT_APP_BACKEND_URL: http://localhost:8001
+      # Keep browser API calls same-origin; CRACO proxies /api to the backend.
+      REACT_APP_BACKEND_URL: ""
       API_PROXY_TARGET: http://backend:8001
 
 volumes:

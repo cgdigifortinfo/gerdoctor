@@ -59,6 +59,7 @@ chainlit.md
 .ac
 /.gitconfig
 /test_reports/
+/test_results/e2e-screenshots/
 cookies*.txt
 backend/*.backup
 backend/=*

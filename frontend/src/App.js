@@ -13,6 +13,8 @@ import { Login, Register, ForgotPassword, ResetPassword } from "./pages/Auth";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PartnerDashboard from "./pages/PartnerDashboard";
+import PartnerLanding from "./pages/PartnerLanding";
+import { PartnerOnboarding, PartnerPaymentSuccess } from "./pages/PartnerPayment";
 
 function App() {
   return (
@@ -23,7 +25,9 @@ function App() {
             <BrowserRouter>
               <Routes>
                 {/* Public Routes */}
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<PartnerLanding />} />
+                <Route path="/aerzte" element={<Landing />} />
+                <Route path="/pflege" element={<Landing />} />
                 <Route path="/login" element={
                   <PublicRoute>
                     <Login />
@@ -45,7 +49,6 @@ function App() {
                   </PublicRoute>
                 } />
                 <Route path="/s/:surveySlug" element={<Landing />} />
-                <Route path="/:landingSlug" element={<Landing />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -69,6 +72,9 @@ function App() {
                     <PartnerDashboard />
                   </ProtectedRoute>
                 } />
+                <Route path="/partner-payment" element={<ProtectedRoute allowedRoles={['partner']} requiredPermission="portal.partner.access"><PartnerOnboarding /></ProtectedRoute>} />
+                <Route path="/partner-payment/success" element={<ProtectedRoute allowedRoles={['partner']} requiredPermission="portal.partner.access"><PartnerPaymentSuccess /></ProtectedRoute>} />
+                <Route path="/partner-payment/cancelled" element={<ProtectedRoute allowedRoles={['partner']} requiredPermission="portal.partner.access"><PartnerOnboarding /></ProtectedRoute>} />
 
                 {/* Catch all */}
                 <Route path="*" element={<Landing />} />

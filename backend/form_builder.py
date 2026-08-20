@@ -22,6 +22,15 @@ def _slug(value: str, fallback: str) -> str:
     return normalized.strip("_") or fallback
 
 
+def _bounded_int(value: Any, default: int, minimum: int, maximum: int) -> int:
+    """Coerce untrusted legacy configuration without aborting migrations."""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        parsed = default
+    return max(minimum, min(parsed, maximum))
+
+
 def normalize_step_field(field: dict[str, Any], index: int = 0) -> dict[str, Any]:
     """Upgrade a legacy field without discarding its custom option metadata."""
     result = deepcopy(field or {})
@@ -41,12 +50,12 @@ def normalize_step_field(field: dict[str, Any], index: int = 0) -> dict[str, Any
     if field_type in CHOICE_FIELD_TYPES or field_type == "multiupload":
         result["options"] = list(result.get("options") or [])
     if field_type == "textarea":
-        result["rows"] = max(2, min(int(result.get("rows") or 4), 20))
+        result["rows"] = _bounded_int(result.get("rows") or 4, 4, 2, 20)
     if field_type in UPLOAD_FIELD_TYPES:
         result["accept"] = str(result.get("accept") or ".pdf,.png,.jpg,.jpeg,.doc,.docx")
         result["multiple"] = bool(result.get("multiple", field_type == "multiupload"))
     if field_type == "heading":
-        result["heading_level"] = max(2, min(int(result.get("heading_level") or 2), 4))
+        result["heading_level"] = _bounded_int(result.get("heading_level") or 2, 2, 2, 4)
     if field_type in {"heading", "paragraph", "html"}:
         result["content"] = str(result.get("content") or result.get("label") or "")
     if field_type == "image":
@@ -70,6 +79,7 @@ def migrate_snapshot_form_configs(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Upgrade the embedded baseline during verify and restore operations."""
     migrated = deepcopy(snapshot)
     collections = migrated.get("collections") or {}
+    migrated["collections"] = collections
     collections["steps"] = [
         normalize_step_document(step)
         for step in collections.get("steps") or []

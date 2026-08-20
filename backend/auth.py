@@ -5,6 +5,7 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, Request
 from bson import ObjectId
+from bson.errors import InvalidId
 from database import db
 
 JWT_ALGORITHM = "HS256"
@@ -18,7 +19,12 @@ def hash_password(password: str) -> str:
     return hashed.decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except (TypeError, ValueError, AttributeError):
+        # A malformed legacy/database value is an authentication failure, not
+        # an internal server error and must not disclose hash details.
+        return False
 
 def create_access_token(user_id: str, email: str, role: str) -> str:
     payload = {
@@ -60,6 +66,8 @@ async def get_current_user(request: Request) -> dict:
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except (InvalidId, KeyError, TypeError):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def require_role(*roles):

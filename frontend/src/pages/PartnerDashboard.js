@@ -14,8 +14,8 @@ import { Progress } from '../components/ui/progress';
 import {
     SignOut, FileText, Gear, Eye, Check, ArrowRight, WarningCircle, CheckCircle,
     DownloadSimple, UserSwitch, CaretUp, CaretDown, UsersThree, UserList, Funnel,
-    ArrowsClockwise, XCircle,
-    ChartLine, Plus, X, Star
+    ArrowsClockwise, XCircle, CreditCard,
+    ChartLine, Plus, X, Star, ClockCountdown, EnvelopeSimple, ShieldCheck, LockKey
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
@@ -100,8 +100,67 @@ function Timeline({ series, accent = 'var(--brand-primary)' }) {
     );
 }
 
+function PendingActivationPage({ partnerName, onOpenProfile, onOpenBilling }) {
+    return (
+        <section className="relative overflow-hidden bg-card border border-border rounded-sm" data-testid="partner-pending-activation">
+            <div className="absolute inset-x-0 top-0 h-1 bg-[var(--brand-primary)]" />
+            <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
+                <div className="p-7 sm:p-10 lg:p-12">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/10 px-3 py-1 text-xs font-semibold text-[var(--brand-primary)]">
+                        <ClockCountdown size={16} weight="duotone" /> Freischaltung wird vorbereitet
+                    </div>
+                    <p className="mt-7 text-sm font-medium text-muted-foreground">Willkommen{partnerName ? `, ${partnerName}` : ''}</p>
+                    <h1 className="mt-2 max-w-2xl text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+                        Wir richten Ihren Partnerbereich persönlich für Sie ein.
+                    </h1>
+                    <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+                        Wir prüfen Ihre Angaben und schalten Ihren Content-Bereich in der Regel innerhalb von zwei Werktagen frei. Unser Team setzt sich mit Ihnen in Verbindung, sobald die passende Survey-Zuweisung eingerichtet ist.
+                    </p>
+
+                    <div className="mt-8 flex flex-wrap gap-3">
+                        <Button onClick={onOpenProfile} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="pending-open-profile">
+                            <Gear size={18} className="mr-2" /> Profil vervollständigen
+                        </Button>
+                        <Button variant="outline" onClick={onOpenBilling} data-testid="pending-open-billing">
+                            <CreditCard size={18} className="mr-2" /> Abrechnung & Stripe
+                        </Button>
+                    </div>
+
+                    <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                        {[
+                            { number: '01', title: 'Prüfung', text: 'Wir prüfen Ihre Partnerdaten.' },
+                            { number: '02', title: 'Abstimmung', text: 'Wir melden uns persönlich bei Ihnen.' },
+                            { number: '03', title: 'Freischaltung', text: 'Surveys und Nutzeransichten werden aktiviert.' },
+                        ].map(item => (
+                            <div key={item.number} className="rounded-sm border border-border bg-background/60 p-4">
+                                <span className="text-xs font-bold tracking-wider text-[var(--brand-primary)]">{item.number}</span>
+                                <p className="mt-2 text-sm font-semibold text-foreground">{item.title}</p>
+                                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <aside className="border-t lg:border-l lg:border-t-0 border-border bg-muted/25 p-7 sm:p-10 flex flex-col justify-center">
+                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                        <ShieldCheck size={42} weight="duotone" />
+                    </div>
+                    <h2 className="mt-6 text-center text-lg font-semibold text-foreground">Ihre Einstellungen bleiben verfügbar</h2>
+                    <p className="mt-3 text-center text-sm leading-6 text-muted-foreground">
+                        Profil-, Rechnungs- und Stripe-Einstellungen können Sie bereits jetzt vollständig pflegen.
+                    </p>
+                    <div className="mt-7 flex items-start gap-3 rounded-sm border border-border bg-card p-4">
+                        <EnvelopeSimple size={20} className="mt-0.5 shrink-0 text-[var(--brand-primary)]" />
+                        <p className="text-xs leading-5 text-muted-foreground">Sie müssen nichts weiter veranlassen. Wir informieren Sie, sobald Ihr Bereich freigeschaltet wurde.</p>
+                    </div>
+                </aside>
+            </div>
+        </section>
+    );
+}
+
 // ===== Shared sortable/filterable user table =====
-function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCompleted = false, tableId = 'table', t, partnerTags = [] }) {
+function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCompleted = false, tableId = 'table', t, partnerTags = [], actionsDisabled = false }) {
     const [sortKey, setSortKey] = useState(partnerTags.length > 0 ? 'match_score' : null);
     const [sortDir, setSortDir] = useState(partnerTags.length > 0 ? 'desc' : 'asc');
     const [forecastFrom, setForecastFrom] = useState('');
@@ -282,8 +341,16 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                                 )}
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => onViewUser(item)} data-testid={`view-user-${item.user_id || item.id}`}>
-                                            <Eye size={18} className="mr-1" /> Details
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={actionsDisabled}
+                                            onClick={() => !actionsDisabled && onViewUser(item)}
+                                            data-testid={`view-user-${item.user_id || item.id}`}
+                                            title={actionsDisabled ? 'Nach der Freischaltung verfügbar' : 'Details anzeigen'}
+                                        >
+                                            {actionsDisabled ? <LockKey size={18} className="mr-1" /> : <Eye size={18} className="mr-1" />}
+                                            {actionsDisabled ? 'Noch gesperrt' : 'Details'}
                                         </Button>
                                         {showCompleted && onReopenUser && item.partner_work_completed && (
                                             <Button
@@ -321,7 +388,7 @@ export default function PartnerDashboard() {
     const [otherUsers, setOtherUsers] = useState([]);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('my-users');
+    const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'my-users');
     const [selectedSubmission, setSelectedSubmission] = useState(null);
     const [userDetail, setUserDetail] = useState(null);
     const [userDetailLoading, setUserDetailLoading] = useState(false);
@@ -332,6 +399,15 @@ export default function PartnerDashboard() {
     const [profileForm, setProfileForm] = useState({});
     const [insights, setInsights] = useState(null);
     const [newTag, setNewTag] = useState('');
+    const [billing, setBilling] = useState({});
+    const [stripeStatus, setStripeStatus] = useState({ configured: false });
+    const [invoices, setInvoices] = useState([]);
+    const [billingSaving, setBillingSaving] = useState(false);
+    const isAwaitingAssignment = Boolean(profile) && (
+        profile?.registration_status !== 'active'
+        || profile?.is_active !== true
+        || !(profile?.survey_ids || []).length
+    );
 
     const handleAddTag = (tag) => {
         const t = (tag || '').trim();
@@ -346,17 +422,31 @@ export default function PartnerDashboard() {
     };
 
     const loadData = useCallback(async () => {
+        if (user?.partner_payment_required && !['paid', 'active', 'trialing'].includes(user?.partner_billing_status)) {
+            setLoading(false);
+            return;
+        }
         try {
-            const [subsRes, otherRes, profileRes, insightsRes] = await Promise.all([
+            const profileRes = await partnerDashboardAPI.getProfile().catch(() => ({ data: { name: user?.name, email: user?.email } }));
+            setProfile(profileRes.data);
+            setProfileForm(profileRes.data);
+            const pending = (
+                profileRes.data?.registration_status !== 'active'
+                || profileRes.data?.is_active !== true
+                || !(profileRes.data?.survey_ids || []).length
+            );
+            if (pending) {
+                const otherRes = await partnerDashboardAPI.getOtherUsers().catch(() => ({ data: [] }));
+                setOtherUsers(otherRes.data);
+                return;
+            }
+            const [subsRes, otherRes, insightsRes] = await Promise.all([
                 partnerDashboardAPI.getSubmissions(),
                 partnerDashboardAPI.getOtherUsers(),
-                partnerDashboardAPI.getProfile().catch(() => ({ data: { name: user?.name, email: user?.email } })),
                 partnerDashboardAPI.getInsights().catch(() => ({ data: null })),
             ]);
             setSubmissions(subsRes.data);
             setOtherUsers(otherRes.data);
-            setProfile(profileRes.data);
-            setProfileForm(profileRes.data);
             setInsights(insightsRes.data);
         } catch (error) {
             console.error('Failed to load data:', error);
@@ -367,6 +457,32 @@ export default function PartnerDashboard() {
     }, [user]);
 
     useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        if (isAwaitingAssignment && !['my-users', 'other-users', 'profile', 'billing'].includes(activeTab)) {
+            setActiveTab('my-users');
+        }
+    }, [isAwaitingAssignment, activeTab]);
+    useEffect(() => {
+        if (user?.partner_payment_required && !['paid', 'active', 'trialing'].includes(user?.partner_billing_status)) navigate('/partner-payment');
+    }, [user, navigate]);
+    useEffect(() => {
+        if (activeTab !== 'billing') return;
+        Promise.all([
+            partnerDashboardAPI.getBilling(),
+            partnerDashboardAPI.getStripeStatus(),
+            partnerDashboardAPI.getStripeInvoices().catch(() => ({ data: [] })),
+        ]).then(([billingRes, statusRes, invoiceRes]) => {
+            setBilling(billingRes.data.settings || {}); setStripeStatus(statusRes.data || {}); setInvoices(invoiceRes.data || []);
+        }).catch(error => toast.error(formatApiError(error)));
+    }, [activeTab]);
+
+    const saveBilling = async () => {
+        setBillingSaving(true);
+        try { await partnerDashboardAPI.updateBilling(billing); toast.success('Rechnungseinstellungen gespeichert'); }
+        catch (error) { toast.error(formatApiError(error)); }
+        finally { setBillingSaving(false); }
+    };
+    const openBillingPortal = async () => { try { const response = await partnerDashboardAPI.createBillingPortal(); window.location.assign(response.data.url); } catch(error) { toast.error(formatApiError(error)); } };
 
     // Deep-link support: when the partner lands via an email link like
     // `/partner/dashboard?openUser=<user_id>`, wait for the submissions to load
@@ -548,35 +664,42 @@ export default function PartnerDashboard() {
                         <TabsList className="main-navigation mb-6 bg-card border border-border">
                             <TabsTrigger value="my-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
-                                {t('partner_my_users')} ({activeSubmissions.length})
+                                {isAwaitingAssignment ? 'Übersicht' : `${t('partner_my_users')} (${activeSubmissions.length})`}
                             </TabsTrigger>
-                            <TabsTrigger value="completed-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-completed-users">
+                            {!isAwaitingAssignment && <TabsTrigger value="completed-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-completed-users">
                                 <CheckCircle size={18} className="mr-2" />
                                 Completed Users ({completedSubmissions.length})
-                            </TabsTrigger>
+                            </TabsTrigger>}
                             <TabsTrigger value="other-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
                                 {t('partner_other_users')} ({otherUsers.length})
                             </TabsTrigger>
-                            <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
+                            {!isAwaitingAssignment && <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
                                 <ChartLine size={18} className="mr-2" />
                                 Insights
-                            </TabsTrigger>
+                            </TabsTrigger>}
                             <TabsTrigger value="profile" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
                                 {t('partner_profile')}
                             </TabsTrigger>
+                            <TabsTrigger value="billing" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-billing"><CreditCard size={18} className="mr-2"/>Abrechnung</TabsTrigger>
                         </TabsList>
 
                         {/* Tab 1: My Users (submitted to this partner — work still ongoing) */}
                         <TabsContent value="my-users">
-                            <div className="bg-card border border-border rounded-sm overflow-hidden">
+                            {isAwaitingAssignment ? (
+                                <PendingActivationPage
+                                    partnerName={profile?.partner_name}
+                                    onOpenProfile={() => setActiveTab('profile')}
+                                    onOpenBilling={() => setActiveTab('billing')}
+                                />
+                            ) : <div className="bg-card border border-border rounded-sm overflow-hidden">
                                 <div className="p-4 border-b border-border">
                                     <h2 className="text-lg font-semibold text-foreground">{t('partner_my_users')}</h2>
                                     <p className="text-sm text-muted-foreground">{t('partner_my_users_desc')}</p>
                                 </div>
                                 <UserTable data={activeSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} partnerTags={profile?.tags || []} />
-                            </div>
+                            </div>}
                         </TabsContent>
 
                         {/* Tab 2: Completed Users (milestone closed by the partner) */}
@@ -597,7 +720,13 @@ export default function PartnerDashboard() {
                                     <h2 className="text-lg font-semibold text-foreground">{t('partner_other_users')}</h2>
                                     <p className="text-sm text-muted-foreground">{t('partner_other_users_desc')}</p>
                                 </div>
-                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" t={t} partnerTags={profile?.tags || []} />
+                                {isAwaitingAssignment && (
+                                    <div className="flex items-start gap-3 border-b border-border bg-amber-50/70 px-4 py-3 text-amber-900 dark:bg-amber-950/20 dark:text-amber-200" data-testid="other-users-readonly-notice">
+                                        <LockKey size={18} className="mt-0.5 shrink-0" />
+                                        <p className="text-sm">Bis zur Freischaltung ist diese Ansicht schreibgeschützt. Details und Änderungen an Nutzerdaten werden erst nach der Admin-Zuweisung verfügbar.</p>
+                                    </div>
+                                )}
+                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" t={t} partnerTags={profile?.tags || []} actionsDisabled={isAwaitingAssignment} />
                             </div>
                         </TabsContent>
 
@@ -737,6 +866,28 @@ export default function PartnerDashboard() {
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="billing">
+                            <div className="grid lg:grid-cols-2 gap-6">
+                                <div className="bg-card border border-border rounded-sm p-6 space-y-4">
+                                    <div><h2 className="text-lg font-semibold">Rechnungseinstellungen</h2><p className="text-sm text-muted-foreground">Diese Angaben werden für Ihr Abrechnungsprofil gespeichert.</p></div>
+                                    <div><Label>Rechtlicher Unternehmensname</Label><Input value={billing.legal_name || ''} onChange={e => setBilling({...billing,legal_name:e.target.value})}/></div>
+                                    <div><Label>Anschrift</Label><Input value={billing.address_line1 || ''} onChange={e => setBilling({...billing,address_line1:e.target.value})}/></div>
+                                    <div className="grid grid-cols-2 gap-3"><div><Label>PLZ</Label><Input value={billing.postal_code || ''} onChange={e => setBilling({...billing,postal_code:e.target.value})}/></div><div><Label>Ort</Label><Input value={billing.city || ''} onChange={e => setBilling({...billing,city:e.target.value})}/></div></div>
+                                    <div className="grid grid-cols-2 gap-3"><div><Label>Land</Label><Input maxLength={2} value={billing.country || 'DE'} onChange={e => setBilling({...billing,country:e.target.value.toUpperCase()})}/></div><div><Label>Währung</Label><Input maxLength={3} value={billing.default_currency || 'eur'} onChange={e => setBilling({...billing,default_currency:e.target.value.toLowerCase()})}/></div></div>
+                                    <div><Label>USt-IdNr. / Steuer-ID</Label><Input value={billing.tax_id || ''} onChange={e => setBilling({...billing,tax_id:e.target.value})}/></div>
+                                    <div><Label>Rechnungsfußzeile</Label><Textarea value={billing.invoice_footer || ''} onChange={e => setBilling({...billing,invoice_footer:e.target.value})}/></div>
+                                    <Button onClick={saveBilling} disabled={billingSaving}>{billingSaving ? 'Speichert…' : 'Einstellungen speichern'}</Button>
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="bg-card border border-border rounded-sm p-6">
+                                        <div className="flex justify-between gap-4"><div><h2 className="text-lg font-semibold">Stripe Connect</h2><p className="text-sm text-muted-foreground">Auszahlungen und Identitätsprüfung erfolgen sicher bei Stripe.</p></div><span className={`h-fit px-2 py-1 text-xs rounded-full ${stripeStatus.onboarding_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>{stripeStatus.onboarding_complete ? 'Verbunden' : stripeStatus.configured ? 'Einrichtung offen' : 'Nicht verfügbar'}</span></div>
+                                        {stripeStatus.sandbox_mode && <p className="mt-4 text-xs p-3 rounded bg-blue-50 text-blue-800">Sandbox-Modus: Es findet kein echter Geldfluss statt.</p>}
+                                        {!stripeStatus.configured ? <p className="mt-4 text-sm text-muted-foreground" data-testid="stripe-not-configured">Stripe wurde vom Administrator noch nicht konfiguriert.</p> : <div className="flex flex-wrap gap-3 mt-5"><Button onClick={openBillingPortal}>Zahlung und Abo bei Stripe verwalten</Button></div>}
+                                    </div>
+                                    <div className="bg-card border border-border rounded-sm p-6"><h2 className="text-lg font-semibold">Stripe-Rechnungen</h2><div className="mt-4 divide-y divide-border">{invoices.map(invoice => <div key={invoice.id} className="py-3 flex justify-between gap-4"><div><p className="font-medium">{invoice.number || invoice.id}</p><p className="text-xs text-muted-foreground">{invoice.status} · {((invoice.amount_due || 0)/100).toLocaleString('de-DE',{style:'currency',currency:(invoice.currency || 'eur').toUpperCase()})}</p></div><div className="flex gap-2">{invoice.hosted_invoice_url && <Button asChild size="sm" variant="outline"><a href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer">Ansehen</a></Button>}{invoice.invoice_pdf && <Button asChild size="sm"><a href={invoice.invoice_pdf} target="_blank" rel="noreferrer" download><DownloadSimple className="mr-1"/>PDF</a></Button>}</div></div>)}{invoices.length === 0 && <p className="py-6 text-sm text-muted-foreground">Noch keine Stripe-Rechnungen verfügbar.</p>}</div></div>
                                 </div>
                             </div>
                         </TabsContent>

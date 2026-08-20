@@ -71,9 +71,9 @@ class TestPublicEndpoints:
             pages = r.json().get("content", {}).get("pages", [])
             assert isinstance(pages, list)
             by_path = {page.get("path"): page for page in pages}
-            assert "/" in by_path
+            assert "/aerzte" in by_path
             assert "/pflege" in by_path
-            assert by_path["/"].get("survey_slug") == "aerzte"
+            assert by_path["/aerzte"].get("survey_slug") == "aerzte"
             assert by_path["/pflege"].get("survey_slug") == "pflege"
 
     def test_partners_public(self, base_url):

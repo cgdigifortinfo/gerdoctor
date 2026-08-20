@@ -101,6 +101,22 @@ def normalize_permissions(values: list[str] | None, allow_wildcard: bool = False
     return list(dict.fromkeys(value for value in (values or []) if value in valid))
 
 
+def partner_is_awaiting_assignment(partner: dict[str, Any] | None) -> bool:
+    """Whether a partner is still waiting for an admin survey assignment.
+
+    Operational access requires all three explicit activation signals. This is
+    deliberately independent of the registration source so an incomplete or
+    legacy record cannot accidentally expose user data.
+    """
+    if not partner:
+        return True
+    return (
+        partner.get("registration_status") != "active"
+        or partner.get("is_active") is not True
+        or not partner.get("survey_ids")
+    )
+
+
 async def effective_permissions(user: dict[str, Any]) -> list[str]:
     if user.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com"):
         return ["*", *ALL_PERMISSION_KEYS]

@@ -81,7 +81,7 @@ export default function Landing() {
         return value.startsWith('/') ? value.replace(/\/+$/, '') : `/${value.replace(/^\/+|\/+$/g, '')}`;
     };
     const fallbackLandingPages = [
-        { id: 'aerzte', path: '/', survey_slug: 'aerzte' },
+        { id: 'aerzte', path: '/aerzte', survey_slug: 'aerzte' },
         {
             id: 'pflege',
             title: 'FSP Pflege',
@@ -116,7 +116,7 @@ export default function Landing() {
     const currentLanding = effectiveLandingPages.find(page => normalizePath(page.path) === currentPath)
         || effectiveLandingPages.find(page => surveySlug && page.survey_slug === surveySlug)
         || effectiveLandingPages.find(page => landingSlug && normalizePath(page.path) === `/${landingSlug}`)
-        || (surveySlug ? null : effectiveLandingPages.find(page => normalizePath(page.path) === '/'));
+        || (surveySlug ? null : effectiveLandingPages.find(page => normalizePath(page.path) === '/aerzte'));
     const landingTranslation = currentLanding?.id ? landingTrans?.[lang]?.[currentLanding.id] : null;
     const lp = (field, fallback = '') => landingTranslation?.[field] || currentLanding?.[field] || fallback;
     const activeSurveySlug = currentLanding?.survey_slug || surveySlug || survey?.slug || '';

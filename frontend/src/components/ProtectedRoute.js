@@ -21,7 +21,8 @@ export function ProtectedRoute({ children, allowedRoles, requiredPermission }) {
         if (user.role === 'admin') {
             return <Navigate to="/admin" replace />;
         } else if (user.role === 'partner') {
-            return <Navigate to="/partner-dashboard" replace />;
+            const paid = ['paid', 'active', 'trialing'].includes(user.partner_billing_status);
+            return <Navigate to={user.partner_payment_required && !paid ? "/partner-payment" : "/partner-dashboard"} replace />;
         } else {
             return <Navigate to="/dashboard" replace />;
         }
@@ -49,7 +50,8 @@ export function PublicRoute({ children }) {
         if (user.role === 'admin') {
             return <Navigate to="/admin" replace />;
         } else if (user.role === 'partner') {
-            return <Navigate to="/partner-dashboard" replace />;
+            const paid = ['paid', 'active', 'trialing'].includes(user.partner_billing_status);
+            return <Navigate to={user.partner_payment_required && !paid ? "/partner-payment" : "/partner-dashboard"} replace />;
         } else {
             return <Navigate to="/dashboard" replace />;
         }

@@ -29,7 +29,8 @@ export function Login() {
             if (user.role === 'admin') {
                 navigate('/admin');
             } else if (user.role === 'partner') {
-                navigate('/partner-dashboard');
+                const paid = ['paid', 'active', 'trialing'].includes(user.partner_billing_status);
+                navigate(user.partner_payment_required && !paid ? '/partner-payment' : '/partner-dashboard');
             } else {
                 navigate('/dashboard');
             }

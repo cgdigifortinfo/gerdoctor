@@ -9,6 +9,10 @@ load_dotenv()
 import os
 import logging
 import secrets
+import hashlib
+import hmac
+import json
+import time
 import uuid
 import asyncio
 import jwt
@@ -24,13 +28,17 @@ from bson import ObjectId
 # Shared modules
 from database import db, client
 from models import (
-    UserRegister, UserLogin, ForgotPassword, ResetPassword, ProfileUpdate,
+    UserRegister, PartnerRegister, UserLogin, ForgotPassword, ResetPassword, ProfileUpdate,
     PartnerCreate, PartnerUpdate, StepCreate, StepUpdate, StepReorder, StepFieldCreate,
     UserProgressUpdate, PartnerSubmissionCreate, MultiPartnerSubmission,
     CMSContentUpdate, NotificationPreferences, BulkRoleUpdate, AdminUserCreate, SiteSettingsUpdate,
-    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, StepLayoutBulk,
+    StepTemplateCreate, StepTemplateUpdate, PartnerSelfUpdate, PartnerBillingSettingsUpdate, StepLayoutBulk,
     SurveyCreate, SurveyUpdate, PartnerStepAction, EventConfigUpdate, StepResponse,
     PermissionGroupCreate, PermissionGroupUpdate, UserPermissionsUpdate,
+)
+from stripe_service import (
+    SECRET_FIELDS, public_stripe_status, create_customer,
+    create_checkout_session, checkout_session, create_customer_portal, list_customer_invoices,
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -54,7 +62,7 @@ from permissions import (
     ALL_PERMISSION_KEYS, PERMISSION_CATALOG, default_group_id,
     effective_permissions, ensure_permission_groups, has_permission,
     normalize_permissions, permission_for_admin_request, permission_for_portal_request,
-    permission_group_summaries,
+    permission_group_summaries, partner_is_awaiting_assignment,
 )
 from email_template_defaults import DEFAULT_TEMPLATES
 from event_system import (
@@ -83,6 +91,19 @@ async def enforce_admin_permissions(request: Request, call_next):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     if (admin_permission and user.get("role") != "admin") or not await has_permission(user, permission):
         return JSONResponse(status_code=403, content={"detail": f"Missing permission: {permission}"})
+    if path := request.url.path:
+        own_settings_paths = {"/api/partner/profile", "/api/partner/partner-data"}
+        pending_read_paths = {"/api/partner/other-users"}
+        if path.startswith("/api/partner/") and path not in own_settings_paths and user.get("role") == "partner" and user.get("partner_id") and ObjectId.is_valid(user["partner_id"]):
+            partner = await db.partners.find_one(
+                {"_id": ObjectId(user["partner_id"])},
+                {"registration_source": 1, "registration_status": 1, "is_active": 1, "survey_ids": 1, "billing_status": 1},
+            )
+            if partner and partner.get("registration_source") == "self_service" and partner.get("billing_status") not in {"paid", "active", "trialing"}:
+                return JSONResponse(status_code=402, content={"detail": "Partner access requires a confirmed Stripe payment"})
+            pending_read_allowed = request.method == "GET" and path in pending_read_paths
+            if partner_is_awaiting_assignment(partner) and not pending_read_allowed:
+                return JSONResponse(status_code=403, content={"detail": "Partner account is awaiting survey assignment"})
     request.state.current_user = user
     return await call_next(request)
 
@@ -90,6 +111,7 @@ api_router = APIRouter(prefix="/api")
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 partner_router = APIRouter(prefix="/partners", tags=["partners"])
+payment_router = APIRouter(prefix="/partner-payment", tags=["partner-payment"])
 steps_router = APIRouter(prefix="/steps", tags=["steps"])
 files_router = APIRouter(prefix="/files", tags=["files"])
 cms_router = APIRouter(prefix="/cms", tags=["cms"])
@@ -232,6 +254,15 @@ async def _auth_user_payload(user: dict, access_token: str | None = None) -> dic
         "permissions": await effective_permissions(user),
         "is_primary_admin": user.get("email") == os.environ.get("ADMIN_EMAIL", "admin@example.com"),
     }
+    if user.get("role") == "partner" and user.get("partner_id") and ObjectId.is_valid(user["partner_id"]):
+        partner = await db.partners.find_one({"_id": ObjectId(user["partner_id"])}, {
+            "registration_status": 1, "registration_source": 1, "billing_status": 1,
+            "access_unlocked": 1, "is_active": 1,
+        })
+        payload["partner_registration_status"] = (partner or {}).get("registration_status", "active")
+        payload["partner_is_active"] = (partner or {}).get("is_active", True)
+        payload["partner_billing_status"] = (partner or {}).get("billing_status", "paid")
+        payload["partner_payment_required"] = (partner or {}).get("registration_source") == "self_service"
     if access_token:
         payload["access_token"] = access_token
     return payload
@@ -309,6 +340,47 @@ async def register(data: UserRegister, response: Response):
     response.set_cookie(key="refresh_token", value=refresh_token, **_auth_cookie_kwargs(604800))
     user_doc["_id"] = result.inserted_id
     return await _auth_user_payload(user_doc, access_token)
+
+
+@api_router.get("/partner-registration/config")
+async def partner_registration_config():
+    return {"registration_enabled": True, "stripe": await public_stripe_status()}
+
+
+@api_router.post("/partner-registration")
+async def register_partner(data: PartnerRegister, response: Response):
+    email = data.email.lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    now = datetime.now(timezone.utc).isoformat()
+    group_id = await default_group_id("partner")
+    user_doc = {
+        "email": email, "password_hash": hash_password(data.password),
+        "name": data.contact_name, "role": "partner", "profile": {},
+        "created_at": now, "group_ids": [group_id] if group_id else [],
+        "permission_overrides": {"allow": [], "deny": []},
+        "registration_source": "partner_self_service",
+    }
+    user_result = await db.users.insert_one(user_doc)
+    user_id = str(user_result.inserted_id)
+    partner_doc = {
+        "name": data.company_name, "description": data.description or "",
+        "website": data.website, "contact_email": email, "country": data.country.upper(),
+        "category": "", "tags": [], "linked_user_ids": [], "survey_ids": [],
+        "user_id": user_id, "is_active": False, "registration_status": "pending",
+        "registration_source": "self_service", "registered_at": now, "created_at": now,
+        "billing_status": "pending", "access_unlocked": False,
+        "billing_settings": {"legal_name": data.company_name, "country": data.country.upper(), "default_currency": "eur"},
+    }
+    partner_result = await db.partners.insert_one(partner_doc)
+    partner_id = str(partner_result.inserted_id)
+    await db.users.update_one({"_id": user_result.inserted_id}, {"$set": {"partner_id": partner_id}})
+    await create_audit_log(user_id, email, "partner_self_registration", "partner", partner_id, {"company_name": data.company_name})
+    access_token = create_access_token(user_id, email, "partner")
+    response.set_cookie(key="access_token", value=access_token, **_auth_cookie_kwargs(7200))
+    response.set_cookie(key="refresh_token", value=create_refresh_token(user_id), **_auth_cookie_kwargs(604800))
+    user_doc.update({"_id": user_result.inserted_id, "partner_id": partner_id})
+    return {"user": await _auth_user_payload(user_doc, access_token), "partner_id": partner_id, "status": "pending"}
 
 @auth_router.post("/login")
 async def login(data: UserLogin, request: Request, response: Response):
@@ -909,7 +981,7 @@ async def admin_get_users(request: Request):
     permission_group_by_id = {str(group["_id"]): group for group in permission_group_docs}
 
     # Preload partners into a lookup {id_str: name}
-    partner_docs = await db.partners.find({}, {"name": 1, "linked_user_ids": 1}).to_list(1000)
+    partner_docs = await db.partners.find({}, {"name": 1, "linked_user_ids": 1, "registration_status": 1, "is_active": 1}).to_list(1000)
     partner_name_by_id = {str(p["_id"]): p.get("name", "") for p in partner_docs}
     # linked_user_id -> list[partner_name]
     partners_by_linked_user: dict[str, list[str]] = {}
@@ -1030,6 +1102,8 @@ async def admin_get_users(request: Request):
                 for group_id in u.get("group_ids", []) if group_id in permission_group_by_id
             ],
             "permission_overrides": u.get("permission_overrides", {"allow": [], "deny": []}),
+            "partner_registration_status": next((p.get("registration_status", "active") for p in partner_docs if str(p["_id"]) == u.get("partner_id")), None),
+            "partner_is_active": next((p.get("is_active", True) for p in partner_docs if str(p["_id"]) == u.get("partner_id")), None),
         })
     return result
 
@@ -1442,13 +1516,20 @@ async def admin_get_partners(request: Request):
             "user_id": p.get("user_id"), "linked_users": linked_users,
             "linked_user_ids": linked_ids,
             "pending_registrations": pending_by_partner.get(pid, 0),
+            "survey_ids": p.get("survey_ids", []),
+            "registration_status": p.get("registration_status", "active" if p.get("is_active", True) else "pending"),
+            "registration_source": p.get("registration_source", "admin"),
+            "registered_at": p.get("registered_at", p.get("created_at")),
+            "stripe_account_id": p.get("stripe_account_id"),
+            "stripe_onboarding_complete": p.get("stripe_onboarding_complete", False),
         })
     return result
 
 @admin_router.post("/partners")
 async def admin_create_partner(data: PartnerCreate, request: Request):
     admin_user = await require_role("admin")(request)
-    partner_doc = {"name": data.name, "description": data.description, "logo_url": data.logo_url, "website": data.website, "contact_email": data.contact_email, "category": data.category, "tags": data.tags or [], "linked_user_ids": data.linked_user_ids or [], "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    survey_ids = data.survey_ids or []
+    partner_doc = {"name": data.name, "description": data.description, "logo_url": data.logo_url, "website": data.website, "contact_email": data.contact_email, "category": data.category, "tags": data.tags or [], "linked_user_ids": data.linked_user_ids or [], "survey_ids": survey_ids, "is_active": bool(survey_ids) if data.survey_ids is not None else True, "registration_status": "active", "registration_source": "admin", "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.partners.insert_one(partner_doc)
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_create", "partner", str(result.inserted_id), {"name": data.name})
     return {"id": str(result.inserted_id), "message": "Partner created"}
@@ -1460,6 +1541,13 @@ async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Re
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     if data.linked_user_ids is not None:
         update_data["linked_user_ids"] = data.linked_user_ids
+    if data.survey_ids is not None:
+        valid_surveys = await db.surveys.count_documents({"_id": {"$in": [_safe_object_id(sid, "Invalid survey id") for sid in data.survey_ids]}})
+        if valid_surveys != len(set(data.survey_ids)):
+            raise HTTPException(status_code=400, detail="Unknown survey id")
+        update_data["survey_ids"] = list(dict.fromkeys(data.survey_ids))
+        update_data["is_active"] = bool(update_data["survey_ids"])
+        update_data["registration_status"] = "active" if update_data["is_active"] else "pending"
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_update", "partner", partner_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Partner updated"}
@@ -1564,7 +1652,137 @@ async def get_partner_profile(request: Request):
         "category": partner.get("category", ""),
         "tags": partner.get("tags", []),
         "logo_url": partner.get("logo_url", ""),
+        "survey_ids": partner.get("survey_ids", []),
+        "registration_status": partner.get("registration_status", "active"),
+        "registration_source": partner.get("registration_source", "admin"),
+        "is_active": partner.get("is_active", True),
     }
+
+
+async def _own_partner(request: Request) -> tuple[dict, dict]:
+    user = await require_role("partner")(request)
+    partner_id = user.get("partner_id")
+    if not partner_id or not ObjectId.is_valid(partner_id):
+        raise HTTPException(status_code=400, detail="User not linked to a partner")
+    partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    return user, partner
+
+
+@payment_router.get("/settings")
+async def get_partner_billing(request: Request):
+    _, partner = await _own_partner(request)
+    site = await db.site_settings.find_one({"_key": "global"}) or {}
+    return {"settings": partner.get("billing_settings", {}), "stripe": await public_stripe_status(), "billing_status": partner.get("billing_status", "paid"), "payment_configured": bool(site.get("stripe_partner_price_id"))}
+
+
+@payment_router.get("/status")
+async def partner_payment_status(request: Request, session_id: Optional[str] = None):
+    _, partner = await _own_partner(request)
+    if session_id:
+        session = await checkout_session(session_id)
+        if session.get("client_reference_id") != str(partner["_id"]):
+            raise HTTPException(status_code=403, detail="Checkout session does not belong to this partner")
+        if session.get("payment_status") == "paid":
+            subscription = session.get("subscription")
+            await db.partners.update_one({"_id": partner["_id"]}, {"$set": {
+                "billing_status": "paid", "access_unlocked": True,
+                "stripe_customer_id": session.get("customer"),
+                "stripe_subscription_id": subscription.get("id") if isinstance(subscription, dict) else subscription,
+                "paid_at": datetime.now(timezone.utc).isoformat(),
+            }})
+            partner["billing_status"] = "paid"
+    return {"billing_status": partner.get("billing_status", "paid"), "access_unlocked": partner.get("registration_source") != "self_service" or partner.get("billing_status") in {"paid", "active", "trialing"}}
+
+
+@payment_router.post("/checkout")
+async def partner_payment_checkout(request: Request):
+    user, partner = await _own_partner(request)
+    settings = await db.site_settings.find_one({"_key": "global"}) or {}
+    price_id = settings.get("stripe_partner_price_id")
+    if not price_id:
+        raise HTTPException(status_code=503, detail="Der Partnerpreis wurde im Adminbereich noch nicht konfiguriert")
+    customer_id = partner.get("stripe_customer_id")
+    if not customer_id:
+        customer = await create_customer(user["email"], partner.get("name", user["name"]), str(partner["_id"]))
+        customer_id = customer["id"]
+        await db.partners.update_one({"_id": partner["_id"]}, {"$set": {"stripe_customer_id": customer_id}})
+    base = os.environ.get("FRONTEND_URL", "http://localhost:3001").rstrip("/")
+    session = await create_checkout_session(
+        customer_id, price_id, str(partner["_id"]),
+        f"{base}/partner-payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+        f"{base}/partner-payment/cancelled",
+        settings.get("stripe_partner_payment_mode", "subscription"),
+        settings.get("stripe_automatic_tax", False), settings.get("stripe_allow_promotion_codes", False),
+    )
+    return {"url": session["url"]}
+
+
+@payment_router.post("/portal")
+async def partner_payment_portal(request: Request):
+    _, partner = await _own_partner(request)
+    if not partner.get("stripe_customer_id"):
+        raise HTTPException(status_code=400, detail="Noch kein Stripe-Kundenkonto vorhanden")
+    base = os.environ.get("FRONTEND_URL", "http://localhost:3001").rstrip("/")
+    return {"url": (await create_customer_portal(partner["stripe_customer_id"], f"{base}/partner-dashboard?tab=billing"))["url"]}
+
+
+@payment_router.put("/settings")
+async def update_partner_billing(data: PartnerBillingSettingsUpdate, request: Request):
+    user, partner = await _own_partner(request)
+    update = {k: (v.lower() if k in {"country", "default_currency"} and v else v) for k, v in data.model_dump(exclude_none=True).items()}
+    await db.partners.update_one({"_id": partner["_id"]}, {"$set": {f"billing_settings.{k}": v for k, v in update.items()}})
+    await create_audit_log(user["_id"], user["email"], "partner_billing_update", "partner", str(partner["_id"]), {"fields": list(update)})
+    return {"message": "Billing settings updated"}
+
+
+@payment_router.get("/stripe-status")
+async def partner_stripe_status(request: Request):
+    _, partner = await _own_partner(request)
+    return {**(await public_stripe_status()), "billing_status": partner.get("billing_status", "paid"), "customer_created": bool(partner.get("stripe_customer_id"))}
+
+
+@payment_router.get("/invoices")
+async def partner_stripe_invoices(request: Request):
+    _, partner = await _own_partner(request)
+    if not partner.get("stripe_customer_id"):
+        return []
+    payload = await list_customer_invoices(partner["stripe_customer_id"])
+    return [{k: invoice.get(k) for k in ("id", "number", "status", "amount_due", "amount_paid", "currency", "created", "invoice_pdf", "hosted_invoice_url", "livemode")} for invoice in payload.get("data", [])]
+
+
+@payment_router.post("/webhook")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("stripe-signature", "")
+    settings = await db.site_settings.find_one({"_key": "global"}) or {}
+    prefix = "test" if settings.get("stripe_sandbox_mode", True) else "live"
+    secret = settings.get(f"stripe_{prefix}_webhook_secret", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Stripe webhook secret is not configured")
+    parts = dict(item.split("=", 1) for item in signature.split(",") if "=" in item)
+    timestamp, supplied = parts.get("t"), parts.get("v1")
+    if not timestamp or not supplied or abs(time.time() - int(timestamp)) > 300:
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, supplied):
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+    event = json.loads(body)
+    obj = event.get("data", {}).get("object", {})
+    event_type = event.get("type", "")
+    customer_id = obj.get("customer")
+    partner_id = obj.get("metadata", {}).get("partner_id") or obj.get("client_reference_id")
+    query = {"_id": ObjectId(partner_id)} if partner_id and ObjectId.is_valid(partner_id) else {"stripe_customer_id": customer_id}
+    if event_type == "checkout.session.completed" and obj.get("payment_status") == "paid":
+        await db.partners.update_one(query, {"$set": {"billing_status": "paid", "access_unlocked": True, "stripe_customer_id": customer_id, "stripe_subscription_id": obj.get("subscription"), "paid_at": datetime.now(timezone.utc).isoformat()}})
+    elif event_type in {"invoice.paid", "customer.subscription.updated"}:
+        status = obj.get("status")
+        if event_type == "invoice.paid" or status in {"active", "trialing"}:
+            await db.partners.update_one(query, {"$set": {"billing_status": "active", "access_unlocked": True}})
+    elif event_type in {"invoice.payment_failed", "customer.subscription.deleted"}:
+        await db.partners.update_one(query, {"$set": {"billing_status": "past_due" if event_type == "invoice.payment_failed" else "cancelled", "access_unlocked": False}})
+    return {"received": True}
 
 @api_router.put("/partner/profile")
 async def update_partner_profile(data: ProfileUpdate, request: Request):
@@ -2477,21 +2695,30 @@ async def admin_apply_template(template_id: str, request: Request, order: int = 
 async def admin_get_settings(request: Request):
     await require_role("admin")(request)
     settings = await db.site_settings.find_one({"_key": "global"}, {"_id": 0, "_key": 0})
-    return settings or {}
+    settings = settings or {}
+    for field in SECRET_FIELDS:
+        if settings.get(field):
+            settings[field] = "••••••••"
+    settings["stripe"] = await public_stripe_status()
+    return settings
 
 @admin_router.put("/settings")
 async def admin_update_settings(data: SiteSettingsUpdate, request: Request):
     admin_user = await require_role("admin")(request)
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None and v != "••••••••"}
     if update_data:
         await db.site_settings.update_one({"_key": "global"}, {"$set": update_data}, upsert=True)
-    await create_audit_log(admin_user["_id"], admin_user["email"], "settings_update", "settings", "", update_data)
+    await create_audit_log(admin_user["_id"], admin_user["email"], "settings_update", "settings", "", {"fields": list(update_data)})
     return {"message": "Settings updated"}
 
 @api_router.get("/settings/public")
 async def get_public_settings():
     settings = await db.site_settings.find_one({"_key": "global"}, {"_id": 0, "_key": 0})
-    return settings or {}
+    settings = settings or {}
+    for field in SECRET_FIELDS | {"stripe_test_publishable_key", "stripe_live_publishable_key"}:
+        settings.pop(field, None)
+    settings["stripe"] = await public_stripe_status()
+    return settings
 
 # ========================
 # DOMAIN EVENTS (Admin)
@@ -2779,6 +3006,7 @@ async def admin_send_test_email(key: str, payload: _EmailTestSendPayload, reques
 api_router.include_router(auth_router)
 api_router.include_router(admin_router)
 api_router.include_router(partner_router)
+api_router.include_router(payment_router)
 api_router.include_router(steps_router)
 api_router.include_router(files_router)
 api_router.include_router(cms_router)
@@ -2832,6 +3060,7 @@ async def startup():
     await db.files.create_index([("user_id", 1), ("created_at", -1)])
     await db.partners.create_index("name")
     await db.partners.create_index([("is_active", 1), ("tags", 1)])
+    await db.partners.create_index([("registration_status", 1), ("registered_at", -1)])
     await db.progress_history.create_index([("user_id", 1), ("timestamp", -1)])
     await db.audit_logs.create_index([("timestamp", -1)])
     try:
@@ -2843,6 +3072,11 @@ async def startup():
     # flow remains the default; Pflege is prepared for URL-scoped rollout.
     default_survey = await _get_default_survey()
     default_survey_id = str(default_survey["_id"])
+    await db.cms_content.update_one(
+        {"section": "landing_pages", "content.pages": {"$elemMatch": {"survey_slug": "aerzte", "path": "/"}}},
+        {"$set": {"content.pages.$[page].path": "/aerzte"}},
+        array_filters=[{"page.survey_slug": "aerzte", "page.path": "/"}],
+    )
     if not await db.surveys.find_one({"slug": PFLEGE_SURVEY_SLUG}):
         await db.surveys.insert_one({
             "name": "FSP Pflege",
@@ -2939,7 +3173,7 @@ async def startup():
                 {
                     "id": "aerzte",
                     "title": "Ärzte Anerkennung",
-                    "path": "/",
+                    "path": "/aerzte",
                     "survey_slug": "aerzte",
                     "partner_tags": "Antragstellung,Kenntnisprüfung,Weiterbildung",
                     "eyebrow": "Praktizieren in Deutschland",

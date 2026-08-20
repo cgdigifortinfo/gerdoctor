@@ -91,6 +91,7 @@ export default function AdminDashboard() {
     const [editingPartner, setEditingPartner] = useState(null);
     const [showPartnerDialog, setShowPartnerDialog] = useState(false);
     const [showLinkDialog, setShowLinkDialog] = useState(null);
+    const [partnerView, setPartnerView] = useState('active');
 
     // Confirm dialog state
     const [confirmDialog, setConfirmDialog] = useState(null);
@@ -138,7 +139,7 @@ export default function AdminDashboard() {
                 adminAPI.getCmsContent('partners'),
                 adminAPI.getCmsContent('landing_pages'),
                 can('audit.view') ? adminAPI.getAuditLog(0) : Promise.resolve({ data: { logs: [], action_types: [] } }),
-                can('settings.view') ? settingsAPI.get().catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
+                can('settings.view') ? settingsAPI.getAdmin().catch(() => ({ data: {} })) : Promise.resolve({ data: {} }),
                 can('steps.view') ? adminAPI.listStepTemplates().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 can('groups.view') ? adminAPI.getPermissionGroups().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 can('groups.view') ? adminAPI.getPermissionCatalog().catch(() => ({ data: { categories: [], all_permissions: [] } })) : Promise.resolve({ data: { categories: [], all_permissions: [] } }),
@@ -287,7 +288,8 @@ export default function AdminDashboard() {
         page: stepsPage,
         setPage: setStepsPage,
     } = stepsPagination;
-    const partnersPagination = usePagination(partners, 'admin-partners');
+    const visiblePartners = useMemo(() => partners.filter(p => partnerView === 'pending' ? p.registration_status === 'pending' : p.registration_status !== 'pending'), [partners, partnerView]);
+    const partnersPagination = usePagination(visiblePartners, `admin-partners-${partnerView}`);
     const auditPagination = usePagination(auditLogs, 'admin-audit', {
         resetKey: `${auditFilter}|${auditDateFrom}|${auditDateTo}`,
     });
@@ -710,7 +712,7 @@ export default function AdminDashboard() {
                         </TabsTrigger>}
                         {can('partners.view') && <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-partners-tab">
                             <Buildings size={18} className="mr-2" />
-                            {t('admin_partners')}
+                            {t('admin_partners')} {partners.some(p => p.registration_status === 'pending') && <span className="ml-2 rounded-full bg-amber-500 text-white text-[10px] px-1.5">{partners.filter(p => p.registration_status === 'pending').length}</span>}
                         </TabsTrigger>}
                         {can('cms.view') && <TabsTrigger value="cms" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
@@ -894,7 +896,7 @@ export default function AdminDashboard() {
                                                         data-testid={`select-user-${u.id}`}
                                                     />
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-foreground font-medium">{u.name}</td>
+                                                <td className="px-4 py-3 text-sm text-foreground font-medium">{u.name}{u.partner_registration_status === 'pending' && <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">NEUER PARTNER</span>}</td>
                                                 <td className="px-4 py-3" data-testid={`user-pending-registrations-${u.id}`}>
                                                     {u.role === 'admin' ? (
                                                         <span className="text-xs text-muted-foreground">-</span>
@@ -1254,8 +1256,8 @@ export default function AdminDashboard() {
                     {/* ============ PARTNERS TAB ============ */}
                     <TabsContent value="partners">
                         <div className="bg-card border border-border rounded-sm">
-                            <div className="p-4 border-b border-border flex justify-between items-center">
-                                <h2 className="text-lg font-semibold text-foreground">Partner Management</h2>
+                            <div className="p-4 border-b border-border flex flex-wrap gap-3 justify-between items-center">
+                                <div><h2 className="text-lg font-semibold text-foreground">Partner Management</h2><div className="flex gap-2 mt-2"><Button size="sm" variant={partnerView === 'active' ? 'default' : 'outline'} onClick={() => setPartnerView('active')}>Aktive Partner</Button><Button size="sm" variant={partnerView === 'pending' ? 'default' : 'outline'} onClick={() => setPartnerView('pending')} data-testid="pending-partners-view">Neue Partner ({partners.filter(p => p.registration_status === 'pending').length})</Button></div></div>
                                 <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="add-partner-btn">
                                     <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
@@ -1284,6 +1286,7 @@ export default function AdminDashboard() {
                                                             <div>
                                                                 <p className="font-medium text-foreground">{partner.name}</p>
                                                                 <p className="text-xs text-muted-foreground">{partner.contact_email}</p>
+                                                                {partner.registration_source === 'self_service' && <span className="inline-flex mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">NEU REGISTRIERT</span>}
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1324,7 +1327,7 @@ export default function AdminDashboard() {
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <span className={`px-2 py-1 text-xs rounded-sm ${partner.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                            {partner.is_active ? 'Active' : 'Inactive'}
+                                                            {partner.registration_status === 'pending' ? 'Wartet auf Survey' : 'Aktiv'}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -1598,6 +1601,25 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
+                            <div className="bg-card border border-border rounded-lg p-6" data-testid="settings-stripe-section">
+                                <h3 className="text-lg font-semibold">Stripe Checkout & Billing</h3>
+                                <p className="text-sm text-muted-foreground mt-1 mb-5">Partner bezahlen Ihren Business-Account als Stripe-Kunden. Sandbox nutzt ausschließlich Testschlüssel; Secrets werden nie öffentlich ausgeliefert.</p>
+                                <div className="flex items-center justify-between border border-border rounded-md p-4 mb-5"><div><Label>Sandbox-Modus</Label><p className="text-xs text-muted-foreground">Testzahlungen ohne echten Geldfluss</p></div><Switch checked={siteSettings.stripe_sandbox_mode !== false} onCheckedChange={v => setSiteSettings(s => ({...s, stripe_sandbox_mode:v}))}/></div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    {[
+                                        ['stripe_test_publishable_key','Test Publishable Key','text'], ['stripe_test_secret_key','Test Secret Key','password'],
+                                        ['stripe_test_webhook_secret','Test Webhook Secret','password'], ['stripe_live_publishable_key','Live Publishable Key','text'],
+                                        ['stripe_live_secret_key','Live Secret Key','password'], ['stripe_live_webhook_secret','Live Webhook Secret','password']
+                                    ].map(([key,label,type]) => <div key={key}><Label>{label}</Label><Input type={type} value={siteSettings[key] || ''} onChange={e => setSiteSettings(s => ({...s,[key]:e.target.value}))} autoComplete="off"/></div>)}
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-border">
+                                    <div><Label>Partner Price ID</Label><Input placeholder="price_…" value={siteSettings.stripe_partner_price_id || ''} onChange={e => setSiteSettings(s => ({...s,stripe_partner_price_id:e.target.value}))}/><p className="text-xs text-muted-foreground mt-1">Preis im Stripe-Produktkatalog; für Abos muss er wiederkehrend sein.</p></div>
+                                    <div><Label>Zahlungsmodell</Label><Select value={siteSettings.stripe_partner_payment_mode || 'subscription'} onValueChange={v => setSiteSettings(s => ({...s,stripe_partner_payment_mode:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="subscription">Wiederkehrendes Abonnement</SelectItem><SelectItem value="payment">Einmalzahlung</SelectItem></SelectContent></Select></div>
+                                    <label className="flex items-center gap-3"><Switch checked={siteSettings.stripe_automatic_tax === true} onCheckedChange={v=>setSiteSettings(s=>({...s,stripe_automatic_tax:v}))}/><span><span className="block text-sm font-medium">Stripe Tax automatisch</span><span className="block text-xs text-muted-foreground">Erfordert aktiviertes Stripe Tax.</span></span></label>
+                                    <label className="flex items-center gap-3"><Switch checked={siteSettings.stripe_allow_promotion_codes === true} onCheckedChange={v=>setSiteSettings(s=>({...s,stripe_allow_promotion_codes:v}))}/><span className="text-sm font-medium">Aktionscodes erlauben</span></label>
+                                </div>
+                            </div>
+
                             <div className="flex justify-end">
                                 <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-settings-btn">
                                     {settingsSaving ? t('admin_saving') : t('admin_save_settings')}
@@ -1637,6 +1659,7 @@ export default function AdminDashboard() {
                                     <div>
                                         <Label className="text-muted-foreground">Name</Label>
                                         <p className="font-medium">{selectedUser.name}</p>
+                                        {selectedUser.partner_registration_status === 'pending' && <span className="inline-flex mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">Neu registrierter Partner · Survey-Zuordnung offen</span>}
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Email</Label>
@@ -1857,6 +1880,7 @@ export default function AdminDashboard() {
                 onSave={handleSavePartner}
                 allUsers={users}
                 allPartners={partners}
+                surveys={surveys}
                 t={t}
             />
 
@@ -2958,10 +2982,10 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
     );
 }
 
-function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, t }) {
+function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, surveys, t }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
-        contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: []
+        contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: []
     });
     const [tagInput, setTagInput] = useState('');
     const [tagSuggestions, setTagSuggestions] = useState([]);
@@ -2978,10 +3002,10 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                 logo_url: partner.logo_url || '', website: partner.website || '',
                 contact_email: partner.contact_email || '', category: partner.category || '',
                 tags: partner.tags || [], is_active: partner.is_active !== false,
-                linked_user_ids: partner.linked_user_ids || []
+                linked_user_ids: partner.linked_user_ids || [], survey_ids: partner.survey_ids || []
             });
         } else {
-            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [] });
+            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: [] });
         }
         setTagInput('');
         setUserSearch('');
@@ -3137,9 +3161,10 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                             })()}
                         </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <Label>Aktiv</Label>
-                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
+                    <div>
+                        <Label>Survey-Zuordnung</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Mindestens eine Zuordnung aktiviert den Partner.</p>
+                        <div className="border border-border rounded-sm divide-y divide-border">{(surveys || []).map(survey => <label key={survey.id} className="flex items-center gap-2 p-3 cursor-pointer"><Checkbox checked={formData.survey_ids.includes(survey.id)} onCheckedChange={() => setFormData(fd => ({...fd, survey_ids: fd.survey_ids.includes(survey.id) ? fd.survey_ids.filter(id => id !== survey.id) : [...fd.survey_ids, survey.id]}))}/><span>{survey.name}</span></label>)}</div>
                     </div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>

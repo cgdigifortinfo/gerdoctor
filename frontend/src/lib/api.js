@@ -48,6 +48,11 @@ export const authAPI = {
     resetPassword: (token, new_password) => api.post('/auth/reset-password', { token, new_password }),
 };
 
+export const partnerRegistrationAPI = {
+    config: () => api.get('/partner-registration/config'),
+    register: (data) => api.post('/partner-registration', data),
+};
+
 // Profile APIs
 export const profileAPI = {
     get: () => api.get('/profile'),
@@ -194,6 +199,7 @@ export const notificationAPI = {
 // Settings APIs
 export const settingsAPI = {
     get: () => api.get('/settings/public'),
+    getAdmin: () => api.get('/admin/settings'),
     update: (data) => api.put('/admin/settings', data),
 };
 
@@ -205,6 +211,13 @@ export const partnerDashboardAPI = {
     updateProfile: (data) => api.put('/partner/profile', data),
     updatePartnerData: (data) => api.put('/partner/partner-data', data),
     getInsights: () => api.get('/partner/insights'),
+    getBilling: () => api.get('/partner-payment/settings'),
+    getPaymentStatus: (sessionId) => api.get(`/partner-payment/status${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`),
+    createCheckout: () => api.post('/partner-payment/checkout'),
+    createBillingPortal: () => api.post('/partner-payment/portal'),
+    updateBilling: (data) => api.put('/partner-payment/settings', data),
+    getStripeStatus: () => api.get('/partner-payment/stripe-status'),
+    getStripeInvoices: () => api.get('/partner-payment/invoices'),
     getUserDetail: (userId) => api.get(`/partner/users/${userId}`),
     updateUserProgress: (userId, step_id, status, data) =>
         api.put(`/partner/users/${userId}/progress`, { step_id, status, data }),

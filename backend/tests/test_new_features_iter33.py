@@ -256,8 +256,8 @@ def test_cms_landing_pages_define_default_and_pflege_pages():
     assert isinstance(pages, list) and pages, "landing_pages CMS must contain a pages list"
     by_path = {page.get("path"): page for page in pages}
 
-    assert by_path["/"]["survey_slug"] == "aerzte"
-    assert by_path["/"]["hero_title"]
+    assert by_path["/aerzte"]["survey_slug"] == "aerzte"
+    assert by_path["/aerzte"]["hero_title"]
 
     pflege = by_path["/pflege"]
     assert pflege["survey_slug"] == "pflege"

@@ -14,6 +14,16 @@ class UserRegister(BaseModel):
     name: str
     survey_slug: Optional[str] = None
 
+
+class PartnerRegister(BaseModel):
+    company_name: str = Field(min_length=2, max_length=160)
+    contact_name: str = Field(min_length=2, max_length=160)
+    email: EmailStr
+    password: str = Field(min_length=8)
+    website: Optional[str] = None
+    description: Optional[str] = ""
+    country: str = Field(default="DE", min_length=2, max_length=2)
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -52,6 +62,7 @@ class PartnerCreate(BaseModel):
     category: Optional[str] = None
     tags: Optional[List[str]] = None
     linked_user_ids: Optional[List[str]] = None
+    survey_ids: Optional[List[str]] = None
 
     @field_validator('contact_email', mode='before')
     @classmethod
@@ -70,6 +81,7 @@ class PartnerUpdate(BaseModel):
     tags: Optional[List[str]] = None
     is_active: Optional[bool] = None
     linked_user_ids: Optional[List[str]] = None
+    survey_ids: Optional[List[str]] = None
 
     @field_validator('contact_email', mode='before')
     @classmethod
@@ -253,6 +265,19 @@ class PartnerSelfUpdate(BaseModel):
     description: Optional[str] = None
     tags: Optional[List[str]] = None
 
+
+class PartnerBillingSettingsUpdate(BaseModel):
+    legal_name: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    tax_id: Optional[str] = None
+    default_currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
+    invoice_footer: Optional[str] = None
+    payment_terms_days: Optional[int] = Field(default=None, ge=0, le=365)
+
 class CMSContentUpdate(BaseModel):
     section: Optional[str] = None  # derived from URL path
     content: dict
@@ -307,6 +332,17 @@ class SiteSettingsUpdate(BaseModel):
     ui_show_journey_indicator: Optional[bool] = None
     ui_show_eta_header: Optional[bool] = None
     ui_show_progress_percentage: Optional[bool] = None
+    stripe_sandbox_mode: Optional[bool] = None
+    stripe_test_publishable_key: Optional[str] = None
+    stripe_test_secret_key: Optional[str] = None
+    stripe_test_webhook_secret: Optional[str] = None
+    stripe_live_publishable_key: Optional[str] = None
+    stripe_live_secret_key: Optional[str] = None
+    stripe_live_webhook_secret: Optional[str] = None
+    stripe_partner_price_id: Optional[str] = None
+    stripe_partner_payment_mode: Optional[str] = None
+    stripe_automatic_tax: Optional[bool] = None
+    stripe_allow_promotion_codes: Optional[bool] = None
 
 class StepTemplateCreate(BaseModel):
     name: str
