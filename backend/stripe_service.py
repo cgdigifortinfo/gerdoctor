@@ -6,6 +6,7 @@ Identity, payout and bank details remain on Stripe-hosted pages.
 from __future__ import annotations
 
 import os
+from urllib.parse import quote
 from typing import Any
 
 import httpx
@@ -123,3 +124,32 @@ async def create_customer_portal(customer_id: str, return_url: str) -> dict:
 
 async def list_customer_invoices(customer_id: str) -> dict:
     return await stripe_request("GET", f"/invoices?limit=100&customer={customer_id}")
+
+
+async def retrieve_customer(customer_id: str) -> dict:
+    return await stripe_request("GET", f"/customers/{customer_id}")
+
+
+async def find_customers_by_email(email: str) -> dict:
+    return await stripe_request("GET", f"/customers?limit=100&email={quote(email)}")
+
+
+async def retrieve_subscription(subscription_id: str) -> dict:
+    return await stripe_request("GET", f"/subscriptions/{subscription_id}")
+
+
+async def list_customer_subscriptions(customer_id: str) -> dict:
+    return await stripe_request("GET", f"/subscriptions?limit=100&status=all&customer={customer_id}")
+
+
+async def create_pending_invoice_item(customer_id: str, subscription_id: str, amount: int, currency: str, description: str, metadata: dict[str, str]) -> dict:
+    data = {
+        "customer": customer_id,
+        "subscription": subscription_id,
+        "amount": str(amount),
+        "currency": currency.lower(),
+        "description": description,
+    }
+    for key, value in metadata.items():
+        data[f"metadata[{key}]"] = value
+    return await stripe_request("POST", "/invoiceitems", data=data)

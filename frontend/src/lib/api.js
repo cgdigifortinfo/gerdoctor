@@ -87,7 +87,7 @@ export const filesAPI = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
-    getUrl: (fileId) => `${API}/files/${fileId}`,
+    getUrl: (fileId) => `${API}/files/${fileId}${_authToken ? `?auth=${encodeURIComponent(_authToken)}` : ''}`,
 };
 
 // CMS APIs
@@ -108,6 +108,10 @@ export const adminAPI = {
     updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
     bulkUpdateRole: (user_ids, role) => api.put('/admin/users/bulk-role', { user_ids, role }),
     exportUsersCsv: () => api.get('/admin/export/users', { responseType: 'blob' }),
+    getBilling: () => api.get('/admin/billing'),
+    auditStripeConnections: () => api.get('/admin/billing/connection-audit'),
+    repairStripeConnection: (partnerId) => api.post(`/admin/billing/connection-repairs/${partnerId}`),
+    repairAllStripeConnections: () => api.post('/admin/billing/connection-repairs/all'),
     getPermissionCatalog: () => api.get('/admin/permission-catalog'),
     getPermissionGroups: () => api.get('/admin/permission-groups'),
     createPermissionGroup: (data) => api.post('/admin/permission-groups', data),

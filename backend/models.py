@@ -63,6 +63,10 @@ class PartnerCreate(BaseModel):
     tags: Optional[List[str]] = None
     linked_user_ids: Optional[List[str]] = None
     survey_ids: Optional[List[str]] = None
+    step_user_fee_cents: Optional[Dict[str, int]] = None
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    billing_status: Optional[str] = None
 
     @field_validator('contact_email', mode='before')
     @classmethod
@@ -70,6 +74,13 @@ class PartnerCreate(BaseModel):
         if v == '':
             return None
         return v
+
+    @field_validator('step_user_fee_cents')
+    @classmethod
+    def non_negative_step_prices(cls, value):
+        if value and any(amount < 0 for amount in value.values()):
+            raise ValueError('step prices cannot be negative')
+        return value
 
 class PartnerUpdate(BaseModel):
     name: Optional[str] = None
@@ -82,6 +93,10 @@ class PartnerUpdate(BaseModel):
     is_active: Optional[bool] = None
     linked_user_ids: Optional[List[str]] = None
     survey_ids: Optional[List[str]] = None
+    step_user_fee_cents: Optional[Dict[str, int]] = None
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    billing_status: Optional[str] = None
 
     @field_validator('contact_email', mode='before')
     @classmethod
@@ -89,6 +104,13 @@ class PartnerUpdate(BaseModel):
         if v == '':
             return None
         return v
+
+    @field_validator('step_user_fee_cents')
+    @classmethod
+    def non_negative_step_prices(cls, value):
+        if value and any(amount < 0 for amount in value.values()):
+            raise ValueError('step prices cannot be negative')
+        return value
 
 class StepFieldCreate(BaseModel):
     id: Optional[str] = None
@@ -156,6 +178,10 @@ class StepCondition(BaseModel):
     def one_compound_operator(self):
         if self.all_of is not None and self.any_of is not None:
             raise ValueError("condition cannot contain both all_of and any_of")
+        if self.all_of is not None and not self.all_of:
+            raise ValueError("all_of condition must contain at least one child")
+        if self.any_of is not None and not self.any_of:
+            raise ValueError("any_of condition must contain at least one child")
         return self
 
 class StepCreate(BaseModel):
@@ -167,6 +193,7 @@ class StepCreate(BaseModel):
     fields: Optional[List[StepFieldCreate]] = None
     form_schema_version: int = 1
     filter_tag: Optional[str] = None
+    partner_user_fee_cents: Optional[int] = Field(default=None, ge=0)
     skippable: bool = False
     skip_label: Optional[str] = None
     action_label: Optional[str] = None
@@ -199,6 +226,7 @@ class StepUpdate(BaseModel):
     fields: Optional[List[StepFieldCreate]] = None
     form_schema_version: Optional[int] = None
     filter_tag: Optional[str] = None
+    partner_user_fee_cents: Optional[int] = Field(default=None, ge=0)
     skippable: Optional[bool] = None
     skip_label: Optional[str] = None
     action_label: Optional[str] = None
@@ -340,6 +368,8 @@ class SiteSettingsUpdate(BaseModel):
     stripe_live_secret_key: Optional[str] = None
     stripe_live_webhook_secret: Optional[str] = None
     stripe_partner_price_id: Optional[str] = None
+    stripe_partner_user_fee_cents: Optional[int] = Field(default=None, ge=0)
+    stripe_partner_user_fee_currency: Optional[str] = None
     stripe_partner_payment_mode: Optional[str] = None
     stripe_automatic_tax: Optional[bool] = None
     stripe_allow_promotion_codes: Optional[bool] = None

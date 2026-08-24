@@ -400,6 +400,8 @@ export default function PartnerDashboard() {
     const [insights, setInsights] = useState(null);
     const [newTag, setNewTag] = useState('');
     const [billing, setBilling] = useState({});
+    const [usageBilling, setUsageBilling] = useState({ pending_users: 0, pending_amount: 0, billed_users: 0, billed_amount: 0, currency: 'eur' });
+    const [servicePricing, setServicePricing] = useState([]);
     const [stripeStatus, setStripeStatus] = useState({ configured: false });
     const [invoices, setInvoices] = useState([]);
     const [billingSaving, setBillingSaving] = useState(false);
@@ -422,10 +424,6 @@ export default function PartnerDashboard() {
     };
 
     const loadData = useCallback(async () => {
-        if (user?.partner_payment_required && !['paid', 'active', 'trialing'].includes(user?.partner_billing_status)) {
-            setLoading(false);
-            return;
-        }
         try {
             const profileRes = await partnerDashboardAPI.getProfile().catch(() => ({ data: { name: user?.name, email: user?.email } }));
             setProfile(profileRes.data);
@@ -463,16 +461,13 @@ export default function PartnerDashboard() {
         }
     }, [isAwaitingAssignment, activeTab]);
     useEffect(() => {
-        if (user?.partner_payment_required && !['paid', 'active', 'trialing'].includes(user?.partner_billing_status)) navigate('/partner-payment');
-    }, [user, navigate]);
-    useEffect(() => {
         if (activeTab !== 'billing') return;
         Promise.all([
             partnerDashboardAPI.getBilling(),
             partnerDashboardAPI.getStripeStatus(),
             partnerDashboardAPI.getStripeInvoices().catch(() => ({ data: [] })),
         ]).then(([billingRes, statusRes, invoiceRes]) => {
-            setBilling(billingRes.data.settings || {}); setStripeStatus(statusRes.data || {}); setInvoices(invoiceRes.data || []);
+            setBilling(billingRes.data.settings || {}); setUsageBilling(billingRes.data.usage || {}); setServicePricing(billingRes.data.pricing || []); setStripeStatus(statusRes.data || {}); setInvoices(invoiceRes.data || []);
         }).catch(error => toast.error(formatApiError(error)));
     }, [activeTab]);
 
@@ -882,6 +877,12 @@ export default function PartnerDashboard() {
                                     <Button onClick={saveBilling} disabled={billingSaving}>{billingSaving ? 'Speichert…' : 'Einstellungen speichern'}</Button>
                                 </div>
                                 <div className="space-y-6">
+                                    <div className="bg-card border border-border rounded-sm p-6" data-testid="partner-usage-billing">
+                                        <h2 className="text-lg font-semibold">Nutzergebühren</h2>
+                                        <p className="text-sm text-muted-foreground mt-1">Jeder Nutzer wird beim ersten von Ihnen hochgeladenen Dokument einmal für die nächste Monatsrechnung vorgemerkt.</p>
+                                        <div className="grid grid-cols-2 gap-3 mt-4"><div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Offene Nutzer</p><p className="text-2xl font-bold">{usageBilling.pending_users || 0}</p><p className="text-xs text-muted-foreground">{((usageBilling.pending_amount||0)/100).toLocaleString('de-DE',{style:'currency',currency:(usageBilling.currency||'eur').toUpperCase()})}</p></div><div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Abgerechnet</p><p className="text-2xl font-bold">{usageBilling.billed_users || 0}</p><p className="text-xs text-muted-foreground">{((usageBilling.billed_amount||0)/100).toLocaleString('de-DE',{style:'currency',currency:(usageBilling.currency||'eur').toUpperCase()})}</p></div></div>
+                                        <div className="mt-5 border-t border-border pt-4"><h3 className="text-sm font-semibold">Gültige Preise je Leistung</h3><div className="mt-2 space-y-2">{servicePricing.map(item => <div key={item.step_id} className="flex items-center justify-between gap-3 rounded border border-border p-3 text-sm" data-testid={`partner-service-price-${item.step_id}`}><span>Step {item.step_order}: {item.step_title}<span className="block text-xs text-muted-foreground">{item.source === 'partner_step' ? 'individueller Partnerpreis' : item.source === 'step' ? 'Step-Preis' : 'globaler Standardpreis'}</span></span><span className="font-semibold">{(item.amount/100).toLocaleString('de-DE',{style:'currency',currency:(item.currency||'eur').toUpperCase()})}</span></div>)}{!servicePricing.length && <p className="text-sm text-muted-foreground">Noch keine bepreiste Partnerleistung zugeordnet.</p>}</div></div>
+                                    </div>
                                     <div className="bg-card border border-border rounded-sm p-6">
                                         <div className="flex justify-between gap-4"><div><h2 className="text-lg font-semibold">Stripe Connect</h2><p className="text-sm text-muted-foreground">Auszahlungen und Identitätsprüfung erfolgen sicher bei Stripe.</p></div><span className={`h-fit px-2 py-1 text-xs rounded-full ${stripeStatus.onboarding_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>{stripeStatus.onboarding_complete ? 'Verbunden' : stripeStatus.configured ? 'Einrichtung offen' : 'Nicht verfügbar'}</span></div>
                                         {stripeStatus.sandbox_mode && <p className="mt-4 text-xs p-3 rounded bg-blue-50 text-blue-800">Sandbox-Modus: Es findet kein echter Geldfluss statt.</p>}

@@ -66,6 +66,9 @@ export default function AdminDashboard() {
     const [auditFilter, setAuditFilter] = useState('');
     const [auditDateFrom, setAuditDateFrom] = useState('');
     const [auditDateTo, setAuditDateTo] = useState('');
+    const [adminBilling, setAdminBilling] = useState({ partners: [], totals: {} });
+    const [stripeAudit, setStripeAudit] = useState(null);
+    const [stripeAuditLoading, setStripeAuditLoading] = useState(false);
     const [loading, setLoading] = useState(true);
 
     // User management state
@@ -129,7 +132,7 @@ export default function AdminDashboard() {
             const requestedSurvey = params.get('survey') || '';
             const requestedSurveyId = surveyList.find(s => s.id === requestedSurvey || s.slug === requestedSurvey)?.id || '';
             const selectedSurveyId = requestedSurveyId || surveyList.find(s => s.is_default)?.id || surveyList[0]?.id || '';
-            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, landingPagesRes, auditRes, settingsRes, templatesRes, groupsRes, permissionCatalogRes] = await Promise.all([
+            const [usersRes, stepsRes, partnersRes, analyticsRes, homeRes, aboutRes, partnersContentRes, landingPagesRes, auditRes, settingsRes, templatesRes, groupsRes, permissionCatalogRes, billingRes] = await Promise.all([
                 can('users.view') ? adminAPI.getUsers() : Promise.resolve({ data: [] }),
                 can('steps.view') ? adminAPI.getSteps(selectedSurveyId) : Promise.resolve({ data: [] }),
                 can('partners.view') ? adminAPI.getPartners() : Promise.resolve({ data: [] }),
@@ -143,6 +146,7 @@ export default function AdminDashboard() {
                 can('steps.view') ? adminAPI.listStepTemplates().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 can('groups.view') ? adminAPI.getPermissionGroups().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 can('groups.view') ? adminAPI.getPermissionCatalog().catch(() => ({ data: { categories: [], all_permissions: [] } })) : Promise.resolve({ data: { categories: [], all_permissions: [] } }),
+                can('settings.view') ? adminAPI.getBilling().catch(() => ({ data: { partners: [], totals: {} } })) : Promise.resolve({ data: { partners: [], totals: {} } }),
             ]);
             if (requestId !== loadDataRequestRef.current) return;
             setSurveys(surveyList);
@@ -168,6 +172,7 @@ export default function AdminDashboard() {
             setStepTemplates(templatesRes.data || []);
             setPermissionGroups(groupsRes.data || []);
             setPermissionCatalog(permissionCatalogRes.data || { categories: [], all_permissions: [] });
+            setAdminBilling(billingRes.data || { partners: [], totals: {} });
         } catch (error) {
             if (requestId !== loadDataRequestRef.current) return;
             toast.error('Failed to load data');
@@ -652,6 +657,25 @@ export default function AdminDashboard() {
         }
     };
 
+    const auditStripeConnections = async () => {
+        setStripeAuditLoading(true);
+        try { const response = await adminAPI.auditStripeConnections(); setStripeAudit(response.data); }
+        catch (error) { toast.error(formatApiError(error)); }
+        finally { setStripeAuditLoading(false); }
+    };
+
+    const repairStripeConnection = async (partnerId) => {
+        try { await adminAPI.repairStripeConnection(partnerId); toast.success('Stripe-Verbindung repariert'); await auditStripeConnections(); loadData(); }
+        catch (error) { toast.error(formatApiError(error)); }
+    };
+
+    const repairAllStripeConnections = async () => {
+        if (!window.confirm('Alle eindeutig reparierbaren Stripe-Verbindungen jetzt korrigieren?')) return;
+        setStripeAuditLoading(true);
+        try { const response = await adminAPI.repairAllStripeConnections(); toast.success(`${response.data.repaired} Stripe-Verbindungen repariert, ${response.data.skipped} übersprungen`); await auditStripeConnections(); loadData(); }
+        catch (error) { toast.error(formatApiError(error)); setStripeAuditLoading(false); }
+    };
+
     // Create user
     const handleCreateUser = async (userData) => {
         try {
@@ -944,6 +968,15 @@ export default function AdminDashboard() {
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
+                                                    {(u.orphaned_partner_references || []).length > 0 && (
+                                                        <div
+                                                            className="mt-1 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+                                                            title={u.orphaned_partner_references.map(ref => ref.value).join(', ')}
+                                                            data-testid={`user-orphaned-partners-${u.id}`}
+                                                        >
+                                                            Verwaiste Partnerreferenz
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -1286,6 +1319,7 @@ export default function AdminDashboard() {
                                                             <div>
                                                                 <p className="font-medium text-foreground">{partner.name}</p>
                                                                 <p className="text-xs text-muted-foreground">{partner.contact_email}</p>
+                                                                <p className="mt-1 text-xs text-muted-foreground">Leistungen: {(partner.service_steps || []).map(step => `Step ${step.order} ${step.title}`).join(', ') || 'keine Step-Zuordnung'}</p>
                                                                 {partner.registration_source === 'self_service' && <span className="inline-flex mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">NEU REGISTRIERT</span>}
                                                             </div>
                                                         </div>
@@ -1614,9 +1648,25 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-4 mt-5 pt-5 border-t border-border">
                                     <div><Label>Partner Price ID</Label><Input placeholder="price_…" value={siteSettings.stripe_partner_price_id || ''} onChange={e => setSiteSettings(s => ({...s,stripe_partner_price_id:e.target.value}))}/><p className="text-xs text-muted-foreground mt-1">Preis im Stripe-Produktkatalog; für Abos muss er wiederkehrend sein.</p></div>
-                                    <div><Label>Zahlungsmodell</Label><Select value={siteSettings.stripe_partner_payment_mode || 'subscription'} onValueChange={v => setSiteSettings(s => ({...s,stripe_partner_payment_mode:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="subscription">Wiederkehrendes Abonnement</SelectItem><SelectItem value="payment">Einmalzahlung</SelectItem></SelectContent></Select></div>
+                                    <div><Label>Zahlungsmodell</Label><Input value="Monatliches Abonnement" disabled/><p className="text-xs text-muted-foreground mt-1">Die Grundgebühr wird ausschließlich als wiederkehrendes Stripe-Abonnement angelegt.</p></div>
+                                    <div><Label>Globaler Standardpreis je Nutzer in Cent</Label><Input type="number" min="0" value={siteSettings.stripe_partner_user_fee_cents ?? 0} onChange={e => setSiteSettings(s => ({...s,stripe_partner_user_fee_cents:Number(e.target.value)||0}))}/><p className="text-xs text-muted-foreground mt-1">Default beim ersten Partner-Dokument je Nutzer und Leistungs-Step. Step- und Partnerpreise können ihn überschreiben.</p></div>
+                                    <div><Label>Währung der Nutzergebühr</Label><Input maxLength={3} value={siteSettings.stripe_partner_user_fee_currency || 'eur'} onChange={e => setSiteSettings(s => ({...s,stripe_partner_user_fee_currency:e.target.value.toLowerCase()}))}/></div>
                                     <label className="flex items-center gap-3"><Switch checked={siteSettings.stripe_automatic_tax === true} onCheckedChange={v=>setSiteSettings(s=>({...s,stripe_automatic_tax:v}))}/><span><span className="block text-sm font-medium">Stripe Tax automatisch</span><span className="block text-xs text-muted-foreground">Erfordert aktiviertes Stripe Tax.</span></span></label>
                                     <label className="flex items-center gap-3"><Switch checked={siteSettings.stripe_allow_promotion_codes === true} onCheckedChange={v=>setSiteSettings(s=>({...s,stripe_allow_promotion_codes:v}))}/><span className="text-sm font-medium">Aktionscodes erlauben</span></label>
+                                </div>
+                                <div className="mt-6 border-t border-border pt-5" data-testid="stripe-connection-audit">
+                                    <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-semibold">Stripe-Verbindungen prüfen</h4><p className="text-sm text-muted-foreground">Findet fehlende oder widersprüchliche Customer-, Subscription- und Status-Verknüpfungen.</p></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={auditStripeConnections} disabled={stripeAuditLoading}>{stripeAuditLoading ? 'Prüft…' : 'Verbindungen prüfen'}</Button>{stripeAudit?.repairable > 0 && <Button type="button" onClick={repairAllStripeConnections} disabled={stripeAuditLoading}>Alle reparierbaren Einträge reparieren</Button>}</div></div>
+                                    {stripeAudit && <div className="mt-4"><p className="text-sm mb-3">{stripeAudit.defective} auffällig · {stripeAudit.repairable} automatisch reparierbar</p><div className="space-y-3">{(stripeAudit.entries || []).map(entry => <div key={entry.partner_id} className="rounded border border-border p-4" data-testid={`stripe-audit-${entry.partner_id}`}><div className="flex flex-wrap justify-between gap-3"><div><p className="font-medium">{entry.partner_name}</p><p className="text-xs text-muted-foreground">{entry.emails.join(', ') || 'keine E-Mail'} · Customer: {entry.current_customer_id || 'fehlt'} · Abo: {entry.current_subscription_id || 'fehlt'}</p><ul className="mt-2 list-disc pl-5 text-sm text-amber-700">{entry.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>{entry.repairable && <p className="mt-2 text-xs text-muted-foreground">Vorschlag: {entry.proposed_customer_id} / {entry.proposed_subscription_id} / {entry.proposed_billing_status}</p>}</div>{entry.repairable ? <Button type="button" size="sm" onClick={() => repairStripeConnection(entry.partner_id)}>Eintrag reparieren</Button> : <span className="h-fit rounded bg-amber-100 px-2 py-1 text-xs text-amber-800">Manuelle Prüfung nötig</span>}</div></div>)}{!stripeAudit.entries?.length && <p className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">Keine fehlerhaften Stripe-Verbindungen gefunden.</p>}</div></div>}
+                                </div>
+                                <div className="mt-6 border-t border-border pt-5" data-testid="admin-billing-summary">
+                                    <h4 className="font-semibold">Abrechnungsübersicht</h4>
+                                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Offene Nutzer</p><p className="text-xl font-bold">{adminBilling.totals?.pending_users || 0}</p></div>
+                                        <div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Offener Betrag</p><p className="text-xl font-bold">{((adminBilling.totals?.pending_amount || 0)/100).toLocaleString('de-DE',{style:'currency',currency:(siteSettings.stripe_partner_user_fee_currency||'EUR').toUpperCase()})}</p></div>
+                                        <div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Abgerechnete Nutzer</p><p className="text-xl font-bold">{adminBilling.totals?.billed_users || 0}</p></div>
+                                        <div className="rounded border border-border p-3"><p className="text-xs text-muted-foreground">Abgerechneter Betrag</p><p className="text-xl font-bold">{((adminBilling.totals?.billed_amount || 0)/100).toLocaleString('de-DE',{style:'currency',currency:(siteSettings.stripe_partner_user_fee_currency||'EUR').toUpperCase()})}</p></div>
+                                    </div>
+                                    <div className="mt-4 space-y-3">{(adminBilling.partners || []).map(item => <details key={item.partner_id} className="rounded border border-border"><summary className="cursor-pointer p-3 font-medium">{item.partner_name} · {item.usage.pending_users} offen · {item.invoices.length} Rechnungen</summary><div className="border-t border-border p-3 space-y-2">{item.invoices.map(invoice => <div key={invoice.id} className="flex justify-between gap-3 text-sm"><span>{invoice.number || invoice.id} · {invoice.status} · {((invoice.amount_due||0)/100).toLocaleString('de-DE',{style:'currency',currency:(invoice.currency||'eur').toUpperCase()})}</span><span className="flex gap-2">{invoice.hosted_invoice_url && <a className="text-[var(--brand-primary)] underline" href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer">Ansehen</a>}{invoice.invoice_pdf && <a className="text-[var(--brand-primary)] underline" href={invoice.invoice_pdf} target="_blank" rel="noreferrer" download>PDF</a>}</span></div>)}{!item.invoices.length && <p className="text-sm text-muted-foreground">Noch keine Rechnungen.</p>}</div></details>)}</div>
                                 </div>
                             </div>
 
@@ -1881,6 +1931,7 @@ export default function AdminDashboard() {
                 allUsers={users}
                 allPartners={partners}
                 surveys={surveys}
+                defaultUserFeeCents={siteSettings.stripe_partner_user_fee_cents || 0}
                 t={t}
             />
 
@@ -2146,10 +2197,12 @@ function CmsSection({ title, fields, content, onChange, translations, onTransCha
 
 function LinkUserDialog({ open, onClose, partner, users, onLink }) {
     const [search, setSearch] = useState('');
-    const filtered = users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = users
+        .filter(u =>
+            u.name.toLowerCase().includes(search.toLowerCase()) ||
+            u.email.toLowerCase().includes(search.toLowerCase())
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.email.localeCompare(b.email));
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -2222,6 +2275,7 @@ const CONDITION_OPERATOR_OPTIONS = [
 const CONDITION_ACTION_OPTIONS = [
     { value: 'block', label: 'Schritt blockieren' },
     { value: 'hide', label: 'Schritt ausblenden' },
+    { value: 'read_only', label: 'Schritt schreibschützen' },
     { value: 'auto_complete', label: 'Automatisch abschließen' },
     { value: 'allow_next', label: 'Zugriff erlauben' },
     { value: 'redirect', label: 'Zu anderem Schritt weiterleiten' },
@@ -2252,6 +2306,14 @@ function stepFieldOptions(selectedStep, includeStatus = true) {
             keywords: 'status abgeschlossen ausstehend system',
         });
     }
+    if (selectedStep?.step_type === 'milestone' && !options.some((option) => option.value === 'partner_uploads')) {
+        options.push({
+            value: 'partner_uploads',
+            label: 'Partner-Dokumente',
+            description: 'Systemfeld · vom Partner hochgeladene Dokumente',
+            keywords: 'partner uploads dokumente system',
+        });
+    }
     return options;
 }
 
@@ -2265,7 +2327,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
     const [formData, setFormData] = useState({
         title: '', description: '', order: existingSteps.length + 1,
         survey_id: activeSurveyId,
-        step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
+        step_type: 'form', fields: [], filter_tag: '', partner_user_fee_cents: null, skippable: false, skip_label: '',
         action_label: '', pending_message: '', complete_message: '',
         required_fields: [], required_uploads: [],
         field_mappings: [], conditions: [],
@@ -2282,7 +2344,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                 order: step.order || existingSteps.length + 1,
                 survey_id: step.survey_id || activeSurveyId,
                 step_type: step.step_type || 'form', fields: step.fields || [],
-                filter_tag: step.filter_tag || '', skippable: step.skippable || false,
+                filter_tag: step.filter_tag || '', partner_user_fee_cents: step.partner_user_fee_cents ?? null, skippable: step.skippable || false,
                 skip_label: step.skip_label || '', action_label: step.action_label || '',
                 pending_message: step.pending_message || '', complete_message: step.complete_message || '',
                 required_fields: step.required_fields || [], required_uploads: step.required_uploads || [],
@@ -2296,7 +2358,7 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
             setFormData({
                 title: '', description: '', order: existingSteps.length + 1,
                 survey_id: activeSurveyId,
-                step_type: 'form', fields: [], filter_tag: '', skippable: false, skip_label: '',
+                step_type: 'form', fields: [], filter_tag: '', partner_user_fee_cents: null, skippable: false, skip_label: '',
                 action_label: '', pending_message: '', complete_message: '',
                 required_fields: [], required_uploads: [],
                 field_mappings: [], conditions: [],
@@ -2448,23 +2510,30 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
     };
 
     // Condition helpers
-    const addCondition = () => {
+    const defaultConditionLeaf = () => {
         const source = [...sortedReferenceSteps].reverse().find((candidate) => candidate.order < formData.order)
             || sortedReferenceSteps.find((candidate) => candidate.id !== step?.id)
             || sortedReferenceSteps[0];
+        return { source_step_order: source?.order || null, field: 'status', operator: 'status_is', value: 'completed' };
+    };
+    const addCondition = () => {
         setFormData((current) => ({
             ...current,
             conditions: [...current.conditions, {
-                source_step_order: source?.order || null,
-                field: 'status',
-                operator: 'status_is',
-                value: 'completed',
+                ...defaultConditionLeaf(),
                 action: 'block',
                 target_step_order: null,
                 message: 'Bitte schließen Sie zuerst den ausgewählten Schritt ab.',
             }],
         }));
     };
+    const addConditionGroup = (groupKey) => setFormData((current) => ({
+        ...current,
+        conditions: [...current.conditions, {
+            [groupKey]: [defaultConditionLeaf()], action: 'block', target_step_order: null,
+            message: 'Die konfigurierte Bedingungsgruppe ist noch nicht erfüllt.',
+        }],
+    }));
     const removeCondition = (i) => { setFormData((current) => ({ ...current, conditions: current.conditions.filter((_, idx) => idx !== i) })); };
     const updateCondition = (i, patch) => {
         setFormData((current) => {
@@ -2499,6 +2568,40 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
         } else {
             updateCondition(i, { operator, value: Array.isArray(currentValue) ? (currentValue[0] || '') : currentValue });
         }
+    };
+    const updateConditionChild = (conditionIndex, groupKey, childIndex, patch) => {
+        setFormData((current) => {
+            const conditions = [...current.conditions];
+            const children = [...conditions[conditionIndex][groupKey]];
+            children[childIndex] = { ...children[childIndex], ...patch };
+            conditions[conditionIndex] = { ...conditions[conditionIndex], [groupKey]: children };
+            return { ...current, conditions };
+        });
+    };
+    const addConditionChild = (conditionIndex, groupKey) => {
+        setFormData((current) => {
+            const conditions = [...current.conditions];
+            conditions[conditionIndex] = { ...conditions[conditionIndex], [groupKey]: [...conditions[conditionIndex][groupKey], defaultConditionLeaf()] };
+            return { ...current, conditions };
+        });
+    };
+    const removeConditionChild = (conditionIndex, groupKey, childIndex) => {
+        setFormData((current) => {
+            const conditions = [...current.conditions];
+            const children = conditions[conditionIndex][groupKey].filter((_, index) => index !== childIndex);
+            if (!children.length) return current;
+            conditions[conditionIndex] = { ...conditions[conditionIndex], [groupKey]: children };
+            return { ...current, conditions };
+        });
+    };
+    const changeConditionGroupType = (conditionIndex, oldKey, newKey) => {
+        setFormData((current) => {
+            const conditions = [...current.conditions];
+            const condition = { ...conditions[conditionIndex], [newKey]: conditions[conditionIndex][oldKey] };
+            delete condition[oldKey];
+            conditions[conditionIndex] = condition;
+            return { ...current, conditions };
+        });
     };
 
     const sectionMeta = [
@@ -2621,7 +2724,8 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                     {activeSection === 'type' && (
                         <div className="space-y-4">
                             {(formData.step_type === 'partner_selection' || formData.step_type === 'partner_multiselection') && (
-                                <div>
+                                <div className="space-y-4">
+                                  <div>
                                     <Label><HelpLabel help="Zeigt nur aktive Partner mit exakt diesem Tag. Bei Mehrfachauswahl können mehrere passende Partner gewählt werden.">{t('step_filter_tag')}</HelpLabel></Label>
                                     <p className="mb-2 mt-1 text-xs text-muted-foreground">Nur Partner mit diesem Tag werden angeboten. Neue Tags können direkt angelegt werden.</p>
                                     <SearchableSelect
@@ -2633,6 +2737,12 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                         testId="step-filter-tag"
                                         allowCustom
                                     />
+                                  </div>
+                                  <div>
+                                    <Label>Nutzergebühr für diesen Step in Cent</Label>
+                                    <Input type="number" min="0" value={formData.partner_user_fee_cents ?? ''} onChange={(event) => setFormData({...formData, partner_user_fee_cents: event.target.value === '' ? null : Number(event.target.value)})} placeholder="Globalen Standard verwenden" data-testid="step-user-fee-cents" />
+                                    <p className="mt-1 text-xs text-muted-foreground">Leer übernimmt den globalen Standard. Auch 0 Cent ist eine explizite Überschreibung.</p>
+                                  </div>
                                 </div>
                             )}
                             {(formData.step_type === 'display' || formData.step_type === 'milestone') && (
@@ -2752,7 +2862,11 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                                     <Label><HelpLabel help="Jede Regel liest einen anderen Step. Mehrere Regeln werden unabhängig ausgewertet; jede zutreffende Aktion kann auf diesen Step wirken.">Regeln für diesen Schritt</HelpLabel></Label>
                                     <p className="mt-1 text-xs text-muted-foreground">Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.</p>
                                 </div>
-                                <Button type="button" variant="outline" size="sm" onClick={addCondition} data-testid="add-condition"><Plus size={14} className="mr-1" /> Regel</Button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={addCondition} data-testid="add-condition"><Plus size={14} className="mr-1" /> Einzelregel</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => addConditionGroup('all_of')} data-testid="add-condition-all"><Plus size={14} className="mr-1" /> UND-Gruppe</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => addConditionGroup('any_of')} data-testid="add-condition-any"><Plus size={14} className="mr-1" /> ODER-Gruppe</Button>
+                                </div>
                             </div>
 
                             {/* Presets */}
@@ -2776,6 +2890,87 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
                             {formData.conditions.map((c, i) => {
                                 const valueOptions = conditionValueOptions(c);
                                 const actionLabel = CONDITION_ACTION_OPTIONS.find((option) => option.value === c.action)?.label || c.action;
+                                const compoundKey = Array.isArray(c.all_of) ? 'all_of' : Array.isArray(c.any_of) ? 'any_of' : null;
+                                if (compoundKey) {
+                                    const children = c[compoundKey];
+                                    return (
+                                        <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid={`condition-card-${i}`}>
+                                            <div className="mb-4 flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold">Regel {i + 1} · {compoundKey === 'all_of' ? 'UND-Gruppe' : 'ODER-Gruppe'}</p>
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                                        {compoundKey === 'all_of' ? 'Alle Teilbedingungen müssen zutreffen.' : 'Mindestens eine Teilbedingung muss zutreffen.'} Bei Treffer: {actionLabel}
+                                                    </p>
+                                                </div>
+                                                <Button type="button" variant="ghost" size="sm" onClick={() => removeCondition(i)} className="h-8 text-red-500"><Trash size={14} className="mr-1" /> Entfernen</Button>
+                                            </div>
+                                            <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md bg-muted/30 p-3">
+                                                <div className="min-w-48">
+                                                    <Label className="text-xs">Gruppierung</Label>
+                                                    <Select value={compoundKey} onValueChange={(value) => changeConditionGroupType(i, compoundKey, value)}>
+                                                        <SelectTrigger data-testid={`condition-group-type-${i}`}><SelectValue /></SelectTrigger>
+                                                        <SelectContent><SelectItem value="all_of">UND – alle müssen zutreffen</SelectItem><SelectItem value="any_of">ODER – eine muss zutreffen</SelectItem></SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => addConditionChild(i, compoundKey)} data-testid={`condition-add-child-${i}`}><Plus size={14} className="mr-1" /> Teilbedingung</Button>
+                                            </div>
+                                            <div className="space-y-2" data-testid={`condition-compound-${i}`}>
+                                                {children.map((child, childIndex) => {
+                                                    const source = findStepByOrder(child.source_step_order);
+                                                    const operator = CONDITION_OPERATOR_OPTIONS.find((option) => option.value === child.operator)?.label || child.operator || '–';
+                                                    const value = ['has_upload', 'missing_upload'].includes(child.operator) && (child.value == null || child.value === '')
+                                                        ? 'beliebiges Dokument'
+                                                        : Array.isArray(child.value) ? child.value.join(', ') : String(child.value ?? '–');
+                                                    const childValueOptions = conditionValueOptions(child);
+                                                    const updateChildSource = (sourceValue) => updateConditionChild(i, compoundKey, childIndex, {
+                                                        source_step_order: sourceValue ? Number(sourceValue) : null, field: 'status', operator: 'status_is', value: 'completed',
+                                                    });
+                                                    const updateChildField = (fieldName) => {
+                                                        const selectedField = findField(findStepByOrder(child.source_step_order), fieldName);
+                                                        if (fieldName === 'status') updateConditionChild(i, compoundKey, childIndex, { field: fieldName, operator: 'status_is', value: 'completed' });
+                                                        else if (selectedField?.field_type === 'multiupload' || fieldName === 'partner_uploads') updateConditionChild(i, compoundKey, childIndex, { field: fieldName, operator: 'has_upload', value: '' });
+                                                        else updateConditionChild(i, compoundKey, childIndex, { field: fieldName, operator: 'equals', value: optionValue(selectedField?.options?.[0]) || '' });
+                                                    };
+                                                    const updateChildOperator = (nextOperator) => {
+                                                        let nextValue = child.value;
+                                                        if (['one_of', 'not_one_of'].includes(nextOperator)) nextValue = Array.isArray(nextValue) ? nextValue : (nextValue ? [nextValue] : []);
+                                                        else if (Array.isArray(nextValue)) nextValue = nextValue[0] || '';
+                                                        if (['empty', 'not_empty', 'has_upload', 'missing_upload'].includes(nextOperator)) nextValue = '';
+                                                        updateConditionChild(i, compoundKey, childIndex, { operator: nextOperator, value: nextValue });
+                                                    };
+                                                    return (
+                                                        <details key={childIndex} className="group rounded-md border border-border bg-card" data-testid={`condition-compound-${i}-${childIndex}`} open={childIndex === 0}>
+                                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40">
+                                                                <span><strong>Teilbedingung {childIndex + 1}</strong> · #{child.source_step_order} {source?.title || 'Unbekannt'} · {child.field || 'Status'} · {operator} · {value}</span>
+                                                                <span className="text-muted-foreground group-open:rotate-180">⌄</span>
+                                                            </summary>
+                                                            <div className="grid gap-3 border-t border-border p-3 lg:grid-cols-2">
+                                                                <div><Label className="text-xs">1. Quell-Step</Label><SearchableSelect options={withFallbackOption(stepOptions, child.source_step_order, 'Nicht gefundener Schritt')} value={child.source_step_order == null ? '' : String(child.source_step_order)} onChange={updateChildSource} placeholder="Quell-Step auswählen" searchPlaceholder="Step suchen …" testId={`condition-child-source-${i}-${childIndex}`} /></div>
+                                                                <div><Label className="text-xs">2. Status oder Feld</Label><SearchableSelect options={sourceFieldOptions(child.source_step_order, child.field)} value={child.field || ''} onChange={updateChildField} placeholder="Feld auswählen" searchPlaceholder="Feld suchen …" testId={`condition-child-field-${i}-${childIndex}`} /></div>
+                                                                <div><Label className="text-xs">3. Vergleich</Label><Select value={child.operator} onValueChange={updateChildOperator}><SelectTrigger data-testid={`condition-child-operator-${i}-${childIndex}`}><SelectValue /></SelectTrigger><SelectContent>{conditionOperatorOptions(child).map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
+                                                                <div><Label className="text-xs">4. Vergleichswert</Label>{['empty', 'not_empty'].includes(child.operator) ? <div className="flex min-h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-muted-foreground">Kein Wert erforderlich</div> : ['one_of', 'not_one_of'].includes(child.operator) ? <SearchableMultiSelect options={childValueOptions} values={Array.isArray(child.value) ? child.value : (child.value ? [child.value] : [])} onChange={(values) => updateConditionChild(i, compoundKey, childIndex, { value: values })} placeholder="Werte auswählen" searchPlaceholder="Werte suchen …" testId={`condition-child-values-${i}-${childIndex}`} allowCustom /> : childValueOptions.length > 0 ? <SearchableSelect options={childValueOptions} value={Array.isArray(child.value) ? (child.value[0] || '') : (child.value || '')} onChange={(nextValue) => updateConditionChild(i, compoundKey, childIndex, { value: nextValue })} placeholder="Wert auswählen" searchPlaceholder="Wert suchen …" testId={`condition-child-value-${i}-${childIndex}`} allowCustom /> : <Input value={child.value || ''} onChange={(event) => updateConditionChild(i, compoundKey, childIndex, { value: event.target.value })} data-testid={`condition-child-value-input-${i}-${childIndex}`} />}</div>
+                                                                <div className="lg:col-span-2 flex justify-end"><Button type="button" variant="ghost" size="sm" disabled={children.length <= 1} onClick={() => removeConditionChild(i, compoundKey, childIndex)} className="text-red-500" data-testid={`condition-remove-child-${i}-${childIndex}`}><Trash size={14} className="mr-1" /> Teilbedingung entfernen</Button></div>
+                                                            </div>
+                                                        </details>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2">
+                                                <div>
+                                                    <Label className="text-xs">Aktion bei Treffer</Label>
+                                                    <Select value={c.action} onValueChange={(value) => updateCondition(i, { action: value, target_step_order: value === 'redirect' ? c.target_step_order : null })}>
+                                                        <SelectTrigger className="min-h-10" data-testid={`condition-action-${i}`}><SelectValue /></SelectTrigger>
+                                                        <SelectContent>{CONDITION_ACTION_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs">Hinweis für Nutzer</Label>
+                                                    <Textarea value={c.message || ''} onChange={(event) => updateCondition(i, { message: event.target.value })} className="mt-1 min-h-[68px]" data-testid={`condition-message-${i}`} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
                                 return (
                                     <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid={`condition-card-${i}`}>
                                         <div className="mb-4 flex items-start justify-between gap-3">
@@ -2982,10 +3177,10 @@ function StepDialog({ open, onClose, step, onSave, existingSteps, surveys = [], 
     );
 }
 
-function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, surveys, t }) {
+function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, surveys, defaultUserFeeCents = 0, t }) {
     const [formData, setFormData] = useState({
         name: '', description: '', logo_url: '', website: '',
-        contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: []
+        contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: [], step_user_fee_cents: {}, stripe_customer_id: '', stripe_subscription_id: '', billing_status: ''
     });
     const [tagInput, setTagInput] = useState('');
     const [tagSuggestions, setTagSuggestions] = useState([]);
@@ -3002,10 +3197,10 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                 logo_url: partner.logo_url || '', website: partner.website || '',
                 contact_email: partner.contact_email || '', category: partner.category || '',
                 tags: partner.tags || [], is_active: partner.is_active !== false,
-                linked_user_ids: partner.linked_user_ids || [], survey_ids: partner.survey_ids || []
+                linked_user_ids: partner.linked_user_ids || [], survey_ids: partner.survey_ids || [], step_user_fee_cents: partner.step_user_fee_cents || {}, stripe_customer_id: partner.stripe_customer_id || '', stripe_subscription_id: partner.stripe_subscription_id || '', billing_status: partner.billing_status || ''
             });
         } else {
-            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: [] });
+            setFormData({ name: '', description: '', logo_url: '', website: '', contact_email: '', category: '', tags: [], is_active: true, linked_user_ids: [], survey_ids: [], step_user_fee_cents: {}, stripe_customer_id: '', stripe_subscription_id: '', billing_status: '' });
         }
         setTagInput('');
         setUserSearch('');
@@ -3147,7 +3342,9 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                                 const sorted = [...filtered].sort((a, b) => {
                                     const aChecked = formData.linked_user_ids.includes(a.id) ? 0 : 1;
                                     const bChecked = formData.linked_user_ids.includes(b.id) ? 0 : 1;
-                                    return aChecked - bChecked;
+                                    return aChecked - bChecked
+                                        || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                                        || a.email.localeCompare(b.email);
                                 });
                                 return sorted.length === 0 ? (
                                     <p className="p-3 text-xs text-muted-foreground">{t('partner_no_results')}</p>
@@ -3166,6 +3363,16 @@ function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPartners, 
                         <p className="text-xs text-muted-foreground mb-2">Mindestens eine Zuordnung aktiviert den Partner.</p>
                         <div className="border border-border rounded-sm divide-y divide-border">{(surveys || []).map(survey => <label key={survey.id} className="flex items-center gap-2 p-3 cursor-pointer"><Checkbox checked={formData.survey_ids.includes(survey.id)} onCheckedChange={() => setFormData(fd => ({...fd, survey_ids: fd.survey_ids.includes(survey.id) ? fd.survey_ids.filter(id => id !== survey.id) : [...fd.survey_ids, survey.id]}))}/><span>{survey.name}</span></label>)}</div>
                     </div>
+                    {partner && <div data-testid="partner-step-prices">
+                        <Label>Leistungen und Step-Preise</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Ein Partnerpreis überschreibt Step-Preis und globalen Standard. Leer übernimmt den jeweils nächstniedrigeren Wert.</p>
+                        <div className="space-y-2">{(partner.service_steps || []).map(serviceStep => {
+                            const inherited = serviceStep.step_user_fee_cents ?? defaultUserFeeCents;
+                            const ownValue = formData.step_user_fee_cents[serviceStep.id];
+                            return <div key={serviceStep.id} className="rounded border border-border p-3"><div className="flex justify-between gap-3"><div><p className="text-sm font-medium">Step {serviceStep.order}: {serviceStep.title}</p><p className="text-xs text-muted-foreground">Tag: {serviceStep.filter_tag || '–'} · geerbt: {(inherited/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</p></div><Input className="w-32" type="number" min="0" value={ownValue ?? ''} placeholder={String(inherited)} onChange={event => setFormData(current => { const prices={...current.step_user_fee_cents}; if(event.target.value==='') delete prices[serviceStep.id]; else prices[serviceStep.id]=Number(event.target.value); return {...current,step_user_fee_cents:prices}; })} data-testid={`partner-step-price-${serviceStep.id}`} /></div></div>;
+                        })}{!(partner.service_steps || []).length && <p className="rounded border border-dashed border-border p-3 text-sm text-muted-foreground">Über Tags und Survey-Zuordnung ist diesem Partner noch kein Partner-Step zugeordnet.</p>}</div>
+                    </div>}
+                    <div className="border-t border-border pt-4" data-testid="partner-stripe-fields"><Label>Stripe-Verknüpfung</Label><p className="mb-3 text-xs text-muted-foreground">Manuelle Pflege für bestehende Stripe-Konten. IDs müssen zum selben Stripe-Kunden gehören.</p><div className="space-y-3"><div><Label>Customer-ID</Label><Input value={formData.stripe_customer_id} onChange={event => setFormData({...formData,stripe_customer_id:event.target.value.trim()})} placeholder="cus_…" /></div><div><Label>Subscription-ID</Label><Input value={formData.stripe_subscription_id} onChange={event => setFormData({...formData,stripe_subscription_id:event.target.value.trim()})} placeholder="sub_…" /></div><div><Label>Abrechnungsstatus</Label><Select value={formData.billing_status || 'pending'} onValueChange={value => setFormData({...formData,billing_status:value})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">pending</SelectItem><SelectItem value="trialing">trialing</SelectItem><SelectItem value="active">active</SelectItem><SelectItem value="paid">paid</SelectItem><SelectItem value="past_due">past_due</SelectItem><SelectItem value="unpaid">unpaid</SelectItem><SelectItem value="canceled">canceled</SelectItem></SelectContent></Select></div></div></div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
                         <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-partner-btn">
@@ -3250,7 +3457,9 @@ function CreateUserDialog({ open, onClose, onSave, partners, surveys, permission
                                 <SelectTrigger className="mt-1" data-testid="create-user-partner"><SelectValue placeholder={t('create_user_no_partner')} /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">{t('create_user_no_partner')}</SelectItem>
-                                    {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                    {[...partners]
+                                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+                                        .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

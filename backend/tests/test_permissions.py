@@ -85,6 +85,10 @@ ADMIN_REQUEST_CASES = [
     ("PUT", "/api/admin/event-configs/user.created", "messages.manage"),
     ("POST", "/api/admin/events/507f1f77bcf86cd799439011/retry", "messages.manage"),
     ("GET", "/api/admin/settings", "settings.view"),
+    ("GET", "/api/admin/billing", "settings.view"),
+    ("GET", "/api/admin/billing/connection-audit", "settings.view"),
+    ("POST", "/api/admin/billing/connection-repairs/all", "settings.manage"),
+    ("POST", "/api/admin/billing/connection-repairs/507f1f77bcf86cd799439011", "settings.manage"),
     ("PUT", "/api/admin/settings", "settings.manage"),
 ]
 
@@ -110,7 +114,7 @@ PORTAL_REQUEST_CASES = [
 # These permissions guard frontend entry points or read-only UI visibility.
 # Their presence in the default groups is asserted below; the underlying public
 # CMS reads intentionally do not require authentication.
-UI_ONLY_PERMISSIONS = {"portal.user.access", "portal.partner.access", "cms.view"}
+UI_ONLY_PERMISSIONS = {"portal.user.access", "portal.partner.access", "partner.users.email.view", "cms.view"}
 
 
 def test_normalize_permissions_removes_unknown_values_and_duplicates():
@@ -223,7 +227,7 @@ def test_wildcard_grants_every_permission_and_deny_removes_only_selected_right(m
 @pytest.mark.parametrize("role,expected", [
     ("admin", set(permissions.ALL_PERMISSION_KEYS) | {"*"}),
     ("user", {"portal.user.access", "profile.self.manage", "survey.own.view", "survey.own.submit", "files.own.manage"}),
-    ("partner", {"portal.partner.access", "profile.self.manage", "partner.users.view", "partner.users.manage", "files.own.manage"}),
+    ("partner", {"portal.partner.access", "profile.self.manage", "partner.users.view", "partner.users.email.view", "partner.users.manage", "files.own.manage"}),
 ])
 def test_legacy_users_receive_the_role_default_until_migrated(monkeypatch, role, expected):
     monkeypatch.setattr(permissions, "db", FakeDb([]))

@@ -24,6 +24,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File,
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 # Shared modules
 from database import db, client
@@ -39,6 +40,8 @@ from models import (
 from stripe_service import (
     SECRET_FIELDS, public_stripe_status, create_customer,
     create_checkout_session, checkout_session, create_customer_portal, list_customer_invoices,
+    create_pending_invoice_item, retrieve_customer, find_customers_by_email,
+    retrieve_subscription, list_customer_subscriptions,
 )
 from auth import (
     get_jwt_secret, JWT_ALGORITHM, hash_password, verify_password,
@@ -52,7 +55,7 @@ from helpers import (
     calculate_completion_pct, calculate_estimated_completion,
     calculate_users_metrics, calculate_metrics_from_loaded_context,
     apply_auto_completes, _get_step_context,
-    apply_anerkennungsstatus_skips
+    apply_anerkennungsstatus_skips, _evaluate_condition,
 )
 from form_builder import (
     CONTENT_FIELD_TYPES, FORM_SCHEMA_VERSION,
@@ -60,7 +63,7 @@ from form_builder import (
 )
 from permissions import (
     ALL_PERMISSION_KEYS, PERMISSION_CATALOG, default_group_id,
-    effective_permissions, ensure_permission_groups, has_permission,
+    effective_permissions, ensure_permission_groups, ensure_user_role_group, has_permission,
     normalize_permissions, permission_for_admin_request, permission_for_portal_request,
     permission_group_summaries, partner_is_awaiting_assignment,
 )
@@ -99,8 +102,6 @@ async def enforce_admin_permissions(request: Request, call_next):
                 {"_id": ObjectId(user["partner_id"])},
                 {"registration_source": 1, "registration_status": 1, "is_active": 1, "survey_ids": 1, "billing_status": 1},
             )
-            if partner and partner.get("registration_source") == "self_service" and partner.get("billing_status") not in {"paid", "active", "trialing"}:
-                return JSONResponse(status_code=402, content={"detail": "Partner access requires a confirmed Stripe payment"})
             pending_read_allowed = request.method == "GET" and path in pending_read_paths
             if partner_is_awaiting_assignment(partner) and not pending_read_allowed:
                 return JSONResponse(status_code=403, content={"detail": "Partner account is awaiting survey assignment"})
@@ -202,6 +203,7 @@ def _admin_step_payload(step: dict) -> dict:
         "fields": step.get("fields", []),
         "form_schema_version": step.get("form_schema_version", FORM_SCHEMA_VERSION),
         "filter_tag": step.get("filter_tag", ""),
+        "partner_user_fee_cents": step.get("partner_user_fee_cents"),
         "skippable": step.get("skippable", False),
         "skip_label": step.get("skip_label", ""),
         "action_label": step.get("action_label", ""),
@@ -261,7 +263,7 @@ async def _auth_user_payload(user: dict, access_token: str | None = None) -> dic
         })
         payload["partner_registration_status"] = (partner or {}).get("registration_status", "active")
         payload["partner_is_active"] = (partner or {}).get("is_active", True)
-        payload["partner_billing_status"] = (partner or {}).get("billing_status", "paid")
+        payload["partner_billing_status"] = (partner or {}).get("billing_status", "pending")
         payload["partner_payment_required"] = (partner or {}).get("registration_source") == "self_service"
     if access_token:
         payload["access_token"] = access_token
@@ -284,6 +286,14 @@ async def _can_access_file(user: dict, file_doc: dict) -> bool:
     if not owner_id:
         return False
     if user.get("role") == "admin" or user.get("_id") == owner_id:
+        return True
+    if user.get("role") == "user" and await db.user_progress.find_one({
+        "user_id": user.get("_id"),
+        "$or": [
+            {"data.partner_uploads.file_id": file_doc.get("id")},
+            {"data.documents.file_id": file_doc.get("id")},
+        ],
+    }, {"_id": 1}):
         return True
     if user.get("role") != "partner" or not user.get("partner_id"):
         return False
@@ -484,6 +494,7 @@ async def admin_impersonate_user(user_id: str, request: Request):
     target = await db.users.find_one({"_id": ObjectId(user_id)})
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    target = await ensure_user_role_group(target)
     tid = str(target["_id"])
     access_token = create_access_token(tid, target["email"], target["role"])
     await create_audit_log(admin_user["_id"], admin_user["email"], "impersonate", "user", tid, {"target_email": target["email"]})
@@ -563,6 +574,124 @@ async def get_all_step_data(request: Request, survey_slug: Optional[str] = Query
     } for s in steps]
 
 
+def _document_workflow_state(steps: list[dict], progress: list[dict]) -> dict[str, dict]:
+    """Resolve shared documents and immutable branch steps for decision blocks."""
+    ordered = sorted(steps, key=lambda item: item.get("order", 0))
+    progress_by_step = {row.get("step_id"): row for row in progress}
+    order_map = {
+        step.get("order"): {
+            "data": (progress_by_step.get(str(step.get("_id") or step.get("id"))) or {}).get("data") or {},
+            "status": (progress_by_step.get(str(step.get("_id") or step.get("id"))) or {}).get("status", "pending"),
+        }
+        for step in ordered
+    }
+    state: dict[str, dict] = {}
+    decision = None
+    branch_steps: list[dict] = []
+    for step in ordered:
+        if step.get("step_type") == "decision":
+            decision, branch_steps = step, []
+            continue
+        if decision is None:
+            continue
+        if step.get("step_type") != "milestone":
+            branch_steps.append(step)
+            continue
+        has_upload_branch = any(any(
+            field.get("field_type") in {"file", "upload", "multiupload"}
+            for field in branch.get("fields", [])
+        ) for branch in branch_steps)
+        has_partner_branch = any(
+            branch.get("step_type") in {"partner_selection", "partner_multiselection"}
+            for branch in branch_steps
+        )
+        if has_upload_branch and has_partner_branch:
+            documents, seen_ids = [], set()
+            for source in [*branch_steps, step]:
+                source_id = str(source.get("_id") or source.get("id"))
+                data = (progress_by_step.get(source_id) or {}).get("data") or {}
+                for key, value in data.items():
+                    if not isinstance(value, list):
+                        continue
+                    for entry in value:
+                        if not isinstance(entry, dict) or not entry.get("file_id") or entry["file_id"] in seen_ids:
+                            continue
+                        seen_ids.add(entry["file_id"])
+                        documents.append({
+                            "file_id": entry["file_id"],
+                            "filename": entry.get("filename") or "Dokument",
+                            "document_type": entry.get("document_type") or "Dokument",
+                            "uploaded_by": entry.get("uploaded_by") or ("partner" if key == "partner_uploads" else "user"),
+                        })
+            for locked_step in [decision, *branch_steps]:
+                locked = any(
+                    condition.get("action") == "read_only" and _evaluate_condition(condition, order_map)
+                    for condition in locked_step.get("conditions", [])
+                )
+                state[str(locked_step.get("_id") or locked_step.get("id"))] = {"read_only": locked}
+            state[str(step.get("_id") or step.get("id"))] = {
+                "documents": documents,
+                "documents_pending": not locked,
+                "document_workflow": True,
+            }
+        decision, branch_steps = None, []
+    return state
+
+
+async def _migrate_document_workflow_titles() -> int:
+    """Align titles and expose the workflow's immutable-state relations."""
+    settings = await db.site_settings.find_one({"_key": "global"}, {"document_workflow_version": 1}) or {}
+    current_version = settings.get("document_workflow_version", 0)
+    if current_version >= 2:
+        return 0
+    changed = 0
+    for survey_id in await db.steps.distinct("survey_id"):
+        steps = await db.steps.find(_step_query_for_survey(survey_id)).sort("order", 1).to_list(100)
+        decision, branches = None, []
+        for step in steps:
+            if step.get("step_type") == "decision":
+                decision, branches = step, []
+                continue
+            if decision is None:
+                continue
+            if step.get("step_type") != "milestone":
+                branches.append(step)
+                continue
+            upload_step = next((branch for branch in branches if any(
+                field.get("field_type") in {"file", "upload", "multiupload"}
+                for field in branch.get("fields", [])
+            )), None)
+            partner_step = next((branch for branch in branches if branch.get("step_type") in {"partner_selection", "partner_multiselection"}), None)
+            if current_version < 1 and upload_step and partner_step and upload_step.get("title", "").startswith("Dokumente ") and step.get("title", "").startswith("Übersicht "):
+                await db.steps.update_one({"_id": upload_step["_id"]}, {"$set": {"title": step["title"]}})
+                await db.steps.update_one({"_id": step["_id"]}, {"$set": {"title": upload_step["title"]}})
+                changed += 2
+            if upload_step and partner_step:
+                upload_field = next((field for field in upload_step.get("fields", []) if field.get("field_type") in {"file", "upload", "multiupload"}), None)
+                lock_conditions = [
+                    {"action": "read_only", "source_step_order": upload_step["order"], "field": upload_field["name"], "operator": "has_upload", "value": "", "message": "Nach dem Dokumenten-Upload ist dieser Schritt schreibgeschützt."},
+                    {"action": "read_only", "source_step_order": step["order"], "field": "partner_uploads", "operator": "has_upload", "value": "", "message": "Nach dem Dokumenten-Upload ist dieser Schritt schreibgeschützt."},
+                ]
+                for target in (decision, upload_step, partner_step):
+                    conditions = target.get("conditions") or []
+                    existing_keys = {(c.get("action"), c.get("source_step_order"), c.get("field"), c.get("operator")) for c in conditions}
+                    additions = [c for c in lock_conditions if (c["action"], c["source_step_order"], c["field"], c["operator"]) not in existing_keys]
+                    if additions:
+                        await db.steps.update_one({"_id": target["_id"]}, {"$set": {"conditions": [*conditions, *additions]}})
+                        changed += len(additions)
+            decision, branches = None, []
+    await db.site_settings.update_one({"_key": "global"}, {"$set": {"document_workflow_version": 2}}, upsert=True)
+    return changed
+
+
+async def _assert_document_workflow_editable(user_id: str, step: dict) -> None:
+    survey_id = step.get("survey_id")
+    steps = await db.steps.find(_step_query_for_survey(survey_id)).sort("order", 1).to_list(100)
+    progress = await db.user_progress.find({"user_id": user_id, "survey_id": survey_id}, {"_id": 0}).to_list(100)
+    if _document_workflow_state(steps, progress).get(str(step.get("_id")), {}).get("read_only"):
+        raise HTTPException(status_code=409, detail="Dieser Schritt ist nach dem Dokumenten-Upload schreibgeschützt.")
+
+
 @steps_router.get("/bootstrap")
 async def get_dashboard_bootstrap(request: Request, survey_slug: Optional[str] = Query(None)):
     """Single reload payload for the user dashboard."""
@@ -586,6 +715,8 @@ async def get_dashboard_bootstrap(request: Request, survey_slug: Optional[str] =
         {**{key: value for key, value in step.items() if key != "_id"}, "id": str(step["_id"])}
         for step in steps
     ]
+    workflow_state = _document_workflow_state(steps, progress)
+    serialized_steps = [{**step, **workflow_state.get(step["id"], {})} for step in serialized_steps]
     all_data = [{
         "step_id": str(step["_id"]), "order": step["order"], "title": step["title"],
         "step_type": step["step_type"],
@@ -617,6 +748,7 @@ async def update_user_progress(data: UserProgressUpdate, request: Request):
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     existing = await db.user_progress.find_one({"user_id": user["_id"], "step_id": data.step_id})
+    await _assert_document_workflow_editable(user["_id"], step)
 
     if data.status == "completed" and not (data.data or {}).get("skipped"):
         required_fields = list(dict.fromkeys([
@@ -715,6 +847,27 @@ async def get_step_visibility(request: Request):
 # PARTNERS ROUTES (Public)
 # ========================
 
+async def _validate_partner_selection_step(user: dict, step_id: str | None) -> dict | None:
+    if not step_id or not ObjectId.is_valid(step_id):
+        return None
+    step = await db.steps.find_one({"_id": ObjectId(step_id)})
+    if not step or step.get("step_type") not in {"partner_selection", "partner_multiselection"}:
+        raise HTTPException(status_code=400, detail="Submission step is not a partner selection step")
+    if user.get("survey_id") and step.get("survey_id") != user["survey_id"]:
+        raise HTTPException(status_code=400, detail="Submission step belongs to another survey")
+    await _assert_document_workflow_editable(user["_id"], step)
+    return step
+
+
+async def _persist_partner_selection_progress(user: dict, step: dict, selection_data: dict) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    await db.user_progress.update_one({"user_id": user["_id"], "step_id": str(step["_id"])}, {"$set": {
+        "user_id": user["_id"], "step_id": str(step["_id"]), "survey_id": step.get("survey_id") or user.get("survey_id"),
+        "step_order": step.get("order"), "status": "completed", "data": selection_data,
+        "started_at": now, "completed_at": now, "updated_at": now,
+    }}, upsert=True)
+
+
 @partner_router.get("")
 async def get_partners(tag: str = ""):
     query = {"is_active": True}
@@ -733,15 +886,27 @@ async def get_partner(partner_id: str):
 @partner_router.post("/submit")
 async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
     user = await get_current_user(request)
+    workflow_step_id = (data.data or {}).get("_step_id")
+    workflow_step = await _validate_partner_selection_step(user, workflow_step_id)
     partner = await db.partners.find_one({"_id": ObjectId(data.partner_id)})
     if not partner:
         raise HTTPException(status_code=404, detail="Partner not found")
-    existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": data.partner_id})
+    if workflow_step and workflow_step.get("filter_tag") not in (partner.get("tags") or []):
+        raise HTTPException(status_code=400, detail="Partner is not offered in this selection step")
+    selection_data = {k: v for k, v in (data.data or {}).items() if k != "_step_id"}
+    if workflow_step:
+        selection_data.update({"selected_partner_id": data.partner_id, "selected_partner_name": partner.get("name", "")})
+        await db.partner_submissions.delete_many({"user_id": user["_id"], "step_id": workflow_step_id, "partner_id": {"$ne": data.partner_id}})
+    existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": data.partner_id, **({"step_id": workflow_step_id} if workflow_step else {})})
     if existing:
-        await db.partner_submissions.update_one({"user_id": user["_id"], "partner_id": data.partner_id}, {"$set": {"data": data.data, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}})
+        await db.partner_submissions.update_one({"_id": existing["_id"]}, {"$set": {"step_id": workflow_step_id, "data": selection_data, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}})
+        if workflow_step:
+            await _persist_partner_selection_progress(user, workflow_step, selection_data)
         return {"message": "Submission updated", "submission_id": existing["id"]}
-    submission = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": data.partner_id, "data": data.data, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
+    submission = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": data.partner_id, "step_id": workflow_step_id, "data": selection_data, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
     await db.partner_submissions.insert_one(submission)
+    if workflow_step:
+        await _persist_partner_selection_progress(user, workflow_step, selection_data)
     # Fire-and-forget notifications (don't fail the request on mail errors)
     try:
         await notify_partner_of_new_submission(partner, user, data.data)
@@ -756,17 +921,28 @@ async def submit_to_partner(data: PartnerSubmissionCreate, request: Request):
 @api_router.post("/partners/submit-multi")
 async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Request):
     user = await get_current_user(request)
+    workflow_step_id = (data.data or {}).get("_step_id")
+    workflow_step = await _validate_partner_selection_step(user, workflow_step_id)
+    if workflow_step and workflow_step.get("step_type") != "partner_multiselection":
+        raise HTTPException(status_code=400, detail="Multiple partners require a multi-selection step")
+    selected_names = []
+    if workflow_step:
+        await db.partner_submissions.delete_many({"user_id": user["_id"], "step_id": workflow_step_id, "partner_id": {"$nin": data.partner_ids}})
     results = []
     for pid in data.partner_ids:
         partner = await db.partners.find_one({"_id": ObjectId(pid)})
         if not partner:
             continue
-        existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": pid})
+        if workflow_step and workflow_step.get("filter_tag") not in (partner.get("tags") or []):
+            continue
+        selected_names.append(partner.get("name", ""))
+        selection_data = {k: v for k, v in (data.data or {}).items() if k != "_step_id"}
+        existing = await db.partner_submissions.find_one({"user_id": user["_id"], "partner_id": pid, **({"step_id": workflow_step_id} if workflow_step else {})})
         if existing:
-            await db.partner_submissions.update_one({"user_id": user["_id"], "partner_id": pid}, {"$set": {"data": data.data or {}, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}})
+            await db.partner_submissions.update_one({"_id": existing["_id"]}, {"$set": {"step_id": workflow_step_id, "data": selection_data, "status": "submitted", "updated_at": datetime.now(timezone.utc).isoformat()}})
             results.append(existing["id"])
         else:
-            sub = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": pid, "data": data.data or {}, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
+            sub = {"id": str(uuid.uuid4()), "user_id": user["_id"], "user_email": user["email"], "user_name": user["name"], "partner_id": pid, "step_id": workflow_step_id, "data": selection_data, "status": "submitted", "created_at": datetime.now(timezone.utc).isoformat()}
             await db.partner_submissions.insert_one(sub)
             results.append(sub["id"])
             try:
@@ -777,6 +953,10 @@ async def submit_to_multiple_partners(data: MultiPartnerSubmission, request: Req
                 await notify_user_awaiting_partner(user, partner)
             except Exception as exc:
                 logger.warning(f"notify_user_awaiting_partner (multi) failed for {pid}: {exc}")
+    if workflow_step:
+        await _persist_partner_selection_progress(user, workflow_step, {
+            "selected_partner_ids": data.partner_ids, "selected_partner_names": ", ".join(selected_names),
+        })
     return {"message": f"Submitted to {len(results)} partners", "submission_ids": results}
 
 # ========================
@@ -983,6 +1163,10 @@ async def admin_get_users(request: Request):
     # Preload partners into a lookup {id_str: name}
     partner_docs = await db.partners.find({}, {"name": 1, "linked_user_ids": 1, "registration_status": 1, "is_active": 1}).to_list(1000)
     partner_name_by_id = {str(p["_id"]): p.get("name", "") for p in partner_docs}
+    partner_name_by_key = {
+        p.get("name", "").strip().casefold(): p.get("name", "")
+        for p in partner_docs if p.get("name", "").strip()
+    }
     # linked_user_id -> list[partner_name]
     partners_by_linked_user: dict[str, list[str]] = {}
     for p in partner_docs:
@@ -1040,11 +1224,14 @@ async def admin_get_users(request: Request):
     for u in users:
         uid = str(u["_id"])
         partner_names: list[str] = []
+        orphaned_partner_references: list[dict[str, str]] = []
         # 1) Partner-role users: resolve their own partner_id → org name
         if u.get("role") == "partner" and u.get("partner_id"):
             pname = partner_name_by_id.get(u["partner_id"])
             if pname:
                 partner_names.append(pname)
+            else:
+                orphaned_partner_references.append({"type": "partner_id", "value": str(u["partner_id"])})
         # 2) Any user: partners that explicitly linked this user
         for pname in partners_by_linked_user.get(uid, []):
             if pname and pname not in partner_names:
@@ -1053,20 +1240,33 @@ async def admin_get_users(request: Request):
         if u.get("role") == "user" and partner_step_ids:
             for pr in partner_progress_by_user.get(uid, []):
                 data = pr.get("data") or {}
-                pid = data.get("selected_partner_id")
-                if pid and partner_name_by_id.get(pid):
-                    name = partner_name_by_id[pid]
-                    if name not in partner_names:
-                        partner_names.append(name)
-                for pid in (data.get("selected_partner_ids") or []):
-                    if partner_name_by_id.get(pid):
-                        name = partner_name_by_id[pid]
+                selected_pid = data.get("selected_partner_id")
+                selected_pids = data.get("selected_partner_ids") or []
+                if selected_pid:
+                    if partner_name_by_id.get(selected_pid):
+                        name = partner_name_by_id[selected_pid]
                         if name not in partner_names:
                             partner_names.append(name)
-                # Fallback: some legacy/demo rows store only selected_partner_name
+                    else:
+                        orphaned_partner_references.append({"type": "partner_id", "value": str(selected_pid)})
+                for selected_multi_pid in selected_pids:
+                    if partner_name_by_id.get(selected_multi_pid):
+                        name = partner_name_by_id[selected_multi_pid]
+                        if name not in partner_names:
+                            partner_names.append(name)
+                    else:
+                        orphaned_partner_references.append({"type": "partner_id", "value": str(selected_multi_pid)})
+                # Legacy/demo rows sometimes stored only a name. Resolve it
+                # only when a current partner matches; never present arbitrary
+                # historic text as a real partner assignment.
                 pname = data.get("selected_partner_name")
-                if pname and pname not in partner_names:
-                    partner_names.append(pname)
+                if pname and not selected_pid and not selected_pids:
+                    canonical_name = partner_name_by_key.get(str(pname).strip().casefold())
+                    if canonical_name:
+                        if canonical_name not in partner_names:
+                            partner_names.append(canonical_name)
+                    else:
+                        orphaned_partner_references.append({"type": "legacy_name", "value": str(pname)})
 
         # "Anmeldungen" count:
         #  - partner role: pending count for their own partner org
@@ -1095,6 +1295,9 @@ async def admin_get_users(request: Request):
             "completion_pct": metrics["completion_pct"],
             "estimated_completion": metrics["estimated_completion"],
             "partner_names": partner_names,
+            "orphaned_partner_references": list({
+                (item["type"], item["value"]): item for item in orphaned_partner_references
+            }.values()),
             "pending_registrations": pending_registrations,
             "group_ids": u.get("group_ids", []),
             "permission_groups": [
@@ -1123,6 +1326,15 @@ async def admin_create_user(data: AdminUserCreate, request: Request):
     admin_user = await require_role("admin")(request)
     if data.role not in {"user", "partner", "admin"}:
         raise HTTPException(status_code=400, detail="Invalid role")
+    partner = None
+    if data.partner_id:
+        if data.role != "partner":
+            raise HTTPException(status_code=400, detail="Only partner users can be assigned to a partner")
+        if not ObjectId.is_valid(data.partner_id):
+            raise HTTPException(status_code=400, detail="Invalid partner id")
+        partner = await db.partners.find_one({"_id": ObjectId(data.partner_id)})
+        if not partner:
+            raise HTTPException(status_code=400, detail="Unknown partner id")
     if (data.role == "admin" or data.group_ids) and not await has_permission(admin_user, "users.permissions.manage"):
         raise HTTPException(status_code=403, detail="Missing permission: users.permissions.manage")
     email = data.email.lower()
@@ -1177,8 +1389,8 @@ async def admin_create_user(data: AdminUserCreate, request: Request):
                 "created_at": now,
                 "updated_at": now,
             } for step in steps])
-    if data.role == "partner" and data.partner_id:
-        await db.partners.update_one({"_id": ObjectId(data.partner_id)}, {"$set": {"user_id": uid}})
+    if partner:
+        await db.partners.update_one({"_id": partner["_id"]}, {"$set": {"user_id": uid}})
     await create_audit_log(admin_user["_id"], admin_user["email"], "user_create", "user", uid, {
         "email": email, "role": data.role, "survey_id": str(survey["_id"]) if survey else None,
     })
@@ -1388,6 +1600,7 @@ async def admin_create_step(data: StepCreate, request: Request):
     ]
     required_fields = list(dict.fromkeys([*(data.required_fields or []), *inferred_required]))
     step_doc = {"survey_id": survey_id, "title": data.title, "description": data.description, "order": data.order, "step_type": data.step_type, "fields": fields, "form_schema_version": FORM_SCHEMA_VERSION, "filter_tag": data.filter_tag or "", "skippable": data.skippable, "skip_label": data.skip_label or "", "action_label": data.action_label or "", "pending_message": data.pending_message or "", "complete_message": data.complete_message or "", "required_fields": required_fields, "required_uploads": data.required_uploads or [], "field_mappings": [mapping.model_dump(exclude_none=True) for mapping in data.field_mappings or []], "conditions": [condition.model_dump(exclude_none=True) for condition in data.conditions or []], "email_on_enter": data.email_on_enter, "email_on_edit": data.email_on_edit, "email_on_leave": data.email_on_leave, "email_subject_enter": data.email_subject_enter or "", "email_body_enter": data.email_body_enter or "", "email_subject_edit": data.email_subject_edit or "", "email_body_edit": data.email_body_edit or "", "email_subject_leave": data.email_subject_leave or "", "email_body_leave": data.email_body_leave or "", "duration_value": data.duration_value, "duration_unit": data.duration_unit, "translations": data.translations or {}, "is_active": True, "created_at": datetime.now(timezone.utc).isoformat()}
+    step_doc["partner_user_fee_cents"] = data.partner_user_fee_cents
     result = await db.steps.insert_one(step_doc)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_create", "step", str(result.inserted_id), {"title": data.title})
@@ -1426,6 +1639,7 @@ async def admin_save_step_layout_bulk(data: StepLayoutBulk, request: Request):
 @admin_router.put("/steps/{step_id}")
 async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
     await require_role("admin")(request)
+    clear_partner_price = "partner_user_fee_cents" in data.model_fields_set and data.partner_user_fee_cents is None
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if "fields" in update_data:
         update_data["fields"] = [
@@ -1442,7 +1656,10 @@ async def admin_update_step(step_id: str, data: StepUpdate, request: Request):
                 *(update_data.get("required_fields") or []), *inferred_required,
             ]))
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.steps.update_one({"_id": ObjectId(step_id)}, {"$set": update_data})
+    update_operation = {"$set": update_data}
+    if clear_partner_price:
+        update_operation["$unset"] = {"partner_user_fee_cents": ""}
+    await db.steps.update_one({"_id": ObjectId(step_id)}, update_operation)
     admin_user = await get_current_user(request)
     await create_audit_log(admin_user["_id"], admin_user["email"], "step_update", "step", step_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Step updated"}
@@ -1464,7 +1681,8 @@ async def admin_delete_step(step_id: str, request: Request):
 @admin_router.get("/partners")
 async def admin_get_partners(request: Request):
     await require_role("admin")(request)
-    partners = await db.partners.find().to_list(100)
+    partners = await db.partners.find().to_list(1000)
+    partners.sort(key=lambda partner: (partner.get("name") or "").casefold())
     all_users = await db.users.find(
         {}, {"password_hash": 0}
     ).to_list(2000)
@@ -1494,6 +1712,9 @@ async def admin_get_partners(request: Request):
             if not statuses.get(candidate_uid, {}).get("completed", False)
         )
 
+    service_steps = await db.steps.find({
+        "step_type": {"$in": ["partner_selection", "partner_multiselection"]}, "is_active": True,
+    }, {"title": 1, "order": 1, "survey_id": 1, "filter_tag": 1, "partner_user_fee_cents": 1}).sort("order", 1).to_list(1000)
     result = []
     for p in partners:
         pid = str(p["_id"])
@@ -1522,6 +1743,18 @@ async def admin_get_partners(request: Request):
             "registered_at": p.get("registered_at", p.get("created_at")),
             "stripe_account_id": p.get("stripe_account_id"),
             "stripe_onboarding_complete": p.get("stripe_onboarding_complete", False),
+            "stripe_customer_id": p.get("stripe_customer_id", ""),
+            "stripe_subscription_id": p.get("stripe_subscription_id", ""),
+            "billing_status": p.get("billing_status", ""),
+            "step_user_fee_cents": p.get("step_user_fee_cents", {}),
+            "service_steps": [{
+                "id": str(step["_id"]), "title": step.get("title", ""), "order": step.get("order", 0),
+                "survey_id": step.get("survey_id"), "filter_tag": step.get("filter_tag", ""),
+                "step_user_fee_cents": step.get("partner_user_fee_cents"),
+            } for step in service_steps if (
+                step.get("filter_tag") in (p.get("tags") or [])
+                and (not p.get("survey_ids") or step.get("survey_id") in p.get("survey_ids", []))
+            )],
         })
     return result
 
@@ -1529,7 +1762,7 @@ async def admin_get_partners(request: Request):
 async def admin_create_partner(data: PartnerCreate, request: Request):
     admin_user = await require_role("admin")(request)
     survey_ids = data.survey_ids or []
-    partner_doc = {"name": data.name, "description": data.description, "logo_url": data.logo_url, "website": data.website, "contact_email": data.contact_email, "category": data.category, "tags": data.tags or [], "linked_user_ids": data.linked_user_ids or [], "survey_ids": survey_ids, "is_active": bool(survey_ids) if data.survey_ids is not None else True, "registration_status": "active", "registration_source": "admin", "created_at": datetime.now(timezone.utc).isoformat()}
+    partner_doc = {"name": data.name, "description": data.description, "logo_url": data.logo_url, "website": data.website, "contact_email": data.contact_email, "category": data.category, "tags": data.tags or [], "linked_user_ids": data.linked_user_ids or [], "survey_ids": survey_ids, "step_user_fee_cents": data.step_user_fee_cents or {}, "stripe_customer_id": data.stripe_customer_id, "stripe_subscription_id": data.stripe_subscription_id, "billing_status": data.billing_status or "pending", "is_active": bool(survey_ids) if data.survey_ids is not None else True, "registration_status": "active", "registration_source": "admin", "created_at": datetime.now(timezone.utc).isoformat()}
     result = await db.partners.insert_one(partner_doc)
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_create", "partner", str(result.inserted_id), {"name": data.name})
     return {"id": str(result.inserted_id), "message": "Partner created"}
@@ -1548,7 +1781,20 @@ async def admin_update_partner(partner_id: str, data: PartnerUpdate, request: Re
         update_data["survey_ids"] = list(dict.fromkeys(data.survey_ids))
         update_data["is_active"] = bool(update_data["survey_ids"])
         update_data["registration_status"] = "active" if update_data["is_active"] else "pending"
+    if data.step_user_fee_cents is not None:
+        step_ids = list(data.step_user_fee_cents)
+        valid = await db.steps.count_documents({
+            "_id": {"$in": [_safe_object_id(sid, "Invalid step id") for sid in step_ids]},
+            "step_type": {"$in": ["partner_selection", "partner_multiselection"]},
+        }) if step_ids else 0
+        if valid != len(step_ids):
+            raise HTTPException(status_code=400, detail="Partner prices may only reference partner selection steps")
+    if data.billing_status is not None:
+        update_data["access_unlocked"] = data.billing_status in {"active", "trialing", "paid"}
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": update_data})
+    updated_partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    if updated_partner and updated_partner.get("stripe_customer_id") and updated_partner.get("stripe_subscription_id"):
+        await _sync_pending_partner_usage_charges(updated_partner)
     await create_audit_log(admin_user["_id"], admin_user["email"], "partner_update", "partner", partner_id, {"fields_changed": list(update_data.keys())})
     return {"message": "Partner updated"}
 
@@ -1560,8 +1806,12 @@ async def admin_delete_partner(partner_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Partner not found")
     # Cascade: unlink partner-role users (set back to "user")
     partner_users = await db.users.find({"partner_id": partner_id}).to_list(100)
+    user_group_id = await default_group_id("user")
     for pu in partner_users:
-        await db.users.update_one({"_id": pu["_id"]}, {"$set": {"role": "user"}, "$unset": {"partner_id": ""}})
+        await db.users.update_one(
+            {"_id": pu["_id"]},
+            {"$set": {"role": "user", "group_ids": [user_group_id] if user_group_id else [], "permission_overrides": {"allow": [], "deny": []}}, "$unset": {"partner_id": ""}},
+        )
     # Cascade: remove all submissions to this partner
     await db.partner_submissions.delete_many({"partner_id": partner_id})
     await db.partners.delete_one({"_id": ObjectId(partner_id)})
@@ -1579,9 +1829,11 @@ async def admin_link_partner_user(partner_id: str, user_id: str, request: Reques
         raise HTTPException(status_code=404, detail="Partner not found")
     old_user_id = partner.get("user_id")
     if old_user_id:
-        await db.users.update_one({"_id": ObjectId(old_user_id)}, {"$set": {"role": "user"}, "$unset": {"partner_id": ""}})
+        user_group_id = await default_group_id("user")
+        await db.users.update_one({"_id": ObjectId(old_user_id)}, {"$set": {"role": "user", "group_ids": [user_group_id] if user_group_id else [], "permission_overrides": {"allow": [], "deny": []}}, "$unset": {"partner_id": ""}})
+    partner_group_id = await default_group_id("partner")
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$set": {"user_id": user_id}})
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": "partner", "partner_id": partner_id}})
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": "partner", "partner_id": partner_id, "group_ids": [partner_group_id] if partner_group_id else [], "permission_overrides": {"allow": [], "deny": []}}})
     return {"message": "Partner linked to user", "user_name": target_user["name"]}
 
 @admin_router.put("/partners/{partner_id}/unlink-user")
@@ -1592,7 +1844,8 @@ async def admin_unlink_partner_user(partner_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Partner not found")
     old_user_id = partner.get("user_id")
     if old_user_id:
-        await db.users.update_one({"_id": ObjectId(old_user_id)}, {"$set": {"role": "user"}, "$unset": {"partner_id": ""}})
+        user_group_id = await default_group_id("user")
+        await db.users.update_one({"_id": ObjectId(old_user_id)}, {"$set": {"role": "user", "group_ids": [user_group_id] if user_group_id else [], "permission_overrides": {"allow": [], "deny": []}}, "$unset": {"partner_id": ""}})
     await db.partners.update_one({"_id": ObjectId(partner_id)}, {"$unset": {"user_id": ""}})
     return {"message": "Partner unlinked from user"}
 
@@ -1612,6 +1865,167 @@ async def admin_get_analytics(request: Request):
         in_progress = await db.user_progress.count_documents({"step_id": sid, "status": "in_progress"})
         step_analytics.append({"step_id": sid, "title": step["title"], "order": step["order"], "total": total, "completed": completed, "in_progress": in_progress, "completion_rate": round((completed / total * 100) if total > 0 else 0, 1)})
     return {"total_users": total_users, "total_partners": total_partners, "total_submissions": total_submissions, "admin_count": await db.users.count_documents({"role": "admin"}), "partner_count": await db.users.count_documents({"role": "partner"}), "recent_registrations": await db.users.count_documents({"created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()}}), "step_analytics": step_analytics}
+
+
+@admin_router.get("/billing")
+async def admin_billing_summary(request: Request):
+    await require_role("admin")(request)
+    partners = await db.partners.find({}, {"name": 1, "stripe_customer_id": 1, "billing_status": 1}).sort("name", 1).to_list(1000)
+    result = []
+    for partner in partners:
+        partner_id = str(partner["_id"])
+        invoices = []
+        if partner.get("stripe_customer_id"):
+            try:
+                payload = await list_customer_invoices(partner["stripe_customer_id"])
+                invoices = [_invoice_view(invoice) for invoice in payload.get("data", [])]
+            except HTTPException:
+                invoices = []
+        result.append({
+            "partner_id": partner_id, "partner_name": partner.get("name", ""),
+            "billing_status": partner.get("billing_status", "pending"),
+            "usage": await _usage_billing_stats(partner_id), "invoices": invoices,
+        })
+    return {"partners": result, "totals": {
+        "pending_users": sum(item["usage"]["pending_users"] for item in result),
+        "pending_amount": sum(item["usage"]["pending_amount"] for item in result),
+        "billed_users": sum(item["usage"]["billed_users"] for item in result),
+        "billed_amount": sum(item["usage"]["billed_amount"] for item in result),
+    }}
+
+
+async def _stripe_connection_report(partner: dict) -> dict:
+    partner_id = str(partner["_id"])
+    user = await db.users.find_one({"$or": [{"partner_id": partner_id}, {"_id": ObjectId(partner["user_id"])}]}) if partner.get("user_id") and ObjectId.is_valid(partner["user_id"]) else await db.users.find_one({"partner_id": partner_id})
+    emails = list(dict.fromkeys(email.strip().lower() for email in [partner.get("contact_email"), (user or {}).get("email")] if email and email.strip()))
+    current_customer = partner.get("stripe_customer_id") or ""
+    current_subscription = partner.get("stripe_subscription_id") or ""
+    issues, customer, customer_candidates = [], None, []
+    if current_customer:
+        try:
+            candidate = await retrieve_customer(current_customer)
+            if not candidate.get("deleted"):
+                customer = candidate
+            else:
+                issues.append("Der gespeicherte Stripe-Kunde wurde gelöscht.")
+        except HTTPException:
+            issues.append("Die gespeicherte Stripe-Customer-ID ist ungültig oder nicht erreichbar.")
+    else:
+        issues.append("Stripe-Customer-ID fehlt.")
+    if not customer:
+        by_id = {}
+        for email in emails:
+            try:
+                for candidate in (await find_customers_by_email(email)).get("data", []):
+                    if not candidate.get("deleted"):
+                        by_id[candidate["id"]] = candidate
+            except HTTPException:
+                pass
+        customer_candidates = list(by_id.values())
+        if len(customer_candidates) == 1:
+            customer = customer_candidates[0]
+        elif len(customer_candidates) > 1:
+            issues.append(f"Mehrdeutige Zuordnung: {len(customer_candidates)} Stripe-Kunden passen zur E-Mail-Adresse.")
+        else:
+            issues.append("Kein Stripe-Kunde zur Partner-E-Mail gefunden.")
+
+    subscription, subscription_candidates = None, []
+    if current_subscription:
+        try:
+            candidate = await retrieve_subscription(current_subscription)
+            if customer and candidate.get("customer") != customer.get("id"):
+                issues.append("Die gespeicherte Subscription gehört zu einem anderen Stripe-Kunden.")
+            else:
+                subscription = candidate
+        except HTTPException:
+            issues.append("Die gespeicherte Stripe-Subscription-ID ist ungültig oder nicht erreichbar.")
+    else:
+        issues.append("Stripe-Subscription-ID fehlt.")
+    if customer and not subscription:
+        try:
+            subscriptions = (await list_customer_subscriptions(customer["id"])).get("data", [])
+            usable = [item for item in subscriptions if item.get("status") in {"active", "trialing", "past_due", "unpaid", "incomplete"}]
+            subscription_candidates = usable or [item for item in subscriptions if item.get("status") != "canceled"]
+            if len(subscription_candidates) == 1:
+                subscription = subscription_candidates[0]
+            elif len(subscription_candidates) > 1:
+                issues.append(f"Mehrdeutige Zuordnung: {len(subscription_candidates)} Stripe-Abonnements sind verwendbar.")
+            else:
+                issues.append("Kein verwendbares Stripe-Abonnement gefunden.")
+        except HTTPException:
+            issues.append("Stripe-Abonnements konnten nicht geprüft werden.")
+
+    proposed_status = (subscription or {}).get("status") or partner.get("billing_status") or "pending"
+    status_ok = partner.get("billing_status") in ({"paid", "active"} if proposed_status == "active" else {proposed_status})
+    if subscription and not status_ok:
+        issues.append(f"Lokaler Zahlungsstatus passt nicht zum Stripe-Status „{proposed_status}“.")
+    proposed_customer = (customer or {}).get("id", "")
+    proposed_subscription = (subscription or {}).get("id", "")
+    needs_repair = bool(issues) or current_customer != proposed_customer or current_subscription != proposed_subscription
+    repairable = bool(needs_repair and proposed_customer and proposed_subscription and len(customer_candidates) <= 1 and len(subscription_candidates) <= 1)
+    return {
+        "partner_id": partner_id, "partner_name": partner.get("name", ""), "emails": emails,
+        "current_customer_id": current_customer, "current_subscription_id": current_subscription,
+        "current_billing_status": partner.get("billing_status", ""), "issues": list(dict.fromkeys(issues)),
+        "proposed_customer_id": proposed_customer, "proposed_subscription_id": proposed_subscription,
+        "proposed_billing_status": proposed_status, "repairable": repairable,
+    }
+
+
+async def _repair_stripe_connection(partner: dict, report: dict) -> bool:
+    if not report.get("repairable"):
+        return False
+    status = report["proposed_billing_status"]
+    await db.partners.update_one({"_id": partner["_id"]}, {"$set": {
+        "stripe_customer_id": report["proposed_customer_id"],
+        "stripe_subscription_id": report["proposed_subscription_id"],
+        "billing_status": status,
+        "access_unlocked": status in {"active", "trialing", "paid"},
+        "stripe_connection_repaired_at": datetime.now(timezone.utc).isoformat(),
+    }})
+    updated = {**partner, "stripe_customer_id": report["proposed_customer_id"], "stripe_subscription_id": report["proposed_subscription_id"]}
+    await _sync_pending_partner_usage_charges(updated)
+    return True
+
+
+@admin_router.get("/billing/connection-audit")
+async def admin_stripe_connection_audit(request: Request):
+    await require_role("admin")(request)
+    partners = await db.partners.find({"registration_source": "self_service"}).sort("name", 1).to_list(1000)
+    reports = []
+    for partner in partners:
+        report = await _stripe_connection_report(partner)
+        if report["issues"] or report["repairable"]:
+            reports.append(report)
+    return {"entries": reports, "defective": len(reports), "repairable": sum(1 for item in reports if item["repairable"])}
+
+
+@admin_router.post("/billing/connection-repairs/all")
+async def admin_repair_all_stripe_connections(request: Request):
+    admin_user = await require_role("admin")(request)
+    partners = await db.partners.find({"registration_source": "self_service"}).sort("name", 1).to_list(1000)
+    repaired, skipped = [], []
+    for partner in partners:
+        report = await _stripe_connection_report(partner)
+        if await _repair_stripe_connection(partner, report):
+            repaired.append(str(partner["_id"]))
+        elif report["issues"]:
+            skipped.append(str(partner["_id"]))
+    await create_audit_log(admin_user["_id"], admin_user["email"], "stripe_connections_repair_all", "partner", "", {"repaired": repaired, "skipped": skipped})
+    return {"repaired": len(repaired), "skipped": len(skipped), "repaired_partner_ids": repaired}
+
+
+@admin_router.post("/billing/connection-repairs/{partner_id}")
+async def admin_repair_stripe_connection(partner_id: str, request: Request):
+    admin_user = await require_role("admin")(request)
+    partner = await db.partners.find_one({"_id": _safe_object_id(partner_id, "Invalid partner id")})
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    report = await _stripe_connection_report(partner)
+    if not await _repair_stripe_connection(partner, report):
+        raise HTTPException(status_code=409, detail="Die Stripe-Verbindung ist nicht eindeutig automatisch reparierbar")
+    await create_audit_log(admin_user["_id"], admin_user["email"], "stripe_connection_repair", "partner", partner_id, {"customer_id": report["proposed_customer_id"], "subscription_id": report["proposed_subscription_id"]})
+    return {"message": "Stripe-Verbindung repariert", "partner_id": partner_id}
 
 @admin_router.get("/audit-log")
 async def admin_get_audit_log(request: Request, limit: int = 100, skip: int = 0, action: str = "", date_from: str = "", date_to: str = ""):
@@ -1670,11 +2084,143 @@ async def _own_partner(request: Request) -> tuple[dict, dict]:
     return user, partner
 
 
+def _invoice_view(invoice: dict) -> dict:
+    return {k: invoice.get(k) for k in (
+        "id", "number", "status", "amount_due", "amount_paid", "currency",
+        "created", "period_start", "period_end", "invoice_pdf", "hosted_invoice_url", "livemode",
+    )}
+
+
+async def _usage_billing_stats(partner_id: str) -> dict:
+    rows = await db.partner_usage_charges.find({"partner_id": partner_id}, {"_id": 0}).to_list(10000)
+    open_rows = [row for row in rows if row.get("status") != "billed"]
+    billed_rows = [row for row in rows if row.get("status") == "billed"]
+    return {
+        "pending_users": len(open_rows),
+        "pending_amount": sum(int(row.get("amount", 0)) for row in open_rows),
+        "billed_users": len(billed_rows),
+        "billed_amount": sum(int(row.get("amount", 0)) for row in billed_rows),
+        "currency": next((row.get("currency") for row in reversed(rows) if row.get("currency")), "eur"),
+        "pending": open_rows,
+    }
+
+
+def _effective_partner_user_fee(settings: dict, service_step: dict | None, partner: dict) -> tuple[int, str]:
+    amount = int(settings.get("stripe_partner_user_fee_cents") or 0)
+    source = "global"
+    if service_step and service_step.get("partner_user_fee_cents") is not None:
+        amount, source = int(service_step["partner_user_fee_cents"]), "step"
+    step_id = str((service_step or {}).get("id") or (service_step or {}).get("_id") or "")
+    partner_prices = partner.get("step_user_fee_cents") or {}
+    if step_id and partner_prices.get(step_id) is not None:
+        amount, source = int(partner_prices[step_id]), "partner_step"
+    return amount, source
+
+
+def _service_step_for_partner_action(steps: list, progress: list, action_step: dict, partner: dict) -> dict | None:
+    progress_by_step = {row.get("step_id"): row for row in progress}
+    partner_id, partner_name = str(partner["_id"]), partner.get("name", "")
+    candidates = []
+    for step in steps:
+        if step.get("step_type") not in {"partner_selection", "partner_multiselection"} or step.get("order", 0) > action_step.get("order", 0):
+            continue
+        data = (progress_by_step.get(step["id"]) or {}).get("data") or {}
+        selected = {str(value) for value in (data.get("selected_partner_ids") or [])}
+        if data.get("selected_partner_id"):
+            selected.add(str(data["selected_partner_id"]))
+        if partner_id in selected or (partner_name and data.get("selected_partner_name") == partner_name):
+            candidates.append(step)
+    return max(candidates, key=lambda item: item.get("order", 0), default=None)
+
+
+async def _record_partner_user_charge(partner: dict, target_user: dict, upload: dict, service_step: dict | None = None) -> dict:
+    """Create one charge per partner/candidate/service step and queue it for the next invoice."""
+    partner_id, user_id = str(partner["_id"]), str(target_user["_id"])
+    service_step_id = str((service_step or {}).get("id") or (service_step or {}).get("_id") or "")
+    charge_key = {"partner_id": partner_id, "user_id": user_id, "service_step_id": service_step_id}
+    existing = await db.partner_usage_charges.find_one(charge_key)
+    if existing:
+        return existing
+    settings = await db.site_settings.find_one({"_key": "global"}) or {}
+    amount, price_source = _effective_partner_user_fee(settings, service_step, partner)
+    currency = (settings.get("stripe_partner_user_fee_currency") or (partner.get("billing_settings") or {}).get("default_currency") or "eur").lower()
+    now = datetime.now(timezone.utc).isoformat()
+    charge_id = str(uuid.uuid4())
+    document = {
+        "id": charge_id, "partner_id": partner_id, "partner_name": partner.get("name", ""),
+        "user_id": user_id, "user_name": target_user.get("name", ""),
+        "amount": amount, "currency": currency, "status": "pending",
+        "service_step_id": service_step_id,
+        "service_step_title": (service_step or {}).get("title", ""), "price_source": price_source,
+        "first_upload_file_id": upload.get("file_id"), "created_at": now,
+    }
+    try:
+        await db.partner_usage_charges.insert_one(document)
+    except DuplicateKeyError:
+        return await db.partner_usage_charges.find_one(charge_key) or document
+    customer_id, subscription_id = partner.get("stripe_customer_id"), partner.get("stripe_subscription_id")
+    if amount <= 0 or not customer_id or not subscription_id:
+        reason = "Nutzergebühr nicht konfiguriert" if amount <= 0 else "Stripe-Kunde oder Abonnement fehlt"
+        await db.partner_usage_charges.update_one({"id": charge_id}, {"$set": {"sync_error": reason}})
+        return document
+    try:
+        item = await create_pending_invoice_item(
+            customer_id, subscription_id, amount, currency,
+            f"Nutzergebühr – {target_user.get('name') or user_id}",
+            {"partner_id": partner_id, "user_id": user_id, "service_step_id": service_step_id, "usage_charge_id": charge_id},
+        )
+        await db.partner_usage_charges.update_one({"id": charge_id}, {"$set": {
+            "status": "queued", "stripe_invoice_item_id": item.get("id"), "queued_at": datetime.now(timezone.utc).isoformat(), "sync_error": "",
+        }})
+    except HTTPException as exc:
+        await db.partner_usage_charges.update_one({"id": charge_id}, {"$set": {"sync_error": str(exc.detail)}})
+    return document
+
+
+async def _sync_pending_partner_usage_charges(partner: dict) -> int:
+    """Queue unsynced ledger rows once the partner has an active Stripe subscription."""
+    customer_id, subscription_id = partner.get("stripe_customer_id"), partner.get("stripe_subscription_id")
+    if not customer_id or not subscription_id:
+        return 0
+    partner_id = str(partner["_id"])
+    rows = await db.partner_usage_charges.find({
+        "partner_id": partner_id,
+        "status": "pending",
+        "stripe_invoice_item_id": {"$exists": False},
+        "amount": {"$gt": 0},
+    }, {"_id": 0}).to_list(10000)
+    synced = 0
+    for row in rows:
+        try:
+            item = await create_pending_invoice_item(
+                customer_id, subscription_id, int(row["amount"]), row.get("currency", "eur"),
+                f"Nutzergebühr – {row.get('user_name') or row['user_id']}",
+                {"partner_id": partner_id, "user_id": row["user_id"], "service_step_id": row.get("service_step_id", ""), "usage_charge_id": row["id"]},
+            )
+            await db.partner_usage_charges.update_one({"id": row["id"], "status": "pending"}, {"$set": {
+                "status": "queued", "stripe_invoice_item_id": item.get("id"),
+                "queued_at": datetime.now(timezone.utc).isoformat(), "sync_error": "",
+            }})
+            synced += 1
+        except HTTPException as exc:
+            await db.partner_usage_charges.update_one({"id": row["id"]}, {"$set": {"sync_error": str(exc.detail)}})
+    return synced
+
+
 @payment_router.get("/settings")
 async def get_partner_billing(request: Request):
     _, partner = await _own_partner(request)
     site = await db.site_settings.find_one({"_key": "global"}) or {}
-    return {"settings": partner.get("billing_settings", {}), "stripe": await public_stripe_status(), "billing_status": partner.get("billing_status", "paid"), "payment_configured": bool(site.get("stripe_partner_price_id"))}
+    step_query = {"step_type": {"$in": ["partner_selection", "partner_multiselection"]}, "is_active": True, "filter_tag": {"$in": partner.get("tags") or []}}
+    if partner.get("survey_ids"):
+        step_query["survey_id"] = {"$in": partner["survey_ids"]}
+    service_steps = await db.steps.find(step_query).sort([("survey_id", 1), ("order", 1)]).to_list(1000)
+    pricing = []
+    for step in service_steps:
+        view = {**step, "id": str(step["_id"])}
+        amount, source = _effective_partner_user_fee(site, view, partner)
+        pricing.append({"step_id": view["id"], "step_title": step.get("title", ""), "step_order": step.get("order", 0), "amount": amount, "currency": (site.get("stripe_partner_user_fee_currency") or "eur").lower(), "source": source})
+    return {"settings": partner.get("billing_settings", {}), "stripe": await public_stripe_status(), "billing_status": partner.get("billing_status", "paid"), "payment_configured": bool(site.get("stripe_partner_price_id")), "usage": await _usage_billing_stats(str(partner["_id"])), "pricing": pricing}
 
 
 @payment_router.get("/status")
@@ -1713,7 +2259,7 @@ async def partner_payment_checkout(request: Request):
         customer_id, price_id, str(partner["_id"]),
         f"{base}/partner-payment/success?session_id={{CHECKOUT_SESSION_ID}}",
         f"{base}/partner-payment/cancelled",
-        settings.get("stripe_partner_payment_mode", "subscription"),
+        "subscription",
         settings.get("stripe_automatic_tax", False), settings.get("stripe_allow_promotion_codes", False),
     )
     return {"url": session["url"]}
@@ -1749,7 +2295,7 @@ async def partner_stripe_invoices(request: Request):
     if not partner.get("stripe_customer_id"):
         return []
     payload = await list_customer_invoices(partner["stripe_customer_id"])
-    return [{k: invoice.get(k) for k in ("id", "number", "status", "amount_due", "amount_paid", "currency", "created", "invoice_pdf", "hosted_invoice_url", "livemode")} for invoice in payload.get("data", [])]
+    return [_invoice_view(invoice) for invoice in payload.get("data", [])]
 
 
 @payment_router.post("/webhook")
@@ -1774,8 +2320,24 @@ async def stripe_webhook(request: Request):
     customer_id = obj.get("customer")
     partner_id = obj.get("metadata", {}).get("partner_id") or obj.get("client_reference_id")
     query = {"_id": ObjectId(partner_id)} if partner_id and ObjectId.is_valid(partner_id) else {"stripe_customer_id": customer_id}
+    if event_type in {"invoice.created", "invoice.finalized", "invoice.paid"}:
+        for line in (obj.get("lines") or {}).get("data", []):
+            metadata = line.get("metadata") or {}
+            charge_id = metadata.get("usage_charge_id")
+            if not charge_id:
+                parent = line.get("parent") or {}
+                metadata = (parent.get("invoice_item_details") or {}).get("metadata") or metadata
+                charge_id = metadata.get("usage_charge_id")
+            if charge_id:
+                update = {"stripe_invoice_id": obj.get("id"), "invoice_number": obj.get("number")}
+                if event_type == "invoice.paid":
+                    update.update({"status": "billed", "billed_at": datetime.now(timezone.utc).isoformat()})
+                await db.partner_usage_charges.update_one({"id": charge_id}, {"$set": update})
     if event_type == "checkout.session.completed" and obj.get("payment_status") == "paid":
         await db.partners.update_one(query, {"$set": {"billing_status": "paid", "access_unlocked": True, "stripe_customer_id": customer_id, "stripe_subscription_id": obj.get("subscription"), "paid_at": datetime.now(timezone.utc).isoformat()}})
+        updated_partner = await db.partners.find_one(query)
+        if updated_partner:
+            await _sync_pending_partner_usage_charges(updated_partner)
     elif event_type in {"invoice.paid", "customer.subscription.updated"}:
         status = obj.get("status")
         if event_type == "invoice.paid" or status in {"active", "trialing"}:
@@ -2021,6 +2583,20 @@ async def _partner_work_status_for_users(
     }
 
 
+PARTNER_EMAIL_PAYMENT_NOTICE = "Bitte authorisieren Sie ihre Zahlung"
+PAID_PARTNER_BILLING_STATUSES = {"paid", "active", "trialing"}
+
+
+async def _partner_user_email_value(partner_user: dict, partner: dict | None, email: str) -> str:
+    """Return PII only when RBAC and the partner's payment entitlement allow it."""
+    can_view_by_group = await has_permission(partner_user, "partner.users.email.view")
+    payment_allows_email = (
+        (partner or {}).get("registration_source") != "self_service"
+        or (partner or {}).get("billing_status") in PAID_PARTNER_BILLING_STATUSES
+    )
+    return email if can_view_by_group and payment_allows_email else PARTNER_EMAIL_PAYMENT_NOTICE
+
+
 @api_router.get("/partner/submissions")
 async def get_partner_submissions(request: Request):
     user = await require_role("partner")(request)
@@ -2028,6 +2604,7 @@ async def get_partner_submissions(request: Request):
     if not partner_id:
         raise HTTPException(status_code=400, detail="User not linked to a partner")
     partner = await db.partners.find_one({"_id": ObjectId(partner_id)})
+    visible_email = lambda email: _partner_user_email_value(user, partner, email)
     partner_name = (partner or {}).get("name") or ""
     linked_user_ids = set(partner.get("linked_user_ids", [])) if partner else set()
     submissions = await db.partner_submissions.find({"partner_id": partner_id}, {"_id": 0}).to_list(1000)
@@ -2045,6 +2622,7 @@ async def get_partner_submissions(request: Request):
         }, {"user_id": 1, "data": 1}):
             step1_by_user[row["user_id"]] = row.get("data") or {}
     for sub in submissions:
+        sub["user_email"] = await visible_email(sub.get("user_email", ""))
         uid = sub.get("user_id")
         if uid:
             metrics = metrics_by_user.get(uid, {})
@@ -2077,7 +2655,7 @@ async def get_partner_submissions(request: Request):
         ws = work_by_user.get(uid, {})
         metrics = metrics_by_user.get(uid, {})
         submissions.append({
-            "user_id": uid, "user_name": u["name"], "user_email": u["email"],
+            "user_id": uid, "user_name": u["name"], "user_email": await visible_email(u["email"]),
             "partner_id": partner_id, "data": {"source": "linked"}, "status": "linked",
             "completion_pct": metrics.get("completion_pct", 0),
             "estimated_completion": metrics.get("estimated_completion"),
@@ -2149,7 +2727,7 @@ async def get_partner_other_users(request: Request):
         uid = str(u["_id"])
         s1data = step1_by_user.get(uid, {})
         metrics = metrics_by_user.get(uid, {})
-        result.append({"user_id": uid, "user_name": u["name"], "user_email": u["email"], "completion_pct": metrics.get("completion_pct", 0), "estimated_completion": metrics.get("estimated_completion"), "field_of_study": s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", ""), "bundesland": s1data.get("anerkennungsverfahren_bundesland", ""), "created_at": u.get("created_at", "")})
+        result.append({"user_id": uid, "user_name": u["name"], "user_email": await _partner_user_email_value(user, partner, u["email"]), "completion_pct": metrics.get("completion_pct", 0), "estimated_completion": metrics.get("estimated_completion"), "field_of_study": s1data.get("fachrichtung_gewuenscht") or s1data.get("fachrichtung_praktiziert") or s1data.get("field_of_study", ""), "bundesland": s1data.get("anerkennungsverfahren_bundesland", ""), "created_at": u.get("created_at", "")})
     return result
 
 
@@ -2219,7 +2797,7 @@ async def get_partner_user_detail(user_id: str, request: Request):
                 continue
         sanitized_progress.append(p)
     return {
-        "id": str(target_user["_id"]), "email": target_user["email"],
+        "id": str(target_user["_id"]), "email": await _partner_user_email_value(partner_user, partner_doc, target_user["email"]),
         "name": target_user["name"], "progress": sanitized_progress,
         "steps": all_steps,
         "completion_pct": await calculate_completion_pct(user_id),
@@ -2306,6 +2884,9 @@ async def partner_step_action(user_id: str, step_id: str, payload: PartnerStepAc
             {**base_event_payload, "file_id": upload.get("file_id"), "filename": upload.get("filename", "")},
             actor,
         ))
+    if new_uploads and partner_doc:
+        service_step = _service_step_for_partner_action(steps, progress, step, partner_doc)
+        await _record_partner_user_charge(partner_doc, target_user, new_uploads[0], service_step)
 
     if payload.action == "complete":
         was_rejected = bool(existing_data.get("partner_rejection"))
@@ -3055,7 +3636,14 @@ async def startup():
     await db.user_progress.create_index([("user_id", 1), ("status", 1), ("step_order", 1)])
     await db.partner_submissions.create_index([("partner_id", 1), ("user_id", 1)])
     await db.partner_submissions.create_index([("user_id", 1), ("partner_id", 1)])
+    await db.partner_submissions.create_index([("user_id", 1), ("step_id", 1), ("partner_id", 1)], unique=True)
     await db.partner_submissions.create_index([("partner_id", 1), ("created_at", -1)])
+    usage_indexes = await db.partner_usage_charges.index_information()
+    legacy_usage_index = next((name for name, spec in usage_indexes.items() if spec.get("key") == [("partner_id", 1), ("user_id", 1)]), None)
+    if legacy_usage_index:
+        await db.partner_usage_charges.drop_index(legacy_usage_index)
+    await db.partner_usage_charges.create_index([("partner_id", 1), ("user_id", 1), ("service_step_id", 1)], unique=True)
+    await db.partner_usage_charges.create_index([("partner_id", 1), ("status", 1), ("created_at", -1)])
     await db.files.create_index("id", unique=True)
     await db.files.create_index([("user_id", 1), ("created_at", -1)])
     await db.partners.create_index("name")
@@ -3138,6 +3726,9 @@ async def startup():
     migrated_form_steps = await migrate_database_form_configs(db)
     if migrated_form_steps:
         logger.info("Form-builder schema applied to %s step(s)", migrated_form_steps)
+    migrated_document_titles = await _migrate_document_workflow_titles()
+    if migrated_document_titles:
+        logger.info("Aligned %s document-workflow step title(s)", migrated_document_titles)
     # Seed partners if none
     if await db.partners.count_documents({}) == 0:
         await db.partners.insert_many([

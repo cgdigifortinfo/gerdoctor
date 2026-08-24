@@ -46,6 +46,7 @@ const TYPE_STYLES = {
 const ACTION_LABELS = {
     hide: { label: 'Ausblenden', color: '#94a3b8', icon: EyeSlash },
     block: { label: 'Blockieren', color: '#dc2626', icon: LockSimple },
+    read_only: { label: 'Schreibschutz', color: '#7c3aed', icon: LockSimple },
     auto_complete: { label: 'Auto-Abschluss', color: '#059669', icon: CheckCircle },
     allow_next: { label: 'Weiter', color: 'var(--brand-primary)', icon: CaretRight },
     redirect: { label: 'Weiterleiten', color: '#2563eb', icon: ArrowsClockwise },
@@ -102,6 +103,15 @@ function StepNode({ data }) {
                         ⏱ {data.duration_value}{data.duration_unit?.[0]}
                     </span>
                 )}
+                {data.readOnlyRules?.length > 0 && (
+                    <span
+                        className="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+                        title={`Schreibschutz durch: ${data.readOnlyRules.join(' · ')}`}
+                        data-testid={`flow-read-only-badge-${data.id}`}
+                    >
+                        <LockSimple size={10} /> Schreibschutz ×{data.readOnlyRules.length}
+                    </span>
+                )}
             </div>
             <Handle type="source" position={Position.Right} id="out" style={{ background: style.color, width: 10, height: 10 }} />
         </div>
@@ -145,8 +155,12 @@ function linearLayout(steps) {
         const s = sorted[i];
         // Is this step a conditional alternative branch?
         // Heuristic: it has action='hide' referencing a decision step (field='decision')
+        // Only `decision != branchValue` describes a mutually exclusive lane.
+        // A merge step commonly has `decision empty -> hide`; treating that as
+        // another lane incorrectly places the shared Dokumente step beside its
+        // Übersicht/Service branches.
         const hideCond = (s.conditions || []).find(
-            c => c.action === 'hide' && (c.field === 'decision' || c.operator === 'not_equals' || c.operator === 'equals')
+            c => c.action === 'hide' && c.field === 'decision' && c.operator === 'not_equals'
         );
 
         if (hideCond) {
@@ -157,6 +171,7 @@ function linearLayout(steps) {
                 const cand = sorted[i];
                 const candHide = (cand.conditions || []).find(
                     c => c.action === 'hide' && c.source_step_order === decOrder
+                        && c.field === 'decision' && c.operator === 'not_equals'
                 );
                 if (candHide) {
                     group.push({ step: cand, decision_value: candHide.value || '' });
@@ -216,6 +231,11 @@ function buildGraph(steps, callbacks, layoutMode = 'editor') {
             leaves.forEach(({ condition: c, group }, leafIndex) => {
               const src = byOrder[c.source_step_order];
               if (!src) return;
+              // Read-only rules point backwards from the merge step into every
+              // preceding branch and quickly dominate the canvas. They remain
+              // visible as a compact badge on the target node and editable in
+              // the Step dialog, but are intentionally not drawn as edges.
+              if (c.action === 'read_only') return;
               const action = ACTION_LABELS[c.action] || { label: c.action || 'Bedingung', color: '#64748b' };
               const fieldLabel = c.field || '(Status)';
               const groupLabel = group ? `${group} · ` : '';
@@ -261,6 +281,13 @@ function buildGraph(steps, callbacks, layoutMode = 'editor') {
             id: s.id, order: s.order, title: s.title,
             step_type: s.step_type, filter_tag: s.filter_tag,
             duration_value: s.duration_value, duration_unit: s.duration_unit,
+            readOnlyRules: (s.conditions || []).flatMap(condition => conditionLeaves(condition))
+                .map(item => item.condition)
+                .filter(condition => condition.action === 'read_only')
+                .map(condition => {
+                    const source = byOrder[condition.source_step_order];
+                    return `#${condition.source_step_order} ${source?.title || ''} · ${condition.field || 'Status'}`;
+                }),
             raw: s,
             onEdit: callbacks.onEdit,
             onDelete: callbacks.onDelete,
@@ -384,6 +411,7 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
                             <option value="hide">Ausblenden</option>
                             <option value="block">Blockieren</option>
                             <option value="auto_complete">Auto-Abschließen</option>
+                            <option value="read_only">Schreibschützen</option>
                             <option value="allow_next">Weiter erlauben</option>
                             <option value="redirect">Weiterleiten</option>
                         </select>
@@ -480,7 +508,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     const history = useFlowHistory();
     const flowWrapper = useRef(null);
     const rootRef = useRef(null);
-    const { project } = useReactFlow();
+    const { project, setViewport, fitView } = useReactFlow();
 
     // Snapshot helper — captures current node positions as {id: {x, y}}
     const nodesToSnapshot = useCallback((nds) => {
@@ -538,6 +566,14 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         }));
         setEdges(fresh.edges);
     }, [steps, callbacks, layoutMode, simStates, playbackIndex, playbackStepIds, setNodes, setEdges]);
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => {
+            if (isDependency) fitView({ padding: 0.12, minZoom: 0.35, maxZoom: 0.9, duration: 200 });
+            else setViewport({ x: 28, y: 245, zoom: 0.82 }, { duration: 200 });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isDependency, fitView, setViewport]);
 
     // Playback timer — advances one step every 1500ms, accumulating ETA
     useEffect(() => {
@@ -648,10 +684,11 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         const outgoingCounts = actualEdges.reduce((counts, edge) => ({ ...counts, [edge.source]: (counts[edge.source] || 0) + 1 }), {});
         return {
             conditions: actualEdges.length,
+            readOnlyRules: steps.reduce((total, step) => total + (step.conditions || []).flatMap(condition => conditionLeaves(condition)).filter(item => item.condition.action === 'read_only').length, 0),
             roots: nodes.filter(node => !incoming.has(node.id)).length,
             branches: Object.values(outgoingCounts).filter(count => count > 1).length,
         };
-    }, [edges, nodes]);
+    }, [edges, nodes, steps]);
 
     // ----- Undo / Redo -----
     const applySnapshot = useCallback((snapshot) => {
@@ -744,7 +781,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                 </div>
                 {isDependency && (
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow px-3 py-2 text-xs text-muted-foreground" data-testid="dependency-graph-stats">
-                        Nur echte Abhängigkeiten · <strong className="text-foreground">{dependencyStats.conditions}</strong> Regeln · <strong className="text-foreground">{dependencyStats.roots}</strong> Startpunkte · <strong className="text-foreground">{dependencyStats.branches}</strong> Verzweigungen
+                        Nur echte Abhängigkeiten · <strong className="text-foreground">{dependencyStats.conditions}</strong> Kanten · <strong className="text-violet-700 dark:text-violet-300">{dependencyStats.readOnlyRules}</strong> kompakte Schreibschutzregeln · <strong className="text-foreground">{dependencyStats.roots}</strong> Startpunkte · <strong className="text-foreground">{dependencyStats.branches}</strong> Verzweigungen
                     </div>
                 )}
                 {playbackIndex >= 0 && (
@@ -769,12 +806,15 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     </div>
                 )}
                 <div className="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none">
-                    {Object.entries(ACTION_LABELS).map(([k, v]) => (
+                    {Object.entries(ACTION_LABELS).filter(([key]) => key !== 'read_only').map(([k, v]) => (
                         <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm">
                             <span className="w-3 h-[1.5px]" style={{ background: v.color }} />
                             {v.label}
                         </span>
                     ))}
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm">
+                        <LockSimple size={10} /> Schreibschutz am Step
+                    </span>
                 </div>
                 {steps.length === 0 && (
                     <div
@@ -804,8 +844,10 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                     onNodeDragStart={handleNodeDragStart}
                     onNodeDragStop={handleNodeDragStop}
                     nodeTypes={nodeTypes}
-                    fitView
-                    fitViewOptions={{ padding: 0.2 }}
+                    fitView={isDependency}
+                    fitViewOptions={{ padding: 0.12, minZoom: 0.35, maxZoom: 0.9 }}
+                    defaultViewport={isDependency ? undefined : { x: 28, y: 245, zoom: 0.82 }}
+                    minZoom={0.25}
                     proOptions={{ hideAttribution: true }}
                 >
                     <Background gap={16} size={1} color="#cbd5e1" />

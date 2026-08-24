@@ -755,7 +755,9 @@ def test_dependency_graph_shows_real_branching_without_sequence_edges(admin_stat
         expect(graph).to_be_visible(timeout=15000)
         expect(graph).to_have_attribute("data-layout-mode", "dependency")
         expect(page.locator('[data-testid="dependency-graph-stats"]')).to_contain_text("Nur echte Abhängigkeiten")
+        expect(page.locator('[data-testid="dependency-graph-stats"]')).to_contain_text("kompakte Schreibschutzregeln")
         expect(page.locator('[data-testid="flow-palette"]')).to_have_count(0)
+        assert page.locator('[data-testid^="flow-read-only-badge-"]').count() > 0
 
         condition_edges = page.locator('[data-testid^="rf__edge-cond-"]')
         expect(condition_edges.first).to_be_attached(timeout=15000)
@@ -773,4 +775,50 @@ def test_dependency_graph_shows_real_branching_without_sequence_edges(admin_stat
         page.locator('[data-testid="steps-view-flow"]').click()
         expect(graph).to_have_attribute("data-layout-mode", "editor")
         expect(page.locator('[data-testid="flow-palette"]')).to_be_visible(timeout=10000)
+        page.wait_for_timeout(350)  # viewport transition from dependency fit-view
+        overview = page.locator('[data-testid^="flow-node-"]').filter(has_text="Übersicht Fachsprachenprüfung").first
+        service = page.locator('[data-testid^="flow-node-"]').filter(has_text="Service Fachsprachenprüfung").first
+        documents = page.locator('[data-testid^="flow-node-"]').filter(has_text="Dokumente Fachsprachenprüfung").first
+        expect(overview).to_be_visible(timeout=10000)
+        boxes = [overview.bounding_box(), service.bounding_box(), documents.bounding_box()]
+        assert abs(boxes[0]["x"] - boxes[1]["x"]) < 5, "parallel branches must share a column"
+        assert boxes[2]["x"] > boxes[0]["x"] + 100, "merge document step must follow the branches"
+        browser.close()
+
+
+def test_compound_block_condition_is_rendered_with_its_real_children(admin_state):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--host-resolver-rules=MAP localhost host.docker.internal"])
+        page = browser.new_page(viewport={"width": 1500, "height": 1000})
+        install_api_proxy(page.context, BACKEND)
+        _login_admin(page)
+        _goto_admin_steps(page, "aerzte")
+        row = page.locator('[data-testid="step-row-order-10"]')
+        row.locator('[data-testid^="edit-step-"]').click()
+        expect(page.locator('[data-testid="step-editor-dialog"]')).to_be_visible(timeout=10000)
+        page.locator('[data-testid="step-section-conditions"]').click()
+
+        compound = page.locator('[data-testid="condition-compound-1"]')
+        expect(compound).to_be_visible()
+        expect(page.locator('[data-testid="condition-card-1"]')).to_contain_text("UND-Gruppe")
+        expect(compound).to_contain_text("#7 Fachsprachenprüfung")
+        expect(compound).to_contain_text("decision")
+        expect(compound).to_contain_text("#8 Übersicht Fachsprachenprüfung")
+        expect(compound).to_contain_text("documents")
+        expect(compound).to_contain_text("beliebiges Dokument")
+        expect(page.locator('[data-testid="condition-child-source-1-0"]')).to_be_visible()
+
+        page.locator('[data-testid="condition-add-child-1"]').click()
+        expect(page.locator('[data-testid^="condition-compound-1-"]')).to_have_count(3)
+        page.locator('[data-testid="condition-compound-1-2"] summary').click()
+        page.locator('[data-testid="condition-remove-child-1-2"]').click()
+        expect(page.locator('[data-testid^="condition-compound-1-"]')).to_have_count(2)
+
+        _choose_select_option(page, "condition-group-type-1", "ODER – eine muss zutreffen")
+        expect(page.locator('[data-testid="condition-card-1"]')).to_contain_text("ODER-Gruppe")
+        _choose_select_option(page, "condition-group-type-1", "UND – alle müssen zutreffen")
+        expect(page.locator('[data-testid="condition-card-1"]')).to_contain_text("UND-Gruppe")
+
+        page.locator('[data-testid="add-condition-any"]').click()
+        expect(page.locator('[data-testid="condition-card-3"]')).to_contain_text("ODER-Gruppe")
         browser.close()

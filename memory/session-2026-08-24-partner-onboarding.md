@@ -91,3 +91,50 @@ externe Integration separat weiterbearbeitet wird.
 
 Der Memory-Abschluss erzeugt anschließend einen zusätzlichen Dokumentations-
 Commit auf `main`.
+
+## Fortsetzung: Survey-Logik, Billing und Datenintegrität
+
+Nach dem ursprünglichen Abschluss wurden weitere zusammenhängende Korrekturen
+umgesetzt:
+
+- Partnerpfade springen nach einer Entscheidung erst zur Partnerauswahl und
+  nicht vorzeitig zum Pending-Screen.
+- Dokument-Meilensteine zeigen Uploads unabhängig davon, ob Nutzer oder Partner
+  sie hochgeladen haben. Vorstufen werden danach read-only.
+- Conditions unterstützen editierbare UND-/ODER-Gruppen; unvollständige
+  Block-Regeln werden plausibilisiert.
+- Flow-Layouts beider Surveys wurden neu berechnet und lesbarer gerendert.
+- Verwaiste Partnerreferenzen können geprüft und sicher repariert werden.
+- Impersonation mit leerem Progress erhält die korrekte Rollengruppe.
+- Unbezahlte Partner sehen Nutzer, aber E-Mail-Adressen bleiben gemäß Recht und
+  Zahlungsstatus anonymisiert.
+
+## Nutzungsabhängige Stripe-Abrechnung
+
+- Monatliche Grundgebühr über Subscription Checkout.
+- Einmalige Nutzergebühr pro Partner, Nutzer und Leistungs-Step beim ersten
+  Partner-Dokument.
+- Preisvererbung: globaler Default → Step-Preis → Partnerpreis pro Step.
+- Offene Posten, abgerechnete Posten und Rechnungsdownloads sind für Partner
+  und Admin sichtbar.
+- Webhooks markieren Usage-Posten nach bezahlter Rechnung als abgerechnet.
+- Stripe-Verbindungs-Audit mit Einzel- und Sammelreparatur; automatische
+  Reparatur ausschließlich bei eindeutiger Customer-/Subscription-Zuordnung.
+
+## Partnerrelationen und Seeds
+
+- Partnerauswahl und Submission werden jetzt serverseitig atomar synchronisiert.
+- Legacy-Bestand wurde global abgeglichen: fehlende Submissions ergänzt,
+  veraltete Zuordnungen entfernt und fehlende Survey-Zuweisungen aus angebotenen
+  Service-Steps rekonstruiert.
+- Abschließender globaler Dry-Run meldete keine offenen Aktionen.
+- Der Baseline-Seed wurde isoliert wiederhergestellt; seine deterministische
+  Relationsmigration und Datei-/Checksum-Prüfung waren erfolgreich.
+
+## Offener Architekturpunkt
+
+Es gibt noch keine revisionssichere Step-Versionierung. Audit- und
+Progress-History sind keine vollständigen Konfigurations-/Antwort-Snapshots;
+Step-Löschung entfernt derzeit abhängige Progress-Daten. Erforderlich sind
+immutable Step-Versionen, Antwortrevisionen, Soft-Delete und dauerhaft
+auflösbare Dateizuordnungen mit einer Admin-Historienansicht.

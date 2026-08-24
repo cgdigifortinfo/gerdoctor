@@ -42,6 +42,7 @@ PERMISSION_CATALOG = [
         {"key": "partners.manage", "label": "Partner verwalten", "description": "Partner erstellen, bearbeiten, verknüpfen und löschen."},
         {"key": "portal.partner.access", "label": "Partnerportal öffnen", "description": "Zugriff auf das Partner-Dashboard."},
         {"key": "partner.users.view", "label": "Partner-Benutzer ansehen", "description": "Zugeordnete Benutzer und deren Fortschritt anzeigen."},
+        {"key": "partner.users.email.view", "label": "E-Mail-Adressen von Partner-Benutzern ansehen", "description": "E-Mail-Adressen von Benutzern im Partnerportal anzeigen. Bei zahlungspflichtigen Self-Service-Partnern wird zusätzlich eine bestätigte Zahlung vorausgesetzt."},
         {"key": "partner.users.manage", "label": "Partner-Benutzer bearbeiten", "description": "Fortschritte und Partneraktionen bearbeiten."},
     ]},
     {"category": "Inhalte und Kommunikation", "permissions": [
@@ -90,7 +91,8 @@ DEFAULT_GROUPS = (
         "name": "Partner",
         "description": "Standardrechte für das Partnerportal und zugeordnete Benutzer.",
         "role": "partner",
-        "permissions": ["portal.partner.access", "profile.self.manage", "partner.users.view", "partner.users.manage", "files.own.manage"],
+        "permissions": ["portal.partner.access", "profile.self.manage", "partner.users.view", "partner.users.email.view", "partner.users.manage", "files.own.manage"],
+        "default_permission_version": 2,
         "is_system": True,
     },
 )
@@ -174,12 +176,51 @@ async def default_group_id(role: str) -> str | None:
     return str(group["_id"]) if group else None
 
 
+async def ensure_user_role_group(user: dict[str, Any]) -> dict[str, Any]:
+    """Remove missing/foreign-role groups and ensure one compatible default.
+
+    Custom groups for the user's current portal role are preserved. Permission
+    overrides are deliberately untouched, so explicit denies remain effective.
+    """
+    role = user.get("role", "user")
+    original_ids = [value for value in (user.get("group_ids") or []) if value]
+    compatible_ids: list[str] = []
+    object_ids = [ObjectId(value) for value in original_ids if ObjectId.is_valid(value)]
+    if object_ids:
+        async for group in db.permission_groups.find({"_id": {"$in": object_ids}, "role": role}, {"_id": 1}):
+            compatible_ids.append(str(group["_id"]))
+    compatible_set = set(compatible_ids)
+    compatible_ids = [value for value in original_ids if value in compatible_set]
+    if not compatible_ids:
+        fallback_id = await default_group_id(role)
+        compatible_ids = [fallback_id] if fallback_id else []
+    if compatible_ids != original_ids:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"group_ids": compatible_ids}})
+        user = {**user, "group_ids": compatible_ids}
+    return user
+
+
 async def ensure_permission_groups() -> int:
     now = datetime.now(timezone.utc).isoformat()
     created = 0
     for definition in DEFAULT_GROUPS:
         existing = await db.permission_groups.find_one({"key": definition["key"]})
         if existing:
+            # Apply each default-group capability migration once. Later admin
+            # changes remain intact because the version marker is retained.
+            target_version = definition.get("default_permission_version", 1)
+            missing_defaults = [
+                permission for permission in definition["permissions"]
+                if permission not in (existing.get("permissions") or [])
+            ]
+            if existing.get("default_permission_version", 1) < target_version:
+                update: dict[str, Any] = {"$set": {"updated_at": now, "default_permission_version": target_version}}
+                if missing_defaults:
+                    update["$addToSet"] = {"permissions": {"$each": missing_defaults}}
+                await db.permission_groups.update_one(
+                    {"_id": existing["_id"]},
+                    update,
+                )
             continue
         await db.permission_groups.insert_one({**definition, "name_key": definition["name"].casefold(), "created_at": now, "updated_at": now})
         created += 1
@@ -197,6 +238,8 @@ async def ensure_permission_groups() -> int:
         {"permission_overrides": {"$exists": False}},
         {"$set": {"permission_overrides": {"allow": [], "deny": []}}},
     )
+    async for user in db.users.find({}, {"role": 1, "group_ids": 1}):
+        await ensure_user_role_group(user)
     return created
 
 
@@ -233,6 +276,8 @@ def permission_for_admin_request(method: str, path: str) -> str | None:
     if relative.startswith("/audit-log"):
         return "audit.view"
     if relative.startswith("/settings"):
+        return "settings.manage" if write else "settings.view"
+    if relative.startswith("/billing"):
         return "settings.manage" if write else "settings.view"
     if relative.startswith("/email-templates") or relative.startswith("/event-configs") or relative.startswith("/events"):
         return "messages.manage" if write else "messages.view"

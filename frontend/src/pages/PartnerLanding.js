@@ -21,8 +21,7 @@ export default function PartnerLanding() {
     useEffect(() => { partnerRegistrationAPI.config().then(r => setConfig(r.data)).catch(() => setConfig({ stripe: { configured: false } })); }, []);
     useEffect(() => {
         if (!loading && user) {
-            const partnerPaid = ['paid', 'active', 'trialing'].includes(user.partner_billing_status);
-            navigate(user.role === 'admin' ? '/admin' : user.role === 'partner' ? (user.partner_payment_required && !partnerPaid ? '/partner-payment' : '/partner-dashboard') : '/dashboard');
+            navigate(user.role === 'admin' ? '/admin' : user.role === 'partner' ? '/partner-dashboard' : '/dashboard');
         }
     }, [loading, user, navigate]);
 

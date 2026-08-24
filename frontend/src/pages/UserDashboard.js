@@ -27,9 +27,15 @@ const optionLabel = (option) => typeof option === 'object' && option !== null ? 
 
 // Evaluate a single condition against all step data
 function evaluateCondition(cond, allStepData) {
+    if (Array.isArray(cond?.all_of)) return cond.all_of.every(child => evaluateCondition(child, allStepData));
+    if (Array.isArray(cond?.any_of)) return cond.any_of.some(child => evaluateCondition(child, allStepData));
     const sourceStep = allStepData.find(s => s.order === cond.source_step_order);
     if (!sourceStep) return false;
-    const fieldValue = sourceStep.data?.[cond.field] ?? sourceStep.status;
+    // Data conditions must treat a missing field as empty. Falling back to the
+    // progress status here makes `decision empty` false for pending decisions
+    // and leaks the milestone into the visible journey before a branch exists.
+    // Only status-level conditions (no field configured) may read the status.
+    const fieldValue = cond.field ? sourceStep.data?.[cond.field] : sourceStep.status;
     const expected = cond.value;
     switch (cond.operator) {
         case 'equals': return String(fieldValue) === String(expected);
@@ -53,11 +59,15 @@ function evaluateCondition(cond, allStepData) {
         case 'status_not': return sourceStep.status !== expected;
         case 'has_upload': {
             const uploads = sourceStep.data?.[cond.field] || [];
-            return Array.isArray(uploads) && uploads.some(u => u.document_type === expected && u.file_id);
+            if (!Array.isArray(uploads)) return false;
+            if (expected === undefined || expected === null || expected === '') return uploads.some(u => u?.file_id);
+            return uploads.some(u => u.document_type === expected && u.file_id);
         }
         case 'missing_upload': {
             const uploads = sourceStep.data?.[cond.field] || [];
-            return !Array.isArray(uploads) || !uploads.some(u => u.document_type === expected && u.file_id);
+            if (!Array.isArray(uploads)) return true;
+            if (expected === undefined || expected === null || expected === '') return !uploads.some(u => u?.file_id);
+            return !uploads.some(u => u.document_type === expected && u.file_id);
         }
         default: return false;
     }
@@ -65,13 +75,14 @@ function evaluateCondition(cond, allStepData) {
 
 function evaluateStepConditions(step, allStepData) {
     const conditions = step.conditions || [];
-    if (conditions.length === 0) return { allowed: true, blocked: false, hidden: false, message: '', redirectStep: null };
-    let result = { allowed: true, blocked: false, hidden: false, message: '', redirectStep: null };
+    if (conditions.length === 0) return { allowed: true, blocked: false, hidden: false, readOnly: false, message: '', redirectStep: null };
+    let result = { allowed: true, blocked: false, hidden: false, readOnly: false, message: '', redirectStep: null };
     for (const cond of conditions) {
         const matches = evaluateCondition(cond, allStepData);
         if (matches) {
             if (cond.action === 'block') { result.allowed = false; result.blocked = true; result.message = cond.message || 'Dieser Schritt ist gesperrt.'; }
             else if (cond.action === 'hide') { result.hidden = true; }
+            else if (cond.action === 'read_only') { result.readOnly = true; result.message = cond.message || result.message; }
             else if (cond.action === 'allow_next') { result.allowed = true; result.message = cond.message || ''; }
             else if (cond.action === 'redirect') { result.redirectStep = cond.target_step_order; }
             // auto_complete is handled server-side; here we just note it
@@ -366,14 +377,13 @@ export default function UserDashboard() {
             await stepsAPI.updateProgress(currentStep.id, status, payload);
             if (markComplete) {
                 toast.success('Schritt abgeschlossen!');
-                if (currentStepIndex < visibleSteps.length - 1) {
-                    const nextIdx = currentStepIndex + 1;
-                    setCurrentStepIndex(nextIdx);
-                    setExpandedStep(nextIdx);
-                    setFormData({});
-                    setSelectedPartner(null);
-                    setSelectedPartners([]);
-                }
+                // `loadData` determines the first unfinished step from the
+                // freshly evaluated branch. Advancing in the old visibleSteps
+                // list can jump from a decision straight to its milestone,
+                // because the partner step was hidden in that stale list.
+                setFormData({});
+                setSelectedPartner(null);
+                setSelectedPartners([]);
             } else { toast.success('Fortschritt gespeichert'); }
             await loadData();
         } catch (error) { toast.error(formatApiError(error)); }
@@ -392,13 +402,9 @@ export default function UserDashboard() {
         try {
             await stepsAPI.updateProgress(currentStep.id, 'completed', { skipped: true });
             toast.success('Schritt übersprungen');
-            if (currentStepIndex < visibleSteps.length - 1) {
-                const nextIdx = currentStepIndex + 1;
-                setCurrentStepIndex(nextIdx);
-                setExpandedStep(nextIdx);
-                setFormData({});
-                setSelectedPartner(null);
-            }
+            setFormData({});
+            setSelectedPartner(null);
+            setSelectedPartners([]);
             await loadData();
         } catch (error) { toast.error(formatApiError(error)); }
         finally { setSubmitting(false); }
@@ -422,8 +428,10 @@ export default function UserDashboard() {
         if (!selectedPartner) { toast.error('Bitte wählen Sie einen Partner'); return; }
         setSubmitting(true);
         try {
-            await partnersAPI.submit(selectedPartner.id, formData);
-            await handleStepSubmit(true);
+            const currentStep = visibleSteps[currentStepIndex];
+            const selectionData = { ...formData, selected_partner_id: selectedPartner.id, selected_partner_name: selectedPartner.name };
+            await partnersAPI.submit(selectedPartner.id, { ...selectionData, _step_id: currentStep?.id });
+            await handleStepSubmit(true, selectionData);
         } catch (error) { toast.error(formatApiError(error)); }
         finally { setSubmitting(false); }
     };
@@ -432,8 +440,10 @@ export default function UserDashboard() {
         if (selectedPartners.length === 0) { toast.error('Bitte wählen Sie mindestens einen Partner'); return; }
         setSubmitting(true);
         try {
-            await partnersAPI.submitMulti(selectedPartners.map(p => p.id), formData);
-            await handleStepSubmit(true);
+            const currentStep = visibleSteps[currentStepIndex];
+            const selectionData = { ...formData, selected_partner_ids: selectedPartners.map(p => p.id), selected_partner_names: selectedPartners.map(p => p.name).join(', ') };
+            await partnersAPI.submitMulti(selectedPartners.map(p => p.id), { ...selectionData, _step_id: currentStep?.id });
+            await handleStepSubmit(true, selectionData);
         } catch (error) { toast.error(formatApiError(error)); }
         finally { setSubmitting(false); }
     };
@@ -590,6 +600,19 @@ export default function UserDashboard() {
             />
         ) : null;
         const withIndicator = (content) => (<>{indicator}{content}</>);
+
+        if (currentStep.read_only || condResult.readOnly) {
+            const saved = progress.find((item) => item.step_id === currentStep.id)?.data || {};
+            return withIndicator(
+                <div className="space-y-4 rounded-sm border border-border bg-muted/40 p-6" data-testid="step-read-only">
+                    <div className="flex items-center gap-2 font-semibold text-foreground"><Lock size={18} /> Schreibgeschützt</div>
+                    <p className="text-sm text-muted-foreground">Nach dem Dokumenten-Upload kann dieser Schritt nicht mehr verändert werden.</p>
+                    {Object.entries(saved).filter(([key]) => key !== '_step_id').map(([key, value]) => (
+                        <div key={key} className="text-sm"><span className="font-medium">{key}:</span> {typeof value === 'object' ? JSON.stringify(value) : String(value)}</div>
+                    ))}
+                </div>
+            );
+        }
 
         if (condResult.blocked) {
             return withIndicator(
@@ -851,6 +874,18 @@ export default function UserDashboard() {
                 );
             }
             case 'milestone':
+                if (currentStep.document_workflow && (currentStep.documents || []).length > 0) {
+                    return (
+                        <div className="space-y-4" data-testid="workflow-documents">
+                            {(currentStep.documents || []).map((document, index) => (
+                                <a key={document.file_id} href={filesAPI.getUrl(document.file_id)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-sm border border-border bg-card p-4 hover:border-[var(--brand-primary)]" data-testid={`workflow-document-${index}`}>
+                                    <span><span className="block font-medium text-foreground">{document.document_type}</span><span className="text-sm text-muted-foreground">{document.filename}</span></span>
+                                    <span className="text-sm font-medium text-[var(--brand-primary)]">Herunterladen</span>
+                                </a>
+                            ))}
+                        </div>
+                    );
+                }
                 return (
                     <div className="space-y-6">
                         {stepStatus === 'completed' ? (

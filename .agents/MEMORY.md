@@ -7,7 +7,7 @@ Stand: 2026-08-24
 - Repository: `/Users/christophergunther/apps/gerdoctor`
 - Aktiver Branch: `main`
 - Remote: `origin/main`
-- Letzter fachlicher Commit vor diesem Memory-Abschluss: `cdec7ec`
+- Letzter veröffentlichter Commit vor diesem Abschluss: `6077443`
 - Die früheren Remote-Branches `pflege` und `Pflege` sowie der lokale Branch
   `local-pflege` wurden nach dem Fast-Forward-Merge gelöscht.
 - Der Arbeitsbaum war vor dem Memory-Abschluss sauber und `main` vollständig
@@ -62,8 +62,14 @@ Stand: 2026-08-24
 - Wichtige Backend-Routen liegen vollständig unter `/api/partner-payment`:
   `status`, `settings`, `checkout`, `portal`, `stripe-status`, `invoices`,
   `webhook`.
-- Stripe ist bewusst nicht Bestandteil der neuen isolierten Unit-Test-Suite;
-  die externe Integration soll später separat stabilisiert werden.
+- Die Grundgebühr läuft ausschließlich als monatliches Abonnement.
+- Beim ersten Partner-Dokument je Nutzer und Leistungs-Step wird ein offener
+  Invoice Item für die nächste Monatsrechnung erzeugt. Preise werden in dieser
+  Reihenfolge aufgelöst: globaler Standard, Step-Override, Partner/Step-Override.
+- Partner und Admin sehen offene/abgerechnete Posten sowie Stripe-Rechnungen.
+- Ein Stripe-Verbindungs-Audit erkennt fehlende Customer-/Subscription-IDs.
+  Nur eindeutige Treffer dürfen einzeln oder gesammelt repariert werden;
+  mehrdeutige Treffer bleiben manuell zu prüfen.
 
 ## Surveys und Step-Editor
 
@@ -75,6 +81,26 @@ Stand: 2026-08-24
 - Der Edit-Step-Dialog zeigt den Step-Titel prominent im Kopf.
 - Kontextbezogene Tooltips sind per Portal gerendert sowie mit Maus und
   Tastatur bedienbar.
+- Partnerauswahl und `partner_submissions` werden serverseitig gemeinsam
+  gespeichert. Submissions tragen eine `step_id`; die eindeutige Relation ist
+  Nutzer + Step + Partner. Alte Einzelauswahlen desselben Steps werden entfernt.
+- Das idempotente Script `backend/repair_partner_references.py` gleicht
+  Antworten, Submissions, Partner- und Survey-Zuordnungen ab.
+- `backend/audit_step_relations.py` prüft Requirements und Conditions;
+  `backend/recalculate_step_flow_layouts.py` berechnet Flow-Layouts neu.
+
+## Seed- und Datenzustand
+
+- Der Baseline-Seed wurde in einer isolierten temporären Datenbank vollständig
+  wiederhergestellt und verifiziert; die temporären Daten wurden gelöscht.
+- Die Seed-Migration repariert Legacy-Partnerrelationen deterministisch und
+  die Verifikation schlägt bei verbleibenden Inkonsistenzen fehl.
+- Der letzte globale Partnerrelations-Dry-Run war leer (`actions: []`).
+- Historische Step-Versionierung ist noch **nicht** umgesetzt: Step-Updates
+  überschreiben Konfigurationen, Progress-Updates überschreiben Antworten und
+  Step-Löschung entfernt aktuell Progress/History. Vor weiteren produktiven
+  Strukturänderungen sind immutable Step-/Antwort-Snapshots und Soft-Delete
+  einzuplanen, damit historische Antworten und Dateizuordnungen sichtbar bleiben.
 
 ## Tests
 
@@ -87,7 +113,9 @@ Stand: 2026-08-24
 - Sie deckt Modelle, Auth, Berechtigungen, Formularnormalisierung,
   Condition-Auswertung, Metriken und Partnerfreischaltung mit Positiv-,
   Negativ-, Grenzwert- und Fallback-Fällen ab.
-- Relevante bestehende Regressionstests: zuletzt `128 passed`.
+- Relevante Partner-/Rollen-/Step-Regression: zuletzt `60 passed`; finaler
+  Reparatur-/Navigationstest `12 passed`.
+- Stripe-/Billing-/Rechte-Suite: zuletzt `127 passed`.
 - Frontend-Produktionsbuild war nach den Partnerfreischaltungsänderungen grün.
 - Generierte E2E-Screenshots unter `test_results/e2e-screenshots/` wurden aus
   Git entfernt und per `.gitignore` ausgeschlossen.
