@@ -239,3 +239,24 @@ eindeutig.
 
 Details und Messwerte stehen in
 [`session-2026-06-22-operations-performance.md`](session-2026-06-22-operations-performance.md).
+
+## Aktueller Session-Endstand 2026-08-24
+
+Die Angaben im älteren Abschnitt „Aktueller lokaler Arbeitsstand 2026-06-23“
+sind historisch. Der aktuelle autoritative Stand ist:
+
+- Entwicklung und Deployment-Branch: `main` / `origin/main`
+- Pflege-Branches wurden nach dem Fast-Forward-Merge gelöscht.
+- Frontend läuft lokal auf Port `3001`, Backend auf `8001`.
+- Öffentliche URLs: `/` für Partnerregistrierung, `/aerzte` und `/pflege` für
+  die jeweiligen Surveys.
+- Partnerzahlung läuft isoliert unter `/partner-payment`.
+- Bezahlte, aber noch keinem Survey zugewiesene Partner sehen die
+  Freischaltungsseite. Sie dürfen eigene Settings bearbeiten und `Other users`
+  nur lesen; fremde Nutzerdetails und Mutationen sind serverseitig gesperrt.
+- Getrennte neue Unit-Test-Suite:
+  `cd backend && pytest -c pytest.next.ini` — zuletzt 98 Tests bestanden.
+- Stripe bleibt vorläufig aus dieser Kandidatensuite ausgeschlossen.
+
+Die vollständige Übergabe steht in
+[`session-2026-08-24-partner-onboarding.md`](session-2026-08-24-partner-onboarding.md).

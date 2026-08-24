@@ -1,61 +1,115 @@
 # GerDoctor – Arbeitskontext
 
-Stand: 2026-08-18
+Stand: 2026-08-24
+
+## Repository und Git
+
+- Repository: `/Users/christophergunther/apps/gerdoctor`
+- Aktiver Branch: `main`
+- Remote: `origin/main`
+- Letzter fachlicher Commit vor diesem Memory-Abschluss: `cdec7ec`
+- Die früheren Remote-Branches `pflege` und `Pflege` sowie der lokale Branch
+  `local-pflege` wurden nach dem Fast-Forward-Merge gelöscht.
+- Der Arbeitsbaum war vor dem Memory-Abschluss sauber und `main` vollständig
+  mit GitHub synchron.
 
 ## Lokale Umgebung
 
-- Repository: `/Users/christophergunther/apps/gerdoctor`
-- Arbeitsbranch: `local-pflege`, basiert auf `origin/pflege`
 - Docker Compose startet MongoDB, FastAPI und React.
 - Frontend: `http://localhost:3001`
 - Backend: `http://localhost:8001`
 - MongoDB: `localhost:27017`
-- Lokale Testzugänge sind in den E2E-Fixtures dokumentiert; keine Zugangsdaten in Memory-Dateien duplizieren.
+- Keine Zugangsdaten oder Stripe-Schlüssel in Memory-Dateien ergänzen.
 
-## Zuletzt umgesetzt
+## Aktuelle URL-Struktur
 
-- Multi-Survey-Verwaltung für Ärzte und Pflege funktioniert über den Survey-Selektor.
-- Step-Editor um kontextbezogene, per Portal gerenderte und tastaturbedienbare Tooltips erweitert.
-- Der Titel des bearbeiteten Steps steht prominent im Kopf des Edit-Step-Dialogs.
-- Neben Listen- und Flow-Ansicht existiert die Ansicht `Abhängigkeiten`:
-  - Dagre-Layout ausschließlich anhand realer Conditions
-  - keine künstlichen Sequenzkanten
-  - rekursive Darstellung von UND-/ODER-Regeln
-  - getrennte Positionierung ohne Überschreiben des manuellen Flow-Layouts
-- Lokale Dockerfiles und Compose-Konfiguration für Port 3001/8001 ergänzt.
-- Backend-Verträge verbessert:
-  - rekursive `StepCondition`-Modelle
-  - `StepFieldMapping` und `FlowPosition`
-  - validiertes `StepResponse` für die Admin-Step-API
-  - gemeinsame, lesbare Step-Serialisierung
-- Testinfrastruktur verbessert:
-  - `pytest.ini` und gemeinsame `base_url`-Fixture
-  - `httpx` als deklarierte Testabhängigkeit
-  - Modelltests für verschachtelte Conditions, Mappings und Layoutkoordinaten
+- `/` – Partner-Landingpage und Self-Service-Registrierung
+- `/aerzte` – öffentlicher Ärzte-Survey
+- `/pflege` – öffentlicher Pflege-Survey
+- `/partner-payment` – isolierter Partner-Zahlungsprozess
+- `/partner-payment/success` und `/partner-payment/cancelled` – Checkout-Rückkehrseiten
+- `/partner/dashboard` – Partneradministration nach erfolgreicher Zahlung
+- `/admin` – Plattformadministration
 
-## Verifikation
+## Partnerregistrierung und Freischaltung
 
-- Frontend: 5/5 Tests bestanden.
-- Fokussierter Backend-Lauf: 37/37 Tests bestanden.
-- Vollständiger Backend-Lauf: 321 bestanden, 15 übersprungen, 6 fehlgeschlagen.
-- Frontend-Produktionsbuild war erfolgreich.
-- FastAPI OpenAPI und Frontend liefern lokal HTTP 200.
+- Self-Service-Registrierung legt Partnerorganisation und Partnernutzer an.
+- Ein neuer Partner startet mit `registration_status=pending`,
+  `is_active=false` und ohne `survey_ids`.
+- Nach erfolgreicher Stripe-Zahlung ist nur der bezahlte Zugang bestätigt; die
+  fachliche Freischaltung erfolgt separat durch eine Admin-Survey-Zuweisung.
+- Operativer Partnerzugriff setzt alle drei Bedingungen voraus:
+  - `registration_status == active`
+  - `is_active == true`
+  - mindestens eine ID in `survey_ids`
+- Solange die Zuweisung fehlt, zeigt das Partnerdashboard eine gestaltete
+  Infoseite mit dem Hinweis auf Freischaltung innerhalb von zwei Werktagen.
+- In diesem Zustand bleiben verfügbar:
+  - eigenes Profil und eigene Partnerdaten
+  - Rechnungs- und Stripe-Einstellungen
+  - Stripe-Kundenportal und Rechnungen
+  - `Other users` als schreibgeschützte Übersicht
+- Details und Änderungen an fremden Nutzerdaten werden sowohl in der UI als
+  auch serverseitig gesperrt. Direkte API-Aufrufe erhalten HTTP 403.
 
-## Bekannte offene Testfehler
+## Stripe-Architektur
 
-1. Zwei Admin-Survey-E2E-Tests: Radix-Auswahl `Alle` liegt laut Playwright außerhalb des Viewports.
-2. Zwei Auth-E2E-Tests: erwarten Same-Origin-Proxy über Port 3001, während das lokale Frontend direkt Port 8001 nutzt.
-3. Milestone-Flow: Step 7 bleibt in einem Szenario `pending` statt `in_progress`.
-4. No-builder-tracking-Test: Landingpages laden noch sechs Bilder von `static.prod-images.emergentagent.com`.
+- Partner sind Stripe Customers, keine Stripe-Connect-Accounts.
+- Bezahlung erfolgt über Stripe Checkout; Verwaltung über Customer Portal.
+- Test- und Live-Schlüssel sowie Webhook-Secrets werden im Adminbereich
+  konfiguriert und niemals über öffentliche Settings ausgeliefert.
+- `stripe_sandbox_mode` wählt Test- oder Live-Schlüssel.
+- Wichtige Backend-Routen liegen vollständig unter `/api/partner-payment`:
+  `status`, `settings`, `checkout`, `portal`, `stripe-status`, `invoices`,
+  `webhook`.
+- Stripe ist bewusst nicht Bestandteil der neuen isolierten Unit-Test-Suite;
+  die externe Integration soll später separat stabilisiert werden.
 
-## Architekturhinweise
+## Surveys und Step-Editor
 
-- `backend/server.py` (~3.000 Zeilen) sollte langfristig in Domain-Router und Services zerlegt werden.
-- `frontend/src/pages/AdminDashboard.js` (~3.300 Zeilen) sollte schrittweise in Feature-Komponenten und Hooks aufgeteilt werden.
-- Diese großen Refactorings wurden bewusst nicht neben den funktionalen Änderungen durchgeführt.
+- Ärzte- und Pflege-Surveys sind getrennt und im Adminbereich umschaltbar.
+- Neben Listen- und Flow-Ansicht existiert die Abhängigkeitsansicht mit
+  Dagre-Layout auf Basis realer Conditions, ohne künstliche Sequenzkanten.
+- Rekursive UND-/ODER-Regeln, Feld-Mappings und Flow-Positionen besitzen
+  validierte Pydantic-Modelle.
+- Der Edit-Step-Dialog zeigt den Step-Titel prominent im Kopf.
+- Kontextbezogene Tooltips sind per Portal gerendert sowie mit Maus und
+  Tastatur bedienbar.
 
-## Sicherheit beim Weiterarbeiten
+## Tests
 
-- Der Arbeitsbaum enthielt vor den Änderungen bereits lokale Docker- und UI-Arbeit; nicht pauschal zurücksetzen.
-- E2E-Tests erzeugen beziehungsweise aktualisieren Screenshots unter `test_results/e2e-screenshots/`.
-- Nach einem Backend-Container-Rebuild müssen Playwright und Chromium für E2E-Tests erneut installiert werden, sofern sie nicht ins Image aufgenommen werden.
+- Bestehende Standardsuite bleibt unter `backend/tests` und wird über
+  `backend/pytest.ini` gesammelt.
+- Neue Kandidatensuite liegt getrennt unter `backend/unit_tests_next`.
+- Ausführung der Kandidatensuite:
+  `cd backend && pytest -c pytest.next.ini`
+- Letzter Stand der Kandidatensuite: `98 passed`.
+- Sie deckt Modelle, Auth, Berechtigungen, Formularnormalisierung,
+  Condition-Auswertung, Metriken und Partnerfreischaltung mit Positiv-,
+  Negativ-, Grenzwert- und Fallback-Fällen ab.
+- Relevante bestehende Regressionstests: zuletzt `128 passed`.
+- Frontend-Produktionsbuild war nach den Partnerfreischaltungsänderungen grün.
+- Generierte E2E-Screenshots unter `test_results/e2e-screenshots/` wurden aus
+  Git entfernt und per `.gitignore` ausgeschlossen.
+
+## Gefundene Robustheitskorrekturen
+
+- Beschädigte Passwort-Hashes führen zu einem fehlgeschlagenen Login statt zu
+  einem Serverfehler.
+- JWTs mit ungültiger ObjectId werden als ungültige Tokens mit HTTP 401
+  behandelt.
+- Ungültige Legacy-Werte für `rows` und `heading_level` brechen
+  Formularmigrationen nicht mehr ab.
+- Snapshots ohne `collections` werden sicher normalisiert.
+
+## Weiterarbeiten
+
+- Vor Änderungen zuerst `git status` prüfen; reguläre Arbeit erfolgt auf
+  `main`, solange kein neuer Feature-Branch angelegt wird.
+- Stripe-Test-Price-IDs und Live-Price-IDs gehören zu getrennten Stripe-Modi.
+- Keine realen Stripe-Zugangsdaten, Webhook-Secrets, Datenbankexporte oder
+  personenbezogenen Uploads committen.
+- `backend/server.py` und `frontend/src/pages/AdminDashboard.js` sind weiterhin
+  groß; eine spätere Zerlegung sollte als eigenes Refactoring erfolgen.
+- Detaillierter Sessionabschluss:
+  `memory/session-2026-08-24-partner-onboarding.md`.
