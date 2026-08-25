@@ -25,8 +25,9 @@ from pathlib import Path
 from bson import json_util
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from form_builder import migrate_snapshot_form_configs
+from slices.step_configuration.form_builder import migrate_snapshot_form_configs
 from repair_partner_references import audit_and_repair
+from slices.step_versioning.facade import migrate_step_answer_versioning
 
 
 SNAPSHOT_CREATED_AT = '2026-06-22T11:02:26.617255+00:00'
@@ -4126,6 +4127,9 @@ async def main():
         # repair as part of seed migration and verify against the migrated set.
         for name in ("users", "partners", "steps", "user_progress", "partner_submissions"):
             snapshot["collections"][name] = await db[name].find({}).to_list(None)
+
+    version_migration = await migrate_step_answer_versioning(db)
+    print(f"  versioned steps: {version_migration['steps']}, answers: {version_migration['answers']}, documents: {version_migration['documents']}")
 
     await db.users.create_index("email", unique=True)
     await db.surveys.create_index("slug", unique=True)

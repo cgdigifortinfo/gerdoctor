@@ -66,6 +66,17 @@ def test_funnel_received_equals_submissions(insights, submissions):
     assert insights["conversion_funnel"]["received"] == len(submissions)
 
 
+def test_each_service_selection_is_a_separate_partner_list_entry(submissions):
+    """Rows are service assignments, not users; one user may therefore occur repeatedly."""
+    service_rows = [row for row in submissions if row.get("service_step_id")]
+    composite_keys = [
+        (row.get("user_id"), row["service_step_id"])
+        for row in service_rows
+    ]
+    assert len(composite_keys) == len(set(composite_keys))
+    assert all(row.get("service_step_title") for row in service_rows)
+
+
 def test_funnel_completed_matches_partner_work_completed(insights, submissions):
     """`completed` must equal the count of submissions with partner_work_completed=True."""
     expected_completed = sum(1 for s in submissions if s.get("partner_work_completed") is True)

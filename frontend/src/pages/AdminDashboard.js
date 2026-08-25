@@ -1801,6 +1801,8 @@ export default function AdminDashboard() {
                                                             {p.status === 'completed' ? <Check size={10} weight="bold" /> : step?.order || '?'}
                                                         </div>
                                                         <span className="text-sm font-medium">{step?.title || 'Unknown Step'}</span>
+                                                        {p.configuration_changed && <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold" data-testid={`historical-config-${p.step_id}`}>Historische Konfiguration · v{p.step_version} → v{p.current_step_version}</span>}
+                                                        {p.step_deleted && <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-semibold">Schritt archiviert</span>}
                                                     </div>
                                                     <Select value={p.status} onValueChange={(val) => handleUpdateUserProgress(selectedUser.id, p.step_id, val)}>
                                                         <SelectTrigger className={`w-36 h-8 text-xs border-0 ${p.status === 'completed' ? 'bg-green-100 text-green-700' : p.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`} data-testid={`user-progress-${p.step_id}`}>
@@ -1819,12 +1821,14 @@ export default function AdminDashboard() {
                                                             {Object.entries(stepData).map(([key, value]) => {
                                                                 if (key === 'skipped') return null;
                                                                 const fieldDef = step?.fields?.find(f => f.name === key);
-                                                                const label = fieldDef?.label || key.replace(/_/g, ' ');
-                                                                const fieldType = fieldDef?.field_type;
+                                                                const historicalFieldDef = p.step_snapshot?.fields?.find(f => f.name === key);
+                                                                const label = fieldDef?.label || historicalFieldDef?.label || key.replace(/_/g, ' ');
+                                                                const fieldType = fieldDef?.field_type || historicalFieldDef?.field_type;
+                                                                const fieldWasRemoved = !fieldDef && !!historicalFieldDef;
                                                                 if (fieldType === 'multiupload' && Array.isArray(value)) {
                                                                     return (
                                                                         <div key={key} className="col-span-2">
-                                                                            <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                            <span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span>
                                                                             <div className="mt-1 space-y-1">
                                                                                 {value.map((entry, i) => (
                                                                                     <div key={i} className="flex items-center gap-2 text-sm">
@@ -1837,10 +1841,10 @@ export default function AdminDashboard() {
                                                                     );
                                                                 }
                                                                 if (fieldType === 'file' && value) {
-                                                                    return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--brand-primary)] hover:underline">Download</a></div></div>);
+                                                                    return (<div key={key}><span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--brand-primary)] hover:underline">Download</a></div></div>);
                                                                 }
                                                                 const display = Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value || '-');
-                                                                return (<div key={key}><span className="text-xs text-muted-foreground capitalize">{label}</span><p className="text-sm font-medium">{display}</p></div>);
+                                                                return (<div key={key}><span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span><p className="text-sm font-medium">{display}</p></div>);
                                                             })}
                                                         </div>
                                                     </div>
@@ -1853,6 +1857,25 @@ export default function AdminDashboard() {
                                     )}
                                 </div>
                             </div>
+
+                            {selectedUser.revisions?.length > 0 && (
+                                <div data-testid="answer-revisions">
+                                    <h4 className="font-semibold mb-3">Antwortrevisionen</h4>
+                                    <div className="space-y-2 max-h-[320px] overflow-y-auto pr-2">
+                                        {selectedUser.revisions.map((revision) => (
+                                            <details key={`${revision.step_id}-${revision.revision}`} className="border border-border rounded-sm p-3">
+                                                <summary className="cursor-pointer text-sm font-medium flex flex-wrap items-center gap-2">
+                                                    <span>{revision.step_title}</span>
+                                                    <span className="text-xs text-muted-foreground">Antwort v{revision.revision} · Step v{revision.step_version}</span>
+                                                    {revision.configuration_changed && <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold">Konfiguration nachträglich geändert</span>}
+                                                </summary>
+                                                <pre className="mt-3 p-2 bg-muted rounded text-xs whitespace-pre-wrap break-all">{JSON.stringify(revision.data || {}, null, 2)}</pre>
+                                                <p className="mt-2 text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('de-DE')} · {revision.change_type}</p>
+                                            </details>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Submissions */}
                             {selectedUser.submissions?.length > 0 && (

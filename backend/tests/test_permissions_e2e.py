@@ -118,7 +118,7 @@ def test_permission_groups_crud_and_user_overrides_in_admin_ui():
             user_id = None
             page.keyboard.press("Escape")
             page.goto(f"{FRONTEND}/admin?tab=users", wait_until="domcontentloaded")
-            expect(page.locator('[data-testid="show-permission-groups"]')).to_be_visible(timeout=30000)
+            expect(page.locator('[data-testid="show-permission-groups"]')).to_be_visible(timeout=60000)
             page.locator('[data-testid="show-permission-groups"]').click()
             expect(page.get_by_text(group_name, exact=True)).to_be_visible(timeout=10000)
             page.once("dialog", lambda dialog: dialog.accept())

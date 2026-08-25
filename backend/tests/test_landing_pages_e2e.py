@@ -56,7 +56,7 @@ def test_root_is_partner_registration_landing():
     assert "Stripe" in text
 
 
-def test_partner_registration_redirects_to_isolated_payment_route():
+def test_partner_registration_redirects_to_pending_partner_dashboard():
     email = f"partner-payment-e2e-{uuid4().hex[:10]}@example.com"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--host-resolver-rules=MAP localhost host.docker.internal"])
@@ -68,9 +68,12 @@ def test_partner_registration_redirects_to_isolated_payment_route():
         page.get_by_label("E-Mail *").fill(email)
         page.get_by_label("Passwort *").fill("Partner123!")
         page.get_by_role("button", name="Partnerkonto erstellen").click()
-        page.wait_for_url("**/partner-payment", timeout=20000)
-        expect(page.get_by_role("heading", name="Partnerzugang freischalten")).to_be_visible(timeout=10000)
-        assert "Partnerzugang freischalten" in page.locator("body").inner_text()
+        page.wait_for_url(lambda url: url.split("?", 1)[0].endswith("/partner-dashboard"), timeout=20000)
+        expect(page.get_by_role("heading", name="Wir richten Ihren Partnerbereich persönlich für Sie ein.")).to_be_visible(timeout=10000)
+        body = page.locator("body").inner_text()
+        assert "Freischaltung wird vorbereitet" in body
+        assert "Profil vervollständigen" in body
+        assert "Abrechnung & Stripe" in body
         assert "Account Not Linked" not in page.locator("body").inner_text()
         browser.close()
 

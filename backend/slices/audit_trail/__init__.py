@@ -1,0 +1,1 @@
+"""Persistent audit-trail slice."""

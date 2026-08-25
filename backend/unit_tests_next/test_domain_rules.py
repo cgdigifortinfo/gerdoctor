@@ -12,12 +12,12 @@ from helpers import (
     add_duration,
     calculate_metrics_from_loaded_context,
 )
-from permissions import (
+from slices.groups_permissions.permissions import (
     normalize_permissions,
-    partner_is_awaiting_assignment,
     permission_for_admin_request,
     permission_for_portal_request,
 )
+from slices.identity_access.domain import partner_is_awaiting_assignment
 
 
 class TestPermissionRouting:

@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from bson import ObjectId
+from infrastructure import stripe_subscription_gateway
 
 try:
     import backend.server as server
@@ -129,10 +130,17 @@ def test_billing_stats_separate_open_and_paid_users(monkeypatch):
     monkeypatch.setattr(server, "db", fake_db)
 
     stats = asyncio.run(server._usage_billing_stats(partner_id))
-    assert stats == {
-        "pending_users": 1, "pending_amount": 1250,
-        "billed_users": 1, "billed_amount": 1250,
-        "currency": "eur", "pending": [fake_db.partner_usage_charges.rows[0]],
+    assert stats["pending_users"] == 1
+    assert stats["pending_amount"] == 1250
+    assert stats["billed_users"] == 1
+    assert stats["billed_amount"] == 1250
+    assert stats["currency"] == "eur"
+    assert stats["pending"][0] == {
+        "id": "", "partner_id": partner_id, "partner_name": "",
+        "user_id": "u1", "user_name": "", "amount": 1250,
+        "currency": "eur", "status": "queued", "service_step_id": "",
+        "service_step_title": "", "price_source": "global",
+        "first_upload_file_id": None, "created_at": "",
     }
 
 
@@ -201,9 +209,11 @@ def test_stripe_connection_audit_proposes_unique_customer_and_subscription(monke
         assert customer_id == "cus_unique"
         return {"data": [{"id": "sub_unique", "customer": customer_id, "status": "active"}]}
 
-    monkeypatch.setattr(server, "find_customers_by_email", customers)
-    monkeypatch.setattr(server, "list_customer_subscriptions", subscriptions)
-    report = asyncio.run(server._stripe_connection_report(partner))
+    monkeypatch.setattr(stripe_subscription_gateway, "find_customers_by_email", customers)
+    monkeypatch.setattr(stripe_subscription_gateway, "list_customer_subscriptions", subscriptions)
+    report = asyncio.run(server._stripe_subscription_service().connection_report(
+        server.subscription_partner(partner),
+    )).to_document()
     assert report["repairable"] is True
     assert report["proposed_customer_id"] == "cus_unique"
     assert report["proposed_subscription_id"] == "sub_unique"
@@ -218,8 +228,10 @@ def test_stripe_connection_audit_never_repairs_ambiguous_customer_match(monkeypa
     async def customers(_email):
         return {"data": [{"id": "cus_first"}, {"id": "cus_second"}]}
 
-    monkeypatch.setattr(server, "find_customers_by_email", customers)
-    report = asyncio.run(server._stripe_connection_report(partner))
+    monkeypatch.setattr(stripe_subscription_gateway, "find_customers_by_email", customers)
+    report = asyncio.run(server._stripe_subscription_service().connection_report(
+        server.subscription_partner(partner),
+    )).to_document()
     assert report["repairable"] is False
     assert report["proposed_customer_id"] == ""
     assert any("Mehrdeutige Zuordnung" in issue for issue in report["issues"])

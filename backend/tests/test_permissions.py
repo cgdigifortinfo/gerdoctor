@@ -4,10 +4,7 @@ import asyncio
 import pytest
 from bson import ObjectId
 
-try:
-    import backend.permissions as permissions
-except ModuleNotFoundError:
-    import permissions
+from slices.groups_permissions import permissions
 
 
 class AsyncCursor:
@@ -44,6 +41,47 @@ class GroupCollection:
 class FakeDb:
     def __init__(self, groups):
         self.permission_groups = GroupCollection(groups)
+
+
+class MutableCollection:
+    def __init__(self, rows):
+        self.rows = rows
+        self.operations = []
+
+    def find(self, query, projection=None):
+        if "_id" in query and isinstance(query["_id"], dict):
+            ids = set(query["_id"]["$in"])
+            role = query.get("role")
+            rows = [row for row in self.rows if row.get("_id") in ids and (role is None or row.get("role") == role)]
+        elif query.get("group_ids") == {"$exists": False}:
+            rows = [row for row in self.rows if "group_ids" not in row]
+        else:
+            rows = list(self.rows)
+        return AsyncCursor(rows)
+
+    async def find_one(self, query):
+        if "key" in query:
+            return next((row for row in self.rows if row.get("key") == query["key"]), None)
+        if "_id" in query:
+            return next((row for row in self.rows if row.get("_id") == query["_id"]), None)
+        return None
+
+    async def insert_one(self, document):
+        saved = {**document, "_id": ObjectId()}
+        self.rows.append(saved)
+        self.operations.append(("insert", saved))
+
+    async def update_one(self, query, update):
+        self.operations.append(("update_one", query, update))
+
+    async def update_many(self, query, update):
+        self.operations.append(("update_many", query, update))
+
+
+class MutableDb:
+    def __init__(self, groups, users):
+        self.permission_groups = MutableCollection(groups)
+        self.users = MutableCollection(users)
 
 
 ADMIN_REQUEST_CASES = [
@@ -259,6 +297,9 @@ def test_invalid_and_missing_group_ids_are_ignored_without_granting_rights(monke
 
     assert asyncio.run(permissions.effective_permissions(user)) == ["survey.own.view"]
 
+    user["group_ids"] = ["still-not-an-object-id"]
+    assert asyncio.run(permissions.effective_permissions(user)) == ["survey.own.view"]
+
 
 @pytest.mark.parametrize("role,key", [
     ("admin", "administrators"),
@@ -299,3 +340,81 @@ def test_primary_admin_cannot_be_locked_out(monkeypatch):
 
     assert "*" in effective
     assert set(permissions.ALL_PERMISSION_KEYS).issubset(set(effective))
+
+
+def test_group_summaries_ignore_invalid_and_missing_groups(monkeypatch):
+    group_id = ObjectId()
+    database = MutableDb([{"_id": group_id, "name": "Group", "role": "partner"}], [])
+    monkeypatch.setattr(permissions, "db", database)
+    summaries = asyncio.run(permissions.permission_group_summaries({
+        "group_ids": [str(group_id), "invalid", str(ObjectId())],
+    }))
+    assert summaries == [{"id": str(group_id), "name": "Group", "role": "partner"}]
+    assert asyncio.run(permissions.permission_group_summaries({})) == []
+
+
+def test_default_group_lookup_falls_back_for_unknown_role_and_handles_missing(monkeypatch):
+    group_id = ObjectId()
+    database = MutableDb([{"_id": group_id, "key": "survey_users"}], [])
+    monkeypatch.setattr(permissions, "db", database)
+    assert asyncio.run(permissions.default_group_id("unknown")) == str(group_id)
+    database.permission_groups.rows.clear()
+    assert asyncio.run(permissions.default_group_id("user")) is None
+
+
+def test_role_group_repair_preserves_compatible_groups_and_repairs_invalid_ones(monkeypatch):
+    valid_id, foreign_id, fallback_id = ObjectId(), ObjectId(), ObjectId()
+    database = MutableDb([
+        {"_id": valid_id, "key": "custom", "role": "user"},
+        {"_id": foreign_id, "key": "foreign", "role": "partner"},
+        {"_id": fallback_id, "key": "survey_users", "role": "user"},
+    ], [])
+    monkeypatch.setattr(permissions, "db", database)
+    unchanged = {"_id": ObjectId(), "role": "user", "group_ids": [str(valid_id)]}
+    assert asyncio.run(permissions.ensure_user_role_group(unchanged)) is unchanged
+    repaired = asyncio.run(permissions.ensure_user_role_group({
+        "_id": ObjectId(), "role": "user", "group_ids": [str(foreign_id), "bad"],
+    }))
+    assert repaired["group_ids"] == [str(fallback_id)]
+    assert any(operation[0] == "update_one" for operation in database.users.operations)
+
+
+def test_permission_group_seed_creates_missing_groups_and_migrates_users(monkeypatch):
+    database = MutableDb([], [
+        {"_id": ObjectId(), "role": "user"},
+        {"_id": ObjectId(), "role": "unknown"},
+    ])
+    monkeypatch.setattr(permissions, "db", database)
+    assert asyncio.run(permissions.ensure_permission_groups()) == 3
+    assert len(database.permission_groups.rows) == 3
+    assert any(operation[0] == "update_many" for operation in database.users.operations)
+
+
+def test_permission_group_seed_updates_only_outdated_default_versions(monkeypatch):
+    groups = []
+    for definition in permissions.DEFAULT_GROUPS:
+        group = {**definition, "_id": ObjectId(), "permissions": list(definition["permissions"])}
+        groups.append(group)
+    partner = next(group for group in groups if group["key"] == "partners")
+    partner["permissions"].remove("partner.users.email.view")
+    partner["default_permission_version"] = 1
+    database = MutableDb(groups, [{"_id": ObjectId(), "role": "user", "group_ids": []}])
+    monkeypatch.setattr(permissions, "db", database)
+    assert asyncio.run(permissions.ensure_permission_groups()) == 0
+    updates = [operation for operation in database.permission_groups.operations if operation[0] == "update_one"]
+    assert len(updates) == 1
+    assert updates[0][2]["$addToSet"]["permissions"]["$each"] == ["partner.users.email.view"]
+
+
+def test_permission_group_seed_version_update_without_missing_permissions(monkeypatch):
+    groups = []
+    for definition in permissions.DEFAULT_GROUPS:
+        group = {**definition, "_id": ObjectId(), "permissions": list(definition["permissions"])}
+        groups.append(group)
+    partner = next(group for group in groups if group["key"] == "partners")
+    partner["default_permission_version"] = 1
+    database = MutableDb(groups, [])
+    monkeypatch.setattr(permissions, "db", database)
+    assert asyncio.run(permissions.ensure_permission_groups()) == 0
+    update = database.permission_groups.operations[0][2]
+    assert "$addToSet" not in update and update["$set"]["default_permission_version"] == 2

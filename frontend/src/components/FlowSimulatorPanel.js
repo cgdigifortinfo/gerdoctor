@@ -1,5 +1,5 @@
 import { Play } from '@phosphor-icons/react';
-import { SIMULATOR_PROFILES } from '../lib/stepVisibility';
+import { SIMULATOR_PROFILES } from '../features/steps';
 
 const LEGEND = [
     { key: 'visible', label: 'sichtbar', color: '#2dd4bf' },

@@ -3,116 +3,63 @@ import os
 import logging
 import asyncio
 from collections import defaultdict
-from pathlib import Path
-import smtplib
-import socket
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formataddr
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import HTTPException
 from bson import ObjectId
+from slices.step_versioning.facade import write_progress_revision
 from dateutil.relativedelta import relativedelta
 from database import db
+from slices.survey_runtime.domain import (
+    add_duration as runtime_add_duration,
+    calculate_metrics as runtime_calculate_metrics,
+    completion_steps as runtime_completion_steps,
+    evaluate_condition as runtime_evaluate_condition,
+    is_progress_gate_condition as runtime_is_progress_gate_condition,
+)
+from slices.survey_runtime.mappers import runtime_context_from_documents
+from slices.survey_runtime.domain import order_state as runtime_order_state, visibility as runtime_visibility
+from infrastructure.clock import system_utc_clock
+from slices.survey_runtime.repository import MongoSurveyRuntimeRepository
+from slices.survey_runtime.service import SurveyRuntimeService
+from infrastructure.smtp_email_gateway import SmtpEmailGateway
+from slices.email_notifications.repository import MongoMessageTemplateRepository
+from slices.email_notifications.service import EmailNotificationsService, TemplateNotFound
+from slices.email_notifications.domain import replace_variables as _replace_vars
+from slices.audit_trail.repository import MongoAuditTrailRepository
+from slices.audit_trail.service import AuditTrailService
 
 logger = logging.getLogger("server")
-
-# ========================
-# OBJECT STORAGE
-# ========================
-LOCAL_STORAGE_ROOT = os.environ.get("LOCAL_STORAGE_ROOT", "./data/uploads").strip()
-APP_NAME = "gerdoctor"
-storage_key = None
-
-
-def _local_storage_path(path: str) -> Path:
-    """Resolve an object path below LOCAL_STORAGE_ROOT without path traversal."""
-    root = Path(LOCAL_STORAGE_ROOT).resolve()
-    target = (root / path.lstrip("/")).resolve()
-    if target != root and root not in target.parents:
-        raise HTTPException(status_code=400, detail="Invalid storage path")
-    return target
-
-def init_storage():
-    global storage_key
-    if storage_key:
-        return storage_key
-    Path(LOCAL_STORAGE_ROOT).mkdir(parents=True, exist_ok=True)
-    storage_key = "local"
-    logger.info("Local persistent storage initialized at %s", LOCAL_STORAGE_ROOT)
-    return storage_key
-
-def put_object(path: str, data: bytes, content_type: str) -> dict:
-    key = init_storage()
-    if not key:
-        raise HTTPException(status_code=500, detail="Storage not configured")
-    target = _local_storage_path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(data)
-    return {"path": path, "size": len(data)}
-
-def get_object(path: str) -> tuple:
-    key = init_storage()
-    if not key:
-        raise HTTPException(status_code=500, detail="Storage not configured")
-    target = _local_storage_path(path)
-    if not target.is_file():
-        raise HTTPException(status_code=404, detail="Stored file not found")
-    return target.read_bytes(), "application/octet-stream"
+survey_runtime_service = SurveyRuntimeService(MongoSurveyRuntimeRepository(db), system_utc_clock.now)
+audit_trail_service = AuditTrailService(MongoAuditTrailRepository(db), system_utc_clock.now_iso)
 
 # ========================
 # EMAIL
 # ========================
-MAILGUN_SMTP_HOST = os.environ.get("MAILGUN_SMTP_HOST", "smtp.eu.mailgun.org")
-MAILGUN_SMTP_PORT = int(os.environ.get("MAILGUN_SMTP_PORT", 587))
-MAILGUN_SMTP_USER = os.environ.get("MAILGUN_SMTP_USER", "")
-MAILGUN_SMTP_PASSWORD = os.environ.get("MAILGUN_SMTP_PASSWORD", "")
-MAILGUN_FROM_EMAIL = os.environ.get("MAILGUN_FROM_EMAIL", "")
+smtp_email_gateway = SmtpEmailGateway(
+        os.environ.get("MAILGUN_SMTP_HOST", "smtp.eu.mailgun.org"),
+        int(os.environ.get("MAILGUN_SMTP_PORT", 587)),
+        os.environ.get("MAILGUN_SMTP_USER", ""),
+        os.environ.get("MAILGUN_SMTP_PASSWORD", ""),
+        os.environ.get("MAILGUN_FROM_EMAIL", ""),
+)
+email_notifications_service = EmailNotificationsService(
+    MongoMessageTemplateRepository(db), smtp_email_gateway,
+    os.environ.get("FRONTEND_URL", ""),
+)
+
 
 def send_email_sync(to_email: str, subject: str, html_content: str) -> dict:
-    if not MAILGUN_SMTP_USER or not MAILGUN_FROM_EMAIL:
-        logger.info(f"Email not configured. Would send to {to_email}: {subject}")
-        return {"status": "skipped", "message": "Email not configured"}
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["From"] = formataddr(("IHCA", MAILGUN_FROM_EMAIL))
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(html_content, "html"))
-        with smtplib.SMTP(MAILGUN_SMTP_HOST, MAILGUN_SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(MAILGUN_SMTP_USER, MAILGUN_SMTP_PASSWORD)
-            server.send_message(msg)
-        logger.info(f"Email sent to {to_email}: {subject}")
-        return {"status": "success"}
-    except (smtplib.SMTPException, ConnectionRefusedError, socket.gaierror, TimeoutError) as e:
-        logger.error(f"SMTP error sending to {to_email}: {e}")
-        return {"status": "failed", "error": str(e)}
-    except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {e}")
-        return {"status": "failed", "error": str(e)}
+    return smtp_email_gateway.send_sync(to_email, subject, html_content).to_document()
 
-async def send_email_notification(to_email: str, subject: str, html_content: str):
+
+async def send_email_notification(to_email: str, subject: str, html_content: str) -> dict:
     return await asyncio.to_thread(send_email_sync, to_email, subject, html_content)
 
 
 # ========================
 # TEMPLATE RENDERING
 # ========================
-def _replace_vars(text: str, variables: dict) -> str:
-    """Replace {{var_name}} tokens. Missing tokens fall back to empty string
-    so partner emails don't leak raw {{user_email}} markers."""
-    if not text:
-        return ""
-    import re as _re
-    def _sub(match: "_re.Match[str]") -> str:
-        key = match.group(1).strip()
-        val = variables.get(key)
-        return "" if val is None else str(val)
-    return _re.sub(r"{{\s*([\w.]+)\s*}}", _sub, text)
-
-
 async def render_email(
     template_key: str,
     variables: dict,
@@ -126,38 +73,14 @@ async def render_email(
 
     Returns {} when the collection hasn't been seeded — callers should treat
     that as "skip send" gracefully."""
-    variables = dict(variables or {})
-    variables.setdefault("app_url", os.environ.get("FRONTEND_URL", ""))
-
-    header_doc = await db.email_templates.find_one({"key": "header"})
-    footer_doc = await db.email_templates.find_one({"key": "footer"})
-    tpl_doc = await db.email_templates.find_one({"key": template_key})
-    if not tpl_doc and not override_body:
-        logger.warning(f"render_email: template '{template_key}' not found in email_templates collection")
+    try:
+        rendered = await email_notifications_service.email(
+            template_key, variables or {}, override_subject, override_body,
+        )
+    except TemplateNotFound:
+        logger.warning("render_email: template '%s' not found", template_key)
         return {}
-
-    header_html = (header_doc or {}).get("body_html", "") if header_doc else ""
-    footer_html = (footer_doc or {}).get("body_html", "") if footer_doc else ""
-    subject_raw = override_subject or (tpl_doc or {}).get("subject", "")
-    body_raw = override_body or (tpl_doc or {}).get("body_html", "")
-
-    subject = _replace_vars(subject_raw, variables)
-    body = _replace_vars(body_raw, variables)
-    header = _replace_vars(header_html, variables)
-    footer = _replace_vars(footer_html, variables)
-
-    html = f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"/></head>
-<body style="margin:0;padding:0;background:#f8fafc;">
-  <div style="max-width:640px;margin:0 auto;background:#ffffff;">
-    {header}
-    {body}
-    {footer}
-  </div>
-</body>
-</html>"""
-    return {"subject": subject, "html": html}
+    return rendered.to_document()
 
 
 async def render_notification(
@@ -167,18 +90,14 @@ async def render_notification(
     override_body: str | None = None,
 ) -> dict:
     """Render the compact Browser/App copy stored beside an email template."""
-    variables = dict(variables or {})
-    variables.setdefault("app_url", os.environ.get("FRONTEND_URL", ""))
-    template = await db.email_templates.find_one({"key": template_key})
-    if not template:
+    try:
+        rendered = await email_notifications_service.notification(
+            template_key, variables or {}, override_title, override_body,
+        )
+    except TemplateNotFound:
         logger.warning("render_notification: template '%s' not found", template_key)
         return {}
-    title_raw = template.get("notification_title", "") if override_title is None else override_title
-    body_raw = template.get("notification_body", "") if override_body is None else override_body
-    return {
-        "title": _replace_vars(title_raw, variables),
-        "body": _replace_vars(body_raw, variables),
-    }
+    return rendered.to_document()
 
 
 async def send_rendered_email(
@@ -190,15 +109,18 @@ async def send_rendered_email(
 ) -> dict:
     """Convenience: render + send. Returns the send_email result dict.
     Safe when the template is missing — logs & returns {'status': 'skipped'}."""
-    rendered = await render_email(template_key, variables, override_subject, override_body)
-    if not rendered:
-        return {"status": "skipped", "reason": f"template '{template_key}' missing"}
-    return await send_email_notification(to_email, rendered["subject"], rendered["html"])
+    result = await email_notifications_service.send_rendered(
+        to_email, template_key, variables or {}, override_subject, override_body,
+    )
+    document = result.to_document()
+    if result.status == "skipped" and result.error:
+        return {"status": "skipped", "reason": result.error}
+    return document
 
 
 def _partner_deep_link(user_id: str) -> str:
-    base = os.environ.get("FRONTEND_URL", "").rstrip("/")
-    return f"{base}/partner-dashboard?openUser={user_id}" if base else f"/partner-dashboard?openUser={user_id}"
+    from slices.email_notifications.domain import partner_deep_link
+    return partner_deep_link(os.environ.get("FRONTEND_URL", ""), user_id)
 
 
 async def notify_partner_of_new_submission(partner: dict, user: dict, submission_data: dict) -> int:
@@ -311,53 +233,22 @@ async def notify_user_milestone_completed(user: dict, partner: dict, step: dict)
 # AUDIT LOG
 # ========================
 async def create_audit_log(actor_id: str, actor_email: str, action: str, target_type: str, target_id: str = "", details: dict = None):
-    await db.audit_logs.insert_one({
-        "actor_id": actor_id,
-        "actor_email": actor_email,
-        "action": action,
-        "target_type": target_type,
-        "target_id": target_id,
-        "details": details or {},
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
+    await audit_trail_service.record(actor_id, actor_email, action, target_type, target_id, details)
 
 # ========================
 # COMPLETION CALCULATIONS
 # ========================
 def add_duration(start_date, value, unit):
-    if unit == "days":
-        return start_date + timedelta(days=value)
-    elif unit == "weeks":
-        return start_date + timedelta(weeks=value)
-    elif unit == "months":
-        return start_date + relativedelta(months=value)
-    elif unit == "years":
-        return start_date + relativedelta(years=value)
-    return start_date
+    return runtime_add_duration(start_date, value, unit)
 
 
 def _is_progress_gate_condition(cond: dict) -> bool:
-    if isinstance(cond.get("all_of"), list):
-        return all(_is_progress_gate_condition(c) for c in cond["all_of"])
-    if isinstance(cond.get("any_of"), list):
-        return all(_is_progress_gate_condition(c) for c in cond["any_of"])
-    return cond.get("operator") in ("status_is", "status_not") and not cond.get("field")
+    return runtime_is_progress_gate_condition(cond)
 
 
 def _completion_denominator_steps(steps: list, hidden_ids: set) -> list:
-    denominator_steps = []
-    for step in steps:
-        sid = str(step["_id"])
-        if sid not in hidden_ids:
-            denominator_steps.append(step)
-            continue
-        hide_conditions = [
-            cond for cond in (step.get("conditions") or [])
-            if cond.get("action") == "hide"
-        ]
-        if hide_conditions and all(_is_progress_gate_condition(cond) for cond in hide_conditions):
-            denominator_steps.append(step)
-    return denominator_steps
+    context = runtime_context_from_documents(steps, [])
+    return [step.document for step in runtime_completion_steps(context.steps, frozenset(hidden_ids))]
 
 # ========================
 # CONDITION EVALUATION (server-side, mirrors frontend)
@@ -365,104 +256,17 @@ def _completion_denominator_steps(steps: list, hidden_ids: set) -> list:
 def _evaluate_condition(cond: dict, order_map: dict) -> bool:
     """Evaluate a single condition against a map {order: {data, status}}.
     Supports compound conditions via `all_of` / `any_of` (list of sub-conditions)."""
-    if isinstance(cond.get("all_of"), list):
-        return all(_evaluate_condition(c, order_map) for c in cond["all_of"])
-    if isinstance(cond.get("any_of"), list):
-        return any(_evaluate_condition(c, order_map) for c in cond["any_of"])
-    source = order_map.get(cond.get("source_step_order"))
-    if not source:
-        return False
-    field = cond.get("field")
-    data = source.get("data") or {}
-    # When a specific `field` is requested but not in data, treat it as empty
-    # (don't fall back to status — that leaks the step status into data-level
-    # comparisons like `empty`/`not_empty` and leads to wrong hide decisions).
-    # Only fall back to status when no field is specified at all.
-    if field:
-        field_value = data.get(field)
-    else:
-        field_value = source.get("status")
-    expected = cond.get("value")
-    op = cond.get("operator", "equals")
-    if op == "equals":
-        return str(field_value) == str(expected)
-    if op == "not_equals":
-        return str(field_value) != str(expected)
-    if op in ("one_of", "not_one_of"):
-        expected_values = expected if isinstance(expected, list) else [expected]
-        normalized_expected = {str(value) for value in expected_values if value is not None}
-        if isinstance(field_value, list):
-            matches = any(str(value) in normalized_expected for value in field_value)
-        else:
-            matches = str(field_value) in normalized_expected
-        return matches if op == "one_of" else not matches
-    if op == "contains":
-        return str(expected) in str(field_value or "")
-    if op == "not_empty":
-        return bool(field_value) and field_value != ""
-    if op == "empty":
-        return not field_value or field_value == ""
-    if op == "status_is":
-        return source.get("status") == expected
-    if op == "status_not":
-        return source.get("status") != expected
-    if op == "has_upload":
-        uploads = data.get(field) or []
-        if not isinstance(uploads, list):
-            return False
-        # Empty expected → any non-empty upload entry with a file_id qualifies
-        if expected in (None, ""):
-            return any(isinstance(u, dict) and u.get("file_id") for u in uploads)
-        return any(
-            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id")
-            for u in uploads
-        )
-    if op == "missing_upload":
-        uploads = data.get(field) or []
-        if not isinstance(uploads, list):
-            return True
-        if expected in (None, ""):
-            # Missing when NO entry has a file_id
-            return not any(isinstance(u, dict) and u.get("file_id") for u in uploads)
-        return not any(
-            isinstance(u, dict) and u.get("document_type") == expected and u.get("file_id")
-            for u in uploads
-        )
-    return False
+    return runtime_evaluate_condition(cond, order_map)
 
 
 async def _get_step_context(user_id: str):
     """Return (steps_sorted, order_map, hidden_step_ids, blocked_step_ids) for a user."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    survey_id = user.get("survey_id") if user else None
-    step_query = {"is_active": True}
-    progress_query = {"user_id": user_id}
-    if survey_id:
-        step_query["survey_id"] = survey_id
-        progress_query["survey_id"] = survey_id
-    steps = await db.steps.find(step_query).sort("order", 1).to_list(200)
-    progress = await db.user_progress.find(progress_query, {"_id": 0}).to_list(500)
-    progress_map = {p["step_id"]: p for p in progress}
-    order_map = {}
-    for s in steps:
-        sid = str(s["_id"])
-        p = progress_map.get(sid, {})
-        order_map[s["order"]] = {"data": p.get("data", {}), "status": p.get("status", "pending")}
-
-    hidden_ids = set()
-    blocked_ids = set()
-    for s in steps:
-        sid = str(s["_id"])
-        for cond in (s.get("conditions") or []):
-            action = cond.get("action")
-            if action not in ("hide", "block"):
-                continue
-            if _evaluate_condition(cond, order_map):
-                if action == "hide":
-                    hidden_ids.add(sid)
-                elif action == "block":
-                    blocked_ids.add(sid)
-    return steps, order_map, hidden_ids, blocked_ids
+    context = await survey_runtime_service.context(user_id)
+    visible = runtime_visibility(context)
+    return (
+        [step.document for step in context.steps], runtime_order_state(context),
+        set(visible.hidden_step_ids), set(visible.blocked_step_ids),
+    )
 
 
 async def compute_auto_complete_steps(user_id: str):
@@ -505,11 +309,12 @@ async def apply_auto_completes(user_id: str):
         }
         if not (existing and existing.get("started_at")):
             update_fields["started_at"] = now_iso
-        await db.user_progress.update_one(
-            {"user_id": user_id, "step_id": sid},
-            {"$set": update_fields},
-            upsert=True,
-        )
+        if step:
+            await write_progress_revision(
+                db, user_id=user_id, step=step, status="completed", data=update_fields["data"],
+                actor={"role": "system"}, change_type="auto_complete",
+                extra_fields={key: value for key, value in update_fields.items() if key not in {"status", "data"}},
+            )
         await db.progress_history.insert_one({
             "user_id": user_id, "step_id": sid,
             "step_title": (step or {}).get("title", ""),
@@ -589,15 +394,10 @@ async def apply_anerkennungsstatus_skips(user_id: str, status: str):
             if step.get("step_type") == "decision":
                 # Force the 'upload' branch so partner_step stays hidden + milestone auto-matches
                 data["decision"] = "upload"
-            await db.user_progress.update_one(
-                {"user_id": user_id, "step_id": sid},
-                {"$set": {
-                    "status": "completed", "data": data,
-                    "updated_at": now_iso,
-                    "completed_at": now_iso,
-                    "started_at": (existing or {}).get("started_at") or now_iso,
-                }},
-                upsert=True,
+            await write_progress_revision(
+                db, user_id=user_id, step=step, status="completed", data=data,
+                actor={"role": "system"}, change_type="status_auto_skip",
+                extra_fields={"completed_at": now_iso, "started_at": (existing or {}).get("started_at") or now_iso},
             )
             await db.progress_history.insert_one({
                 "user_id": user_id, "step_id": sid,
@@ -687,66 +487,9 @@ async def calculate_user_metrics(user_id: str) -> dict:
 
 def _metrics_from_loaded_context(steps: list, progress: list) -> dict:
     """Pure bulk-friendly counterpart of calculate_user_metrics."""
-    progress_map = {p["step_id"]: p for p in progress}
-    order_map = {}
-    for step in steps:
-        sid = str(step["_id"])
-        row = progress_map.get(sid, {})
-        order_map[step["order"]] = {
-            "data": row.get("data", {}),
-            "status": row.get("status", "pending"),
-        }
-
-    hidden_ids = set()
-    for step in steps:
-        sid = str(step["_id"])
-        for condition in step.get("conditions") or []:
-            if condition.get("action") == "hide" and _evaluate_condition(condition, order_map):
-                hidden_ids.add(sid)
-
-    denominator_steps = _completion_denominator_steps(steps, hidden_ids)
-    denominator_ids = {str(step["_id"]) for step in denominator_steps}
-    completed = sum(
-        1 for sid, row in progress_map.items()
-        if sid in denominator_ids and row.get("status") == "completed"
-    )
-    completion_pct = round(completed / len(denominator_steps) * 100) if denominator_steps else 0
-
-    if not steps:
-        estimated_completion = None
-    else:
-        last_completed_at = None
-        for step in steps:
-            sid = str(step["_id"])
-            if sid in hidden_ids:
-                continue
-            row = progress_map.get(sid, {})
-            timestamp = row.get("completed_at") if row.get("status") == "completed" else None
-            if not timestamp:
-                continue
-            try:
-                parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                if last_completed_at is None or parsed > last_completed_at:
-                    last_completed_at = parsed
-            except (ValueError, AttributeError):
-                pass
-        current = last_completed_at or datetime.now(timezone.utc)
-        for step in steps:
-            sid = str(step["_id"])
-            if sid in hidden_ids:
-                continue
-            if progress_map.get(sid, {}).get("status") != "completed":
-                current = add_duration(
-                    current,
-                    step.get("duration_value", 0),
-                    step.get("duration_unit", "days"),
-                )
-        estimated_completion = current.date().isoformat()
-
-    return {
-        "completion_pct": completion_pct,
-        "estimated_completion": estimated_completion,
-    }
+    return runtime_calculate_metrics(
+        runtime_context_from_documents(steps, progress), datetime.now(timezone.utc)
+    ).as_dict()
 
 
 def calculate_metrics_from_loaded_context(steps: list, progress: list) -> dict:

@@ -3,7 +3,7 @@
 import asyncio
 
 from database import db
-from form_builder import migrate_database_form_configs
+from slices.step_configuration.form_builder import migrate_database_form_configs
 
 
 async def main():

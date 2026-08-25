@@ -1,0 +1,19 @@
+"""Ports for template persistence and message delivery."""
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
+
+from slices.email_notifications.models import DeliveryResult, MessageTemplate
+
+
+class MessageTemplateRepository(Protocol):
+    async def get(self, key: str) -> MessageTemplate | None: ...
+    async def list(self) -> list[MessageTemplate]: ...
+    async def update(self, key: str, fields: Mapping[str, Any]) -> MessageTemplate | None: ...
+    async def upsert(self, template: MessageTemplate, timestamp: str) -> MessageTemplate: ...
+    async def seed(self, templates: Sequence[MessageTemplate], timestamp: str) -> None: ...
+
+
+class EmailGateway(Protocol):
+    async def send(self, recipient: str, subject: str, html: str) -> DeliveryResult: ...

@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from form_builder import (
+from slices.step_configuration.form_builder import (
     FORM_SCHEMA_VERSION,
     migrate_snapshot_form_configs,
     normalize_step_document,

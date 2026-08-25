@@ -310,6 +310,23 @@ class TestAutoComplete:
 
     def _reset_kumar(self, s, steps):
         by_order = {st["order"]: st for st in steps}
+        step_ids = [str(by_order[o].get("id") or by_order[o].get("_id")) for o in (2, 3, 4, 5, 6)]
+
+        # Test-only isolation: application APIs correctly reject rewriting a
+        # decision after documents exist, so remove this ephemeral user's rows
+        # directly instead of weakening the production read-only rule.
+        async def clear_block():
+            client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+            database = client[os.environ["DB_NAME"]]
+            user = await database.users.find_one({"email": STAGE_USERS["kumar"]}, {"_id": 1})
+            user_id = str(user["_id"])
+            query = {"user_id": user_id, "step_id": {"$in": step_ids}}
+            await database.user_progress.delete_many(query)
+            await database.user_progress_revisions.delete_many(query)
+            await database.progress_history.delete_many(query)
+            client.close()
+
+        asyncio.run(clear_block())
         # reset block 1 steps (3..6) plus the new Schnellstart step (2)
         for o in (2, 3, 4, 5, 6):
             sid = str(by_order[o].get("id") or by_order[o].get("_id"))
@@ -346,6 +363,12 @@ class TestAutoComplete:
 
         # 4) Real file → milestone auto-completes
         _put_progress(s, sid4, "completed", _real_upload_doc())
+        locked = s.put(
+            f"{API}/steps/progress",
+            json={"step_id": sid3, "status": "completed", "data": {"decision": "partner"}},
+            timeout=15,
+        )
+        assert locked.status_code == 409, "a decision preceding uploaded documents must remain read-only"
         prog = {p["step_id"]: p for p in s.get(f"{API}/steps/progress").json()}
         assert prog[sid6]["status"] == "completed", f"milestone 6 not auto-completed: {prog[sid6]}"
 

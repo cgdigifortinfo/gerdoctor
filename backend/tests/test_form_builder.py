@@ -1,7 +1,7 @@
 """Form-builder schema and legacy-field migration regression coverage."""
 
 try:
-    from backend.form_builder import (
+    from backend.slices.step_configuration.form_builder import (
         FORM_SCHEMA_VERSION,
         migrate_snapshot_form_configs,
         normalize_step_document,
@@ -9,7 +9,7 @@ try:
     )
     from backend.models import StepCreate
 except ModuleNotFoundError:  # container test runs use /app/backend as cwd
-    from form_builder import (
+    from slices.step_configuration.form_builder import (
         FORM_SCHEMA_VERSION,
         migrate_snapshot_form_configs,
         normalize_step_document,

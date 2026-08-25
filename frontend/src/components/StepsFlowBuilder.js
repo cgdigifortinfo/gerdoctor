@@ -8,7 +8,7 @@ import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { Button } from './ui/button';
 import { Plus, Pencil, Trash, LockSimple, EyeSlash, CheckCircle, ArrowsClockwise, CaretRight, Graph, ArrowsOut, ArrowsIn, ArrowUUpLeft, ArrowUUpRight, Play, Stop } from '@phosphor-icons/react';
-import { simulateJourney, SIMULATOR_PROFILES } from '../lib/stepVisibility';
+import { simulateJourney, SIMULATOR_PROFILES } from '../features/steps';
 import { useFlowHistory } from '../hooks/useFlowHistory';
 import FlowSimulatorPanel from './FlowSimulatorPanel';
 import { SearchableMultiSelect, SearchableSelect } from './admin/EntityPickers';

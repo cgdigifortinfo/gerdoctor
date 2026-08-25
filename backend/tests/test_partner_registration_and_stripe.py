@@ -29,6 +29,11 @@ def test_partner_registration_is_pending_without_stripe(base_url):
     partner_headers = {"Authorization": f"Bearer {body['user']['access_token']}"}
     visible = requests.get(f"{api}/partner/submissions", headers=partner_headers, timeout=20)
     assert visible.status_code == 403  # survey assignment remains a separate prerequisite
+    assert requests.get(f"{api}/partner/other-users", headers=partner_headers, timeout=20).status_code == 403
+    insights = requests.get(f"{api}/partner/insights", headers=partner_headers, timeout=20)
+    assert insights.status_code == 200
+    assert insights.json()["conversion_funnel"] == {"received": 0, "accepted": 0, "completed": 0}
+    assert insights.json()["total_linked_users"] == 0
     payment_status = requests.get(f"{api}/partner-payment/status", headers=partner_headers, timeout=20)
     assert payment_status.status_code == 200
     assert payment_status.json() == {"billing_status": "pending", "access_unlocked": False}

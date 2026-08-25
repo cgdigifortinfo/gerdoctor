@@ -4,6 +4,7 @@ Each cascade test creates its own data and cleans up after itself.
 """
 import httpx
 import pytest
+import uuid
 
 @pytest.fixture(scope="module")
 def admin_token(base_url):
@@ -255,7 +256,8 @@ class TestNegativeInputs:
 
     def test_login_nonexistent(self, base_url):
         with httpx.Client(timeout=15) as c:
-            r = c.post(f"{base_url}/api/auth/login", json={"email": "nonexistent@nowhere.de", "password": "Test123!"})
+            email = f"nonexistent-{uuid.uuid4().hex}@nowhere.de"
+            r = c.post(f"{base_url}/api/auth/login", json={"email": email, "password": "Test123!"})
             assert r.status_code == 401
 
     def test_login_malformed_email(self, base_url):

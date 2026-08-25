@@ -127,8 +127,15 @@ def _login_admin(page):
 
 
 def _choose_select_option(page, trigger_testid, option_text):
-    page.locator(f'[data-testid="{trigger_testid}"]').click()
-    page.locator('[role="option"]').filter(has_text=option_text).last.click()
+    trigger = page.locator(f'[data-testid="{trigger_testid}"]')
+    trigger.scroll_into_view_if_needed()
+    trigger.click()
+    option = page.locator('[role="option"]:visible').filter(has_text=option_text).last
+    expect(option).to_be_visible(timeout=5000)
+    # Radix may render the last option just outside its scroll viewport in
+    # headless Chromium. A DOM click still exercises the component handler
+    # without depending on viewport geometry.
+    option.evaluate("element => element.click()")
 
 
 def _choose_searchable_option(page, trigger_testid, search_text, option_text):

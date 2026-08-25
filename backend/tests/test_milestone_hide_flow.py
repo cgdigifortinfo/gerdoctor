@@ -125,6 +125,16 @@ def _set_decision(user_token, order2id, decision_order, value):
                               "status": "completed", "data": {"decision": value}})
 
 
+def _partner_for_token(partner_token):
+    """Return the public partner record owned by the authenticated fixture user."""
+    profile = requests.get(
+        f"{API}/partner/profile", headers={"Authorization": f"Bearer {partner_token}"}
+    )
+    profile.raise_for_status()
+    partner_id = profile.json()["partner_id"]
+    return next(p for p in requests.get(f"{API}/partners").json() if p["id"] == partner_id)
+
+
 # ---------- 1. Milestones hidden until decision is made ----------
 class TestMilestoneHiddenUntilDecision:
     """All milestone steps must stay HIDDEN in the timeline until their
@@ -285,7 +295,7 @@ class TestEmptyOperatorOnMissingField:
 
         _bootstrap(user_tok, order2id)
         _set_decision(user_tok, order2id, 3, "partner")
-        ils = requests.get(f"{API}/partners").json()[0]
+        ils = _partner_for_token(partner_token)
         requests.post(f"{API}/partners/submit",
                       headers={"Authorization": f"Bearer {user_tok}"},
                       json={"partner_id": ils["id"], "data": {}})
@@ -293,9 +303,10 @@ class TestEmptyOperatorOnMissingField:
                      headers={"Authorization": f"Bearer {user_tok}"},
                      json={"step_id": order2id[5], "status": "completed",
                            "data": {"selected_partner_id": ils["id"]}})
-        requests.put(f"{API}/partner/users/{user_id}/progress",
-                     headers={"Authorization": f"Bearer {partner_token}"},
-                     json={"step_id": order2id[6], "status": "completed", "data": {}})
+        response = requests.put(f"{API}/partner/users/{user_id}/progress",
+                                headers={"Authorization": f"Bearer {partner_token}"},
+                                json={"step_id": order2id[6], "status": "completed", "data": {}})
+        response.raise_for_status()
 
         # Step 7 is now in_progress (server sets next step on milestone completion)
         prog = requests.get(f"{API}/steps/progress",

@@ -19,6 +19,8 @@ Diese Datei ist der Einstiegspunkt fuer spaetere Sessions. Die Detailnotizen sin
 
 ## Detaildateien
 
+- [Standards für Slice-Extraktionen](slice-extraction-standards.md): verbindliche
+  Schichtengrenzen, Typisierung, Coverage-, Mutation- und Regression-Gates.
 - [Design-System FSP Pflege](design-system-fsp-pflege.md): Farben, Fonts, Logos, Icons, Referenzseite, UI-Regeln.
 - [Datenstrukturen und API](data-structures-surveys.md): Survey-/Step-/User-/Progress-Felder, neue Endpunkte, Scoping.
 - [Programmierung und Betrieb](programming-notes.md): Architektur, Startanleitung, Login-Daten, Verifikation.

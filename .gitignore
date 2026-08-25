@@ -18,6 +18,13 @@ node_modules/
 
 # Testing
 /coverage
+backend/.coverage
+backend/coverage-*.xml
+backend/htmlcov/
+backend/mutants/
+backend/.mutmut-cache
+frontend/coverage/
+frontend/reports/mutation/
 
 # Next.js
 /.next/

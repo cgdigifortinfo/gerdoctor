@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-import auth
+from slices.identity_access import auth
 
 TOKEN_SECRET = "unit-test-token-secret-at-least-32-bytes-long"
 

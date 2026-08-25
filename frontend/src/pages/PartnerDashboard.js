@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
-import { filterVisibleSteps } from '../lib/stepVisibility';
+import { filterVisibleSteps } from '../features/steps';
 import { PaginationControls, usePagination } from '../components/PaginationControls';
 
 // Suggested values for partner-tag multiselect
@@ -278,6 +278,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                         <tr>
                             {partnerTags.length > 0 && <SortHeader label={t('match') || 'Match'} sortField="match_score" />}
                             <SortHeader label={t('name')} sortField="user_name" />
+                            <SortHeader label="Leistung" sortField="service_step_title" />
                             <SortHeader label={t('email')} sortField="user_email" />
                             <SortHeader label={t('partner_filter_fachgebiet')} sortField="field_of_study" />
                             <SortHeader label={t('admin_progress')} sortField="completion_pct" />
@@ -289,7 +290,7 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                     </thead>
                     <tbody>
                         {pagination.paginatedItems.map((item) => (
-                            <tr key={item.user_id || item.id} className="border-t border-border table-row-hover">
+                            <tr key={`${item.user_id || item.id}-${item.service_step_id || item.step_id || 'legacy'}`} className="border-t border-border table-row-hover">
                                 {partnerTags.length > 0 && (
                                     <td className="px-4 py-3 text-sm" data-testid={`match-${item.user_id || item.id}`}>
                                         {item.match_score > 0 ? (
@@ -303,6 +304,9 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
                                     </td>
                                 )}
                                 <td className="px-4 py-3 text-sm text-foreground font-medium">{item.user_name}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">
+                                    {item.service_step_title || item.partner_milestone_step_title || 'Allgemeine Zuordnung'}
+                                </td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{item.user_email}</td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{item.field_of_study || '-'}</td>
                                 <td className="px-4 py-3">
@@ -434,8 +438,9 @@ export default function PartnerDashboard() {
                 || !(profileRes.data?.survey_ids || []).length
             );
             if (pending) {
-                const otherRes = await partnerDashboardAPI.getOtherUsers().catch(() => ({ data: [] }));
-                setOtherUsers(otherRes.data);
+                const insightsRes = await partnerDashboardAPI.getInsights().catch(() => ({ data: null }));
+                setOtherUsers([]);
+                setInsights(insightsRes.data);
                 return;
             }
             const [subsRes, otherRes, insightsRes] = await Promise.all([
@@ -456,7 +461,7 @@ export default function PartnerDashboard() {
 
     useEffect(() => { loadData(); }, [loadData]);
     useEffect(() => {
-        if (isAwaitingAssignment && !['my-users', 'other-users', 'profile', 'billing'].includes(activeTab)) {
+        if (isAwaitingAssignment && !['my-users', 'insights', 'profile', 'billing'].includes(activeTab)) {
             setActiveTab('my-users');
         }
     }, [isAwaitingAssignment, activeTab]);
@@ -665,14 +670,14 @@ export default function PartnerDashboard() {
                                 <CheckCircle size={18} className="mr-2" />
                                 Completed Users ({completedSubmissions.length})
                             </TabsTrigger>}
-                            <TabsTrigger value="other-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-other-users">
+                            {!isAwaitingAssignment && <TabsTrigger value="other-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
                                 {t('partner_other_users')} ({otherUsers.length})
-                            </TabsTrigger>
-                            {!isAwaitingAssignment && <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
+                            </TabsTrigger>}
+                            <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
                                 <ChartLine size={18} className="mr-2" />
                                 Insights
-                            </TabsTrigger>}
+                            </TabsTrigger>
                             <TabsTrigger value="profile" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
                                 {t('partner_profile')}
@@ -937,6 +942,7 @@ export default function PartnerDashboard() {
                                                             <div>
                                                                 <p className="text-sm font-semibold text-foreground">{step.title}</p>
                                                                 <p className="text-xs text-muted-foreground">{step.step_type}{isPartnerStep ? ` — ${t('partner_your_step')}` : ''}</p>
+                                                                {prog?.configuration_changed && <p className="mt-1 text-[10px] font-semibold text-amber-700" data-testid={`historical-config-${step.id}`}>Historischer Datensatz · Konfiguration geändert (v{prog.step_version} → v{prog.current_step_version})</p>}
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -953,14 +959,16 @@ export default function PartnerDashboard() {
                                                                     // partner_uploads gets its own dedicated render block below — skip here.
                                                                     if (key === 'partner_uploads' || key === 'partner_rejection') return null;
                                                                     const fieldDef = step.fields?.find(f => f.name === key);
-                                                                    const label = fieldDef?.label || key.replace(/_/g, ' ');
-                                                                    const fieldType = fieldDef?.field_type;
+                                                                    const historicalFieldDef = prog?.step_snapshot?.fields?.find(f => f.name === key);
+                                                                    const label = fieldDef?.label || historicalFieldDef?.label || key.replace(/_/g, ' ');
+                                                                    const fieldType = fieldDef?.field_type || historicalFieldDef?.field_type;
+                                                                    const fieldWasRemoved = !fieldDef && !!historicalFieldDef;
                                                                     // Detect arrays of file-like objects (e.g. {file_id, filename})
                                                                     const isFileArray = Array.isArray(value) && value.length > 0 && value.every(v => v && typeof v === 'object' && v.file_id);
                                                                     if ((fieldType === 'multiupload' && Array.isArray(value)) || isFileArray) {
                                                                         return (
                                                                             <div key={key} className="col-span-2" data-testid={`step-data-${step.order}-${key}`}>
-                                                                                <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                                <span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span>
                                                                                 <div className="mt-1 space-y-1.5">
                                                                                     {value.map((entry, i) => (
                                                                                         <div key={i} className="flex items-center gap-2 text-sm">
@@ -979,7 +987,7 @@ export default function PartnerDashboard() {
                                                                     if (fieldType === 'file' && value) {
                                                                         return (
                                                                             <div key={key} data-testid={`step-data-${step.order}-${key}`}>
-                                                                                <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                                <span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span>
                                                                                 <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[var(--brand-primary)] hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
                                                                             </div>
                                                                         );
@@ -990,7 +998,7 @@ export default function PartnerDashboard() {
                                                                     else displayValue = String(value || '-');
                                                                     return (
                                                                         <div key={key} data-testid={`step-data-${step.order}-${key}`}>
-                                                                            <span className="text-xs text-muted-foreground capitalize">{label}</span>
+                                                                            <span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span>
                                                                             <p className="text-sm font-medium text-foreground">{displayValue}</p>
                                                                         </div>
                                                                     );
@@ -1076,6 +1084,19 @@ export default function PartnerDashboard() {
                                             );
                                         })}
                                     </div>
+                                    {userDetail.revisions?.some(revision => revision.configuration_changed) && (
+                                        <div className="mt-5" data-testid="partner-historical-revisions">
+                                            <h4 className="font-semibold mb-2">Historisch veränderte Datensätze</h4>
+                                            <div className="space-y-2">
+                                                {userDetail.revisions.filter(revision => revision.configuration_changed).map(revision => (
+                                                    <details key={`${revision.step_id}-${revision.revision}`} className="rounded-sm border border-amber-200 bg-amber-50/50 p-3">
+                                                        <summary className="cursor-pointer text-sm font-medium text-amber-900">{revision.step_title} · Antwort v{revision.revision} auf Step v{revision.step_version}</summary>
+                                                        <pre className="mt-2 whitespace-pre-wrap break-all text-xs">{JSON.stringify(revision.data || {}, null, 2)}</pre>
+                                                    </details>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : null}
                         </div>

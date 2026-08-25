@@ -1,13 +1,15 @@
 # GerDoctor – Arbeitskontext
 
-Stand: 2026-08-24
+Stand: 2026-08-25
 
 ## Repository und Git
 
 - Repository: `/Users/christophergunther/apps/gerdoctor`
 - Aktiver Branch: `main`
 - Remote: `origin/main`
-- Letzter veröffentlichter Commit vor diesem Abschluss: `6077443`
+- Letzter veröffentlichter Commit vor diesem Abschluss: `6077443`; der gesamte
+  danach entstandene Slice-/Versionierungsstand wird mit dem aktuellen
+  Abschlusscommit veröffentlicht.
 - Die früheren Remote-Branches `pflege` und `Pflege` sowie der lokale Branch
   `local-pflege` wurden nach dem Fast-Forward-Merge gelöscht.
 - Der Arbeitsbaum war vor dem Memory-Abschluss sauber und `main` vollständig
@@ -96,11 +98,25 @@ Stand: 2026-08-24
 - Die Seed-Migration repariert Legacy-Partnerrelationen deterministisch und
   die Verifikation schlägt bei verbleibenden Inkonsistenzen fehl.
 - Der letzte globale Partnerrelations-Dry-Run war leer (`actions: []`).
-- Historische Step-Versionierung ist noch **nicht** umgesetzt: Step-Updates
-  überschreiben Konfigurationen, Progress-Updates überschreiben Antworten und
-  Step-Löschung entfernt aktuell Progress/History. Vor weiteren produktiven
-  Strukturänderungen sind immutable Step-/Antwort-Snapshots und Soft-Delete
-  einzuplanen, damit historische Antworten und Dateizuordnungen sichtbar bleiben.
+- Historische Step-Versionierung ist umgesetzt: unveränderliche
+  Step-Snapshots, Antwortrevisionen, Soft-Delete, dauerhafte
+  Dokument-Bindings, Audit-Vorher-/Nachherstände und Bestandsmigration schützen
+  historische Konfigurationen, Antworten und Dateien. Admin und Partner sehen
+  Konfigurationsabweichungen und gelöschte historische Felder gekennzeichnet.
+
+## Backend-Slice-Architektur
+
+- `backend/server.py` ist nur noch eine 10-zeilige Kompatibilitätsfassade auf
+  `web.application`; direkte FastAPI-Routendeklarationen wurden daraus entfernt.
+- Fachliche Routen liegen in den jeweiligen Slice-Routern. Survey-Progress und
+  Partner-Workspace besitzen getrennte Read-, Detail-, Command- und
+  Action-Services sowie Mongo-Repositories.
+- `backend/web/application.py` ist Composition-/Lifecycle-Root und enthält
+  keine direkten `@api_router`- oder `@app`-Routen mehr.
+- Technische Mongo-Schema- und Indexinitialisierung liegt in
+  `backend/infrastructure/mongo_bootstrap.py`.
+- Architekturgrenzen und Abhängigkeitsrichtung sind in
+  `backend/ARCHITECTURE.md` dokumentiert und werden durch Tests erzwungen.
 
 ## Tests
 
@@ -109,14 +125,22 @@ Stand: 2026-08-24
 - Neue Kandidatensuite liegt getrennt unter `backend/unit_tests_next`.
 - Ausführung der Kandidatensuite:
   `cd backend && pytest -c pytest.next.ini`
-- Letzter Stand der Kandidatensuite: `98 passed`.
+- Das strikte Domain-Gate umfasst 5.472 Statements und 1.412 Branches bei
+  100,00 Prozent Line-/Branch-Coverage.
 - Sie deckt Modelle, Auth, Berechtigungen, Formularnormalisierung,
   Condition-Auswertung, Metriken und Partnerfreischaltung mit Positiv-,
   Negativ-, Grenzwert- und Fallback-Fällen ab.
 - Relevante Partner-/Rollen-/Step-Regression: zuletzt `60 passed`; finaler
   Reparatur-/Navigationstest `12 passed`.
 - Stripe-/Billing-/Rechte-Suite: zuletzt `127 passed`.
-- Frontend-Produktionsbuild war nach den Partnerfreischaltungsänderungen grün.
+- Striktes mypy ist für 223 extrahierte Python-Module grün.
+- Backend-Mutation: 5.485 Mutanten getötet, keine überlebenden Mutanten; drei
+  bekannte CMS-Endlosschleifen-Mutanten enden kontrolliert im Timeout.
+- Frontend: 30 Tests und Produktionsbuild grün; Stryker erreicht 88,50 Prozent
+  bei einem Gate von 85 Prozent.
+- Backend-Gesamtlauf: 387 bestanden, 15 übersprungen. Drei unter gleichzeitigem
+  Stryker-Lauf aufgetretene Browser-Timingfehler wurden anschließend isoliert
+  wiederholt und bestanden 3/3.
 - Generierte E2E-Screenshots unter `test_results/e2e-screenshots/` wurden aus
   Git entfernt und per `.gitignore` ausgeschlossen.
 
@@ -132,12 +156,17 @@ Stand: 2026-08-24
 
 ## Weiterarbeiten
 
+- Für jede weitere Slice-Extraktion gelten die verbindlichen Regeln aus
+  `memory/slice-extraction-standards.md` (Schichtengrenzen, striktes mypy,
+  100 % Line-/Branch-Coverage, Mutation Testing und ausschließlich steigende
+  globale Gates).
 - Vor Änderungen zuerst `git status` prüfen; reguläre Arbeit erfolgt auf
   `main`, solange kein neuer Feature-Branch angelegt wird.
 - Stripe-Test-Price-IDs und Live-Price-IDs gehören zu getrennten Stripe-Modi.
 - Keine realen Stripe-Zugangsdaten, Webhook-Secrets, Datenbankexporte oder
   personenbezogenen Uploads committen.
-- `backend/server.py` und `frontend/src/pages/AdminDashboard.js` sind weiterhin
-  groß; eine spätere Zerlegung sollte als eigenes Refactoring erfolgen.
+- `frontend/src/pages/AdminDashboard.js` bleibt ein sinnvoller Kandidat für
+  weitere Frontend-Slice-Extraktionen. `backend/server.py` ist bereits auf die
+  stabile Kompatibilitätsfassade reduziert.
 - Detaillierter Sessionabschluss:
   `memory/session-2026-08-24-partner-onboarding.md`.
