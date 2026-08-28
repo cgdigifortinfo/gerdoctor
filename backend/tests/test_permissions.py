@@ -145,6 +145,7 @@ PORTAL_REQUEST_CASES = [
     ("GET", "/api/partner/submissions", "partner.users.view"),
     ("GET", "/api/partner/users/507f1f77bcf86cd799439011", "partner.users.view"),
     ("PUT", "/api/partner/profile", "profile.self.manage"),
+    ("POST", "/api/partner/logo", "profile.self.manage"),
     ("PUT", "/api/partner/users/507f1f77bcf86cd799439011/progress", "partner.users.manage"),
     ("POST", "/api/partner/users/507f1f77bcf86cd799439011/complete", "partner.users.manage"),
 ]

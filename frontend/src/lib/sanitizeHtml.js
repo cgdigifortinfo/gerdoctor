@@ -5,8 +5,7 @@ const ALLOWED_TAGS = new Set([
 const ALLOWED_ATTRIBUTES = new Set(['alt', 'class', 'href', 'src', 'target', 'title']);
 
 const safeUrl = (value, allowDataImage = false) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (!normalized) return true;
+    const normalized = String(value).trim().toLowerCase();
     if (normalized.startsWith('javascript:') || normalized.startsWith('vbscript:')) return false;
     if (normalized.startsWith('data:')) return allowDataImage && /^data:image\/(png|gif|jpeg|webp);base64,/.test(normalized);
     return true;
@@ -23,7 +22,7 @@ export function sanitizeHtml(html) {
         }
         for (const attribute of [...element.attributes]) {
             const name = attribute.name.toLowerCase();
-            if (!ALLOWED_ATTRIBUTES.has(name) || name.startsWith('on')) element.removeAttribute(attribute.name);
+            if (!ALLOWED_ATTRIBUTES.has(name)) element.removeAttribute(attribute.name);
         }
         if (element.hasAttribute('href') && !safeUrl(element.getAttribute('href'))) element.removeAttribute('href');
         if (element.hasAttribute('src') && !safeUrl(element.getAttribute('src'), element.tagName === 'IMG')) element.removeAttribute('src');

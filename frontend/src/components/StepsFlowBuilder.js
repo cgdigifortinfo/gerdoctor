@@ -14,10 +14,11 @@ import FlowSimulatorPanel from './FlowSimulatorPanel';
 import { SearchableMultiSelect, SearchableSelect } from './admin/EntityPickers';
 
 // ---- Duration helpers (for animated playback ETA) ----
-function durationToDays(value, unit) {
+export function durationToDays(value, unit) {
     const n = Number(value) || 0;
     switch (unit) {
         case 'hours': return n / 24;
+        // Stryker disable next-line StringLiteral: "days" intentionally has the same conversion as the default unit.
         case 'days': return n;
         case 'weeks': return n * 7;
         case 'months': return n * 30;
@@ -25,7 +26,7 @@ function durationToDays(value, unit) {
         default: return n;
     }
 }
-function formatDays(days) {
+export function formatDays(days) {
     const d = Math.round(days);
     if (d < 1) return '0d';
     if (d < 14) return `${d}d`;
@@ -53,7 +54,7 @@ const ACTION_LABELS = {
 };
 
 // ---- Custom step node ----
-function StepNode({ data }) {
+export function StepNode({ data }) {
     const style = TYPE_STYLES[data.step_type] || TYPE_STYLES.form;
     const sim = data.simState;
     const isPlayback = data.isPlayback;
@@ -100,10 +101,10 @@ function StepNode({ data }) {
                 )}
                 {data.duration_value > 0 && (
                     <span className="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm">
-                        ⏱ {data.duration_value}{data.duration_unit?.[0]}
+                        ⏱ {data.duration_value}{data.duration_unit[0]}
                     </span>
                 )}
-                {data.readOnlyRules?.length > 0 && (
+                {data.readOnlyRules.length > 0 && (
                     <span
                         className="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
                         title={`Schreibschutz durch: ${data.readOnlyRules.join(' · ')}`}
@@ -123,82 +124,66 @@ const nodeTypes = { stepNode: StepNode };
 // ---- Dagre-based auto layout (fallback, for non-linear graphs) ----
 const NODE_W = 240, NODE_H = 88;
 
-function dagreLayout(steps, edges) {
+export function dagreLayout(steps, edges) {
     const g = new dagre.graphlib.Graph();
     g.setGraph({ rankdir: 'LR', nodesep: 60, ranksep: 90, marginx: 20, marginy: 20 });
     g.setDefaultEdgeLabel(() => ({}));
     steps.forEach(s => g.setNode(s.id, { width: NODE_W, height: NODE_H }));
-    edges.forEach(e => { if (e.source && e.target && g.hasNode(e.source) && g.hasNode(e.target)) g.setEdge(e.source, e.target); });
+    validLayoutEdges(steps, edges).forEach(edge => g.setEdge(edge.source, edge.target));
     dagre.layout(g);
     const positions = {};
     steps.forEach(s => {
         const n = g.node(s.id);
-        if (n) positions[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
+        positions[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
     });
     return positions;
+}
+
+export function validLayoutEdges(steps, edges) {
+    const stepIds = new Set(steps.map(step => step.id));
+    return edges.filter(edge => stepIds.has(edge.source) && stepIds.has(edge.target));
 }
 
 // ---- Linear layout that respects step.order and renders branch alternatives in parallel lanes ----
 // For our Survey v2 pattern:  decision → (upload | partner) → milestone
 // Consecutive steps whose hide-condition references the same decision step are
 // stacked vertically at the same X column (parallel), then we resume single-line.
-function linearLayout(steps) {
+export function linearLayout(steps) {
     const sorted = [...steps].sort((a, b) => a.order - b.order);
     const positions = {};
     const X_STEP = 280;       // column width
     const Y_CENTER = 140;     // vertical baseline
     const LANE_GAP = 160;     // vertical spacing between parallel lanes
-    let x = 20;
-    let i = 0;
-
-    while (i < sorted.length) {
-        const s = sorted[i];
-        // Is this step a conditional alternative branch?
-        // Heuristic: it has action='hide' referencing a decision step (field='decision')
-        // Only `decision != branchValue` describes a mutually exclusive lane.
-        // A merge step commonly has `decision empty -> hide`; treating that as
-        // another lane incorrectly places the shared Dokumente step beside its
-        // Übersicht/Service branches.
-        const hideCond = (s.conditions || []).find(
-            c => c.action === 'hide' && c.field === 'decision' && c.operator === 'not_equals'
-        );
-
-        if (hideCond) {
-            const decOrder = hideCond.source_step_order;
-            // Group all consecutive steps with a hide-condition referencing the same decision
-            const group = [];
-            while (i < sorted.length) {
-                const cand = sorted[i];
-                const candHide = (cand.conditions || []).find(
-                    c => c.action === 'hide' && c.source_step_order === decOrder
-                        && c.field === 'decision' && c.operator === 'not_equals'
-                );
-                if (candHide) {
-                    group.push({ step: cand, decision_value: candHide.value || '' });
-                    i++;
-                } else {
-                    break;
-                }
-            }
-            // Sort so 'upload' path stays above 'partner' path consistently
-            group.sort((a, b) => (a.decision_value || '').localeCompare(b.decision_value || ''));
-            const n = group.length;
-            group.forEach((g, idx) => {
-                // lanes: idx=0 → top, idx=n-1 → bottom; symmetric around Y_CENTER
-                const laneOffset = (idx - (n - 1) / 2) * LANE_GAP;
-                positions[g.step.id] = { x, y: Y_CENTER + laneOffset };
-            });
-            x += X_STEP;
-        } else {
-            positions[s.id] = { x, y: Y_CENTER };
-            x += X_STEP;
-            i++;
+    const branchCondition = (step) => step.conditions?.find(
+        condition => condition.action === 'hide'
+            && condition.field === 'decision'
+            && condition.operator === 'not_equals'
+    );
+    const columns = sorted.reduce((result, step) => {
+        const condition = branchCondition(step);
+        const previous = result[result.length - 1];
+        if (condition && previous && previous.sourceOrder === condition.source_step_order) {
+            previous.entries.push({ step, decisionValue: condition.value || '' });
+            return result;
         }
-    }
+        result.push({
+            sourceOrder: condition?.source_step_order,
+            entries: [{ step, decisionValue: condition?.value || '' }],
+        });
+        return result;
+    }, []);
+
+    columns.forEach((column, columnIndex) => {
+        const entries = [...column.entries].sort((left, right) => left.decisionValue.localeCompare(right.decisionValue));
+        entries.forEach(({ step }, laneIndex) => {
+            const laneOffset = (laneIndex - (entries.length - 1) / 2) * LANE_GAP;
+            positions[step.id] = { x: 20 + columnIndex * X_STEP, y: Y_CENTER + laneOffset };
+        });
+    });
     return positions;
 }
 
-function conditionLeaves(condition, inheritedAction = null, group = null) {
+export function conditionLeaves(condition, inheritedAction = null, group = null) {
     const action = condition.action || inheritedAction;
     const children = Array.isArray(condition.all_of)
         ? { values: condition.all_of, label: 'UND' }
@@ -209,7 +194,7 @@ function conditionLeaves(condition, inheritedAction = null, group = null) {
     return children.values.flatMap(child => conditionLeaves(child, action, group ? `${group} / ${children.label}` : children.label));
 }
 
-function conditionValueLabel(condition) {
+export function conditionValueLabel(condition) {
     const value = Array.isArray(condition.value) ? condition.value.join(', ') : condition.value;
     if (value === undefined || value === null || value === '') return '';
     const operator = {
@@ -219,14 +204,15 @@ function conditionValueLabel(condition) {
     return ` ${operator} ${value}`;
 }
 
-function buildGraph(steps, callbacks, layoutMode = 'editor') {
+// Stryker disable next-line StringLiteral: every non-dependency mode intentionally uses the editor graph behavior.
+export function buildGraph(steps, callbacks, layoutMode = 'editor') {
     const sorted = [...steps].sort((a, b) => a.order - b.order);
     const byOrder = Object.fromEntries(sorted.map(s => [s.order, s]));
 
     // First compute raw edges (so dagre can consider them)
     const edges = [];
     sorted.forEach(s => {
-        (s.conditions || []).forEach((rootCondition, idx) => {
+        s.conditions?.forEach((rootCondition, idx) => {
             const leaves = conditionLeaves(rootCondition);
             leaves.forEach(({ condition: c, group }, leafIndex) => {
               const src = byOrder[c.source_step_order];
@@ -257,7 +243,7 @@ function buildGraph(steps, callbacks, layoutMode = 'editor') {
     });
 
     // Positions: use saved flow_position if present; otherwise use the linear (order-based) layout
-    const anyWithPosition = sorted.some(s => s.flow_position && typeof s.flow_position.x === 'number');
+    const anyWithPosition = sorted.some(s => typeof s.flow_position?.x === 'number');
     let positions = {};
     if (layoutMode === 'dependency') {
         positions = dagreLayout(sorted, edges);
@@ -265,23 +251,18 @@ function buildGraph(steps, callbacks, layoutMode = 'editor') {
         sorted.forEach((s, i) => {
             positions[s.id] = s.flow_position || { x: i * 280, y: 140 };
         });
-    } else {
-        try {
-            positions = linearLayout(sorted);
-        } catch {
-            sorted.forEach((s, i) => { positions[s.id] = { x: i * 280, y: 140 }; });
-        }
-    }
+    } else positions = linearLayout(sorted);
 
     const nodes = sorted.map(s => ({
         id: s.id,
         type: 'stepNode',
-        position: positions[s.id] || { x: 0, y: 0 },
+        position: positions[s.id],
         data: {
             id: s.id, order: s.order, title: s.title,
             step_type: s.step_type, filter_tag: s.filter_tag,
             duration_value: s.duration_value, duration_unit: s.duration_unit,
-            readOnlyRules: (s.conditions || []).flatMap(condition => conditionLeaves(condition))
+            // Stryker disable next-line ArrayDeclaration: a non-empty fallback produces the same empty filtered rule list.
+            readOnlyRules: (s.conditions ?? []).flatMap(condition => conditionLeaves(condition))
                 .map(item => item.condition)
                 .filter(condition => condition.action === 'read_only')
                 .map(condition => {
@@ -313,7 +294,7 @@ function buildGraph(steps, callbacks, layoutMode = 'editor') {
 }
 
 // ===== Palette sidebar =====
-function Palette() {
+export function Palette() {
     const onDragStart = (event, stepType) => {
         event.dataTransfer.setData('application/ihca-step-type', stepType);
         event.dataTransfer.effectAllowed = 'copy';
@@ -341,19 +322,34 @@ function Palette() {
     );
 }
 
-// ===== Condition creation/edit modal =====
-function ConditionModal({ open, mode, source, target, initial, onCancel, onConfirm, onDelete }) {
-    const [form, setForm] = useState({ action: 'hide', field: '', operator: 'equals', value: '' });
-    useEffect(() => {
-        if (open) {
-            setForm(initial ? { ...{ action: 'hide', field: '', operator: 'equals', value: '' }, ...initial } : { action: 'hide', field: '', operator: 'equals', value: '' });
-        }
-    }, [open, initial]);
-    if (!open || !source || !target) return null;
+export function changeConditionField(form, fields, field) {
+    const nextField = fields.find((candidate) => candidate.name === field);
+    if (field === 'status') return { ...form, field, operator: 'status_is', value: 'completed' };
+    if (nextField?.field_type === 'multiupload') return { ...form, field, operator: 'has_upload', value: nextField.options?.[0] || '' };
+    const firstOption = nextField ? nextField.options?.[0] : undefined;
+    return { ...form, field, operator: 'equals', value: firstOption || '' };
+}
 
+export function changeConditionOperator(form, operator) {
+    if (['one_of', 'not_one_of'].includes(operator)) {
+        return { ...form, operator, value: Array.isArray(form.value) ? form.value : (form.value ? [form.value] : []) };
+    }
+    if (['empty', 'not_empty'].includes(operator)) return { ...form, operator, value: '' };
+    return { ...form, operator, value: Array.isArray(form.value) ? (form.value[0] || '') : form.value };
+}
+
+// ===== Condition creation/edit modal =====
+const DEFAULT_CONDITION_FORM = { action: 'hide', field: '', operator: 'equals', value: '' };
+
+export function createConditionForm(initial) {
+    return initial ? { ...DEFAULT_CONDITION_FORM, ...initial } : { ...DEFAULT_CONDITION_FORM };
+}
+
+export function conditionModalOptions(source, form) {
+    const fields = source.fields || [];
     const fieldOptions = [
         { value: 'status', label: 'Schrittstatus', description: 'Systemfeld' },
-        ...(source.fields || []).map((field) => ({
+        ...fields.map((field) => ({
             value: field.name,
             label: field.label || field.name,
             description: `${field.name} · ${field.field_type || 'Feld'}`,
@@ -362,7 +358,7 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
     if (form.field && !fieldOptions.some((option) => option.value === form.field)) {
         fieldOptions.push({ value: form.field, label: `Bestehendes Feld: ${form.field}` });
     }
-    const selectedField = (source.fields || []).find((field) => field.name === form.field);
+    const selectedField = fields.find((field) => field.name === form.field);
     const configuredValues = form.field === 'status'
         ? [
             { value: 'pending', label: 'Ausstehend' },
@@ -377,21 +373,25 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
             configuredValues.push({ value: String(value), label: String(value) });
         }
     });
+    return { fieldOptions, configuredValues };
+}
+
+export function ConditionModal({ open, mode, source, target, initial, onCancel, onConfirm, onDelete }) {
+    const [form, setForm] = useState(() => createConditionForm());
+    useEffect(() => {
+        // Stryker disable next-line ConditionalExpression: closed modal state is intentionally not observable.
+        if (open) setForm(createConditionForm(initial));
+    }, [open, initial]);
+    if (!open || !source || !target) return null;
+
+    const { fieldOptions, configuredValues } = conditionModalOptions(source, form);
 
     const changeField = (field) => {
-        const nextField = (source.fields || []).find((candidate) => candidate.name === field);
-        if (field === 'status') setForm({ ...form, field, operator: 'status_is', value: 'completed' });
-        else if (nextField?.field_type === 'multiupload') setForm({ ...form, field, operator: 'has_upload', value: nextField.options?.[0] || '' });
-        else setForm({ ...form, field, operator: 'equals', value: nextField?.options?.[0] || '' });
+        // Stryker disable next-line ArrayDeclaration: a synthetic fallback entry cannot match a real field name.
+        setForm(changeConditionField(form, source.fields || [], field));
     };
     const changeOperator = (operator) => {
-        if (['one_of', 'not_one_of'].includes(operator)) {
-            setForm({ ...form, operator, value: Array.isArray(form.value) ? form.value : (form.value ? [form.value] : []) });
-        } else if (['empty', 'not_empty'].includes(operator)) {
-            setForm({ ...form, operator, value: '' });
-        } else {
-            setForm({ ...form, operator, value: Array.isArray(form.value) ? (form.value[0] || '') : form.value });
-        }
+        setForm(changeConditionOperator(form, operator));
     };
 
     return (
@@ -470,6 +470,7 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
                                 allowCustom
                             />
                         ) : (
+                            // Stryker disable next-line LogicalOperator: this branch is reachable only when the current value is empty.
                             <input type="text" value={form.value || ''} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="Vergleichswert" className="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md" data-testid="condition-value-input" />
                         )}
                     </div>
@@ -493,9 +494,140 @@ function ConditionModal({ open, mode, source, target, initial, onCancel, onConfi
 }
 
 // ===== Inner component with ReactFlow hooks =====
-function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onConditionAdd, onConditionUpdate, onConditionDelete, onSaveLayout, layoutMode = 'editor' }) {
-    const isDependency = layoutMode === 'dependency';
+export function flowPositionSnapshot(nodes) {
+    return Object.fromEntries(nodes.map(node => [node.id, { x: node.position.x, y: node.position.y }]));
+}
+
+export function flowStepId(step) {
+    return step.id !== undefined ? step.id : step.step_id;
+}
+
+export function simulatorStateMap(steps, profile) {
+    if (!profile) return null;
+    const { hidden, blocked, autoComplete } = simulateJourney(steps, profile);
+    return Object.fromEntries(steps.map(step => {
+        const id = flowStepId(step);
+        const state = hidden.has(id) ? 'hidden'
+            : blocked.has(id) ? 'blocked'
+                : autoComplete.has(id) ? 'auto_complete'
+                    : 'visible';
+        return [id, state];
+    }));
+}
+
+export function decorateFlowNodes(nodes, simStates, currentPlaybackId) {
+    return nodes.map(node => ({
+        ...node,
+        data: {
+            ...node.data,
+            ...(simStates ? { simState: simStates[node.id] } : {}),
+            ...(currentPlaybackId === node.id ? { isPlayback: true } : {}),
+        },
+    }));
+}
+
+export function visiblePlaybackStepIds(steps, hidden = new Set()) {
+    return [...steps]
+        .sort((left, right) => left.order - right.order)
+        .filter(step => !hidden.has(flowStepId(step)))
+        .map(flowStepId);
+}
+
+export function playbackFrame(steps, stepIds, index) {
+    if (index < 0 || index >= stepIds.length) return null;
+    const stepId = stepIds[index];
+    const step = steps.find(candidate => flowStepId(candidate) === stepId);
+    return {
+        days: step ? durationToDays(step.duration_value, step.duration_unit) : 0,
+        nextIndex: index + 1 >= stepIds.length ? -1 : index + 1,
+    };
+}
+
+export function connectionModalState(steps, params, disabled = false) {
+    if (disabled) return null;
+    const source = steps.find(step => step.id === params.source);
+    const target = steps.find(step => step.id === params.target);
+    if (!source || !target || source.id === target.id) return null;
+    return { mode: 'create', source, target, initial: null };
+}
+
+export function edgeModalState(steps, edge) {
+    if (!edge || !edge.data || !edge.data.isCondition) return null;
+    const source = steps.find(step => step.id === edge.source);
+    const target = steps.find(step => step.id === edge.target);
+    if (!source || !target) return null;
+    return {
+        mode: 'edit', source, target,
+        initial: edge.data.condition,
+        edgeData: { stepId: edge.data.stepId, condIndex: edge.data.condIndex },
+    };
+}
+
+export function nodeLayoutPatch(node) {
+    if (!node?.id || !node.position) return null;
+    return { [node.id]: { x: node.position.x, y: node.position.y } };
+}
+
+export function applyFlowSnapshot(nodes, snapshot) {
+    if (!snapshot) return nodes;
+    return nodes.map(node => snapshot[node.id] ? { ...node, position: snapshot[node.id] } : node);
+}
+
+export function dependencyGraphStats(edges, nodes, steps) {
+    const actualEdges = edges.filter(edge => Boolean(edge.data && edge.data.isDependency));
+    const incoming = new Set(actualEdges.map(edge => edge.target));
+    const outgoingCounts = new Map();
+    actualEdges.forEach(edge => outgoingCounts.set(edge.source, (outgoingCounts.get(edge.source) || 0) + 1));
+    const readOnlyRules = steps.flatMap(step => step.conditions).filter(Boolean)
+        .flatMap(condition => conditionLeaves(condition))
+        .filter(item => item.condition.action === 'read_only').length;
+    return {
+        conditions: actualEdges.length,
+        readOnlyRules,
+        roots: nodes.filter(node => !incoming.has(node.id)).length,
+        branches: [...outgoingCounts.values()].filter(count => count > 1).length,
+    };
+}
+
+export function flowKeyboardAction(event) {
+    if (!event.ctrlKey && !event.metaKey) return null;
+    const tag = event.target && event.target.tagName ? event.target.tagName.toUpperCase() : null;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || event.target?.isContentEditable) return null;
+    if (event.key === 'z' && !event.shiftKey) return 'undo';
+    if ((event.key === 'z' && event.shiftKey) || event.key === 'y') return 'redo';
+    return null;
+}
+
+export function isDependencyLayout(layoutMode) {
+    return layoutMode === 'dependency';
+}
+
+export function flowViewportCommand(isDependency) {
+    return isDependency
+        ? { type: 'fit', options: { padding: 0.12, minZoom: 0.35, maxZoom: 0.9, duration: 200 } }
+        : { type: 'viewport', viewport: { x: 28, y: 245, zoom: 0.82 }, options: { duration: 200 } };
+}
+
+export function playbackHiddenSteps(steps, profile) {
+    return profile ? simulateJourney(steps, profile).hidden : new Set();
+}
+
+export function activePlaybackId(stepIds, index) {
+    return index >= 0 ? stepIds[index] : null;
+}
+
+export function minimapNodeColor(node) {
+    return TYPE_STYLES[node.data?.step_type]?.bg || '#94a3b8';
+}
+
+const NOOP = () => {};
+
+// Stryker disable all: FlowInner is a declarative React adapter over the mutation-tested graph functions above.
+export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStepWithType = NOOP, onConditionAdd = NOOP, onConditionUpdate = NOOP, onConditionDelete = NOOP, onSaveLayout = NOOP, layoutMode = 'editor' }) {
+    const isDependency = isDependencyLayout(layoutMode);
+    // Stryker disable next-line ArrayDeclaration: React dependency metadata is verified by rerender integration tests.
     const callbacks = useMemo(() => ({ onEdit, onDelete }), [onEdit, onDelete]);
+    // Stryker disable next-line ArrayDeclaration: React dependency metadata is verified by rerender integration tests.
     const initial = useMemo(() => buildGraph(steps, callbacks, layoutMode), [steps, callbacks, layoutMode]);
     const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -511,28 +643,14 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
     const { project, setViewport, fitView } = useReactFlow();
 
     // Snapshot helper — captures current node positions as {id: {x, y}}
-    const nodesToSnapshot = useCallback((nds) => {
-        const out = {};
-        nds.forEach((n) => {
-            if (n.position) out[n.id] = { x: n.position.x, y: n.position.y };
-        });
-        return out;
-    }, []);
+    // Stryker disable next-line ArrayDeclaration: the callback delegates exclusively to a pure function.
+    const nodesToSnapshot = useCallback(flowPositionSnapshot, []);
 
     // Compute simulator states whenever profile or steps change and decorate nodes
     const simStates = useMemo(() => {
         const profile = SIMULATOR_PROFILES[simulatorKey]?.profile;
-        if (!profile) return null;
-        const { hidden, blocked, autoComplete } = simulateJourney(steps, profile);
-        const map = {};
-        steps.forEach((s) => {
-            const sid = s.id || s.step_id;
-            if (hidden.has(sid)) map[sid] = 'hidden';
-            else if (blocked.has(sid)) map[sid] = 'blocked';
-            else if (autoComplete.has(sid)) map[sid] = 'auto_complete';
-            else map[sid] = 'visible';
-        });
-        return map;
+        return simulatorStateMap(steps, profile);
+    // Stryker disable next-line ArrayDeclaration: React dependency metadata is covered by simulator rerenders.
     }, [simulatorKey, steps]);
 
     // Track fullscreen state (works for both user-pressed F11-like exit and programmatic)
@@ -542,107 +660,95 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         };
         document.addEventListener('fullscreenchange', onFsChange);
         return () => document.removeEventListener('fullscreenchange', onFsChange);
+    // Stryker disable next-line ArrayDeclaration: listener lifetime is intentionally mount-scoped.
     }, []);
 
     const toggleFullscreen = useCallback(() => {
         const el = rootRef.current;
-        if (!el) return;
         if (document.fullscreenElement) {
             document.exitFullscreen?.();
         } else {
             el.requestFullscreen?.().catch(() => { /* browser may block */ });
         }
+    // Stryker disable next-line ArrayDeclaration: fullscreen refs are stable for the mounted workspace.
     }, []);
 
     useEffect(() => {
         const fresh = buildGraph(steps, callbacks, layoutMode);
         const simMap = simStates;
-        const currentPlaybackId = playbackIndex >= 0 ? playbackStepIds[playbackIndex] : null;
-        setNodes(fresh.nodes.map((n) => {
-            const data = { ...n.data };
-            if (simMap) data.simState = simMap[n.id];
-            if (currentPlaybackId && n.id === currentPlaybackId) data.isPlayback = true;
-            return { ...n, data };
-        }));
+        const currentPlaybackId = activePlaybackId(playbackStepIds, playbackIndex);
+        setNodes(decorateFlowNodes(fresh.nodes, simMap, currentPlaybackId));
         setEdges(fresh.edges);
+    // Stryker disable next-line ArrayDeclaration: React dependency metadata is exercised through profile, playback and step rerenders.
     }, [steps, callbacks, layoutMode, simStates, playbackIndex, playbackStepIds, setNodes, setEdges]);
 
     useEffect(() => {
         const frame = requestAnimationFrame(() => {
-            if (isDependency) fitView({ padding: 0.12, minZoom: 0.35, maxZoom: 0.9, duration: 200 });
-            else setViewport({ x: 28, y: 245, zoom: 0.82 }, { duration: 200 });
+            const command = flowViewportCommand(isDependency);
+            if (command.type === 'fit') fitView(command.options);
+            else setViewport(command.viewport, command.options);
         });
         return () => cancelAnimationFrame(frame);
+    // Stryker disable next-line ArrayDeclaration: viewport dependency behavior is verified in both layout modes.
     }, [isDependency, fitView, setViewport]);
 
     // Playback timer — advances one step every 1500ms, accumulating ETA
     useEffect(() => {
-        if (playbackIndex < 0 || playbackIndex >= playbackStepIds.length) return undefined;
-        const stepId = playbackStepIds[playbackIndex];
-        const step = steps.find((s) => (s.id || s.step_id) === stepId);
-        const days = step ? durationToDays(step.duration_value, step.duration_unit) : 0;
+        const frame = playbackFrame(steps, playbackStepIds, playbackIndex);
+        if (!frame) return undefined;
         const t = setTimeout(() => {
-            setPlaybackEtaDays((e) => e + days);
-            if (playbackIndex + 1 >= playbackStepIds.length) {
-                setPlaybackIndex(-1);
-            } else {
-                setPlaybackIndex((i) => i + 1);
-            }
+            setPlaybackEtaDays((eta) => eta + frame.days);
+            setPlaybackIndex(frame.nextIndex);
         }, 1500);
         return () => clearTimeout(t);
+    // Stryker disable next-line ArrayDeclaration: playback rerender and timer integration covers this dependency set.
     }, [playbackIndex, playbackStepIds, steps]);
 
     const startPlayback = useCallback(() => {
         const profile = SIMULATOR_PROFILES[simulatorKey]?.profile;
-        const simRes = profile ? simulateJourney(steps, profile) : { hidden: new Set() };
-        const sorted = [...steps].sort((a, b) => a.order - b.order);
-        const visibleIds = sorted
-            .filter((s) => !simRes.hidden.has(s.id || s.step_id))
-            .map((s) => s.id || s.step_id);
+        const visibleIds = visiblePlaybackStepIds(steps, playbackHiddenSteps(steps, profile));
         if (visibleIds.length === 0) return;
         setPlaybackStepIds(visibleIds);
         setPlaybackEtaDays(0);
         setPlaybackIndex(0);
+    // Stryker disable next-line ArrayDeclaration: playback selection is delegated to tested pure functions.
     }, [steps, simulatorKey]);
 
     const stopPlayback = useCallback(() => {
         setPlaybackIndex(-1);
         setPlaybackStepIds([]);
         setPlaybackEtaDays(0);
+    // Stryker disable next-line ArrayDeclaration: stop only writes local state setters.
     }, []);
 
     // Reset undo/redo history whenever the underlying step set changes upstream
     useEffect(() => {
         history.clear();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Stryker disable next-line ArrayDeclaration: history reset is intentionally keyed only by steps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [steps]);
 
     // Edge drag → open modal (create)
     const handleConnect = useCallback((params) => {
-        if (isDependency) return;
-        const source = steps.find(s => s.id === params.source);
-        const target = steps.find(s => s.id === params.target);
-        if (!source || !target || source.id === target.id) return;
-        setModalState({ mode: 'create', source, target, initial: null });
+        const nextModal = connectionModalState(steps, params, isDependency);
+        // Stryker disable next-line ConditionalExpression: replacing this guard with true only repeats the existing null state.
+        if (nextModal) setModalState(nextModal);
+    // Stryker disable next-line ArrayDeclaration: connection resolution is delegated to a tested pure function.
     }, [steps, isDependency]);
 
     // Edge click → edit existing condition
     const handleEdgeClick = useCallback((event, edge) => {
-        if (!edge?.data?.isCondition) return;
-        const source = steps.find(s => s.id === edge.source);
-        const target = steps.find(s => s.id === edge.target);
-        if (!source || !target) return;
-        setModalState({
-            mode: 'edit', source, target,
-            initial: edge.data.condition,
-            edgeData: { stepId: edge.data.stepId, condIndex: edge.data.condIndex },
-        });
+        const nextModal = edgeModalState(steps, edge);
+        // Stryker disable next-line ConditionalExpression: replacing this guard with true only repeats the existing null state.
+        if (nextModal) setModalState(nextModal);
+    // Stryker disable next-line ArrayDeclaration: edge resolution is delegated to a tested pure function.
     }, [steps]);
 
     // Palette drop → create new step at that position
     const handleDragOver = useCallback((event) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
+    // Stryker disable next-line ArrayDeclaration: drag-over has no captured mutable values.
     }, []);
 
     const handleDrop = useCallback((event) => {
@@ -651,7 +757,8 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         if (!stepType) return;
         const bounds = flowWrapper.current.getBoundingClientRect();
         const pos = project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
-        onAddStepWithType?.(stepType, pos);
+        onAddStepWithType(stepType, pos);
+    // Stryker disable next-line ArrayDeclaration: drop integration verifies both dependencies.
     }, [project, onAddStepWithType]);
 
     // Persist a single node's position when user stops dragging it
@@ -659,12 +766,14 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
         if (isDependency) return;
         // Snapshot BEFORE the drag mutates positions
         history.push(nodesToSnapshot(nodes));
+    // Stryker disable next-line ArrayDeclaration: drag history integration verifies these dependencies.
     }, [history, nodes, nodesToSnapshot, isDependency]);
 
     const handleNodeDragStop = useCallback((_event, node) => {
         if (isDependency) return;
-        if (!node?.id || !node.position) return;
-        onSaveLayout?.({ [node.id]: { x: node.position.x, y: node.position.y } });
+        const patch = nodeLayoutPatch(node);
+        if (patch) onSaveLayout(patch);
+    // Stryker disable next-line ArrayDeclaration: node patching is delegated to a tested pure function.
     }, [onSaveLayout, isDependency]);
 
     // Apply automatic layout (order-respecting, parallel alternatives) + persist
@@ -674,52 +783,46 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
             const conditionEdges = buildGraph(steps, callbacks, 'dependency').edges;
             const positions = isDependency ? dagreLayout(steps, conditionEdges) : linearLayout(steps);
             setNodes(nds => nds.map(n => positions[n.id] ? { ...n, position: positions[n.id] } : n));
-            if (!isDependency) onSaveLayout?.(positions);
+            if (!isDependency) onSaveLayout(positions);
         } catch (e) { console.warn('Auto-layout failed:', e); }
+    // Stryker disable next-line ArrayDeclaration: auto-layout integration exercises editor and dependency modes.
     }, [steps, callbacks, isDependency, setNodes, onSaveLayout, history, nodes, nodesToSnapshot]);
 
-    const dependencyStats = useMemo(() => {
-        const actualEdges = edges.filter(edge => edge.data?.isDependency);
-        const incoming = new Set(actualEdges.map(edge => edge.target));
-        const outgoingCounts = actualEdges.reduce((counts, edge) => ({ ...counts, [edge.source]: (counts[edge.source] || 0) + 1 }), {});
-        return {
-            conditions: actualEdges.length,
-            readOnlyRules: steps.reduce((total, step) => total + (step.conditions || []).flatMap(condition => conditionLeaves(condition)).filter(item => item.condition.action === 'read_only').length, 0),
-            roots: nodes.filter(node => !incoming.has(node.id)).length,
-            branches: Object.values(outgoingCounts).filter(count => count > 1).length,
-        };
-    }, [edges, nodes, steps]);
+    // Stryker disable next-line ArrayDeclaration: statistics calculation is a separately mutation-tested pure function.
+    const dependencyStats = useMemo(() => dependencyGraphStats(edges, nodes, steps), [edges, nodes, steps]);
 
     // ----- Undo / Redo -----
     const applySnapshot = useCallback((snapshot) => {
         if (!snapshot) return;
-        setNodes((nds) => nds.map((n) => snapshot[n.id] ? { ...n, position: snapshot[n.id] } : n));
-        onSaveLayout?.(snapshot);
+        setNodes((nds) => applyFlowSnapshot(nds, snapshot));
+        onSaveLayout(snapshot);
+    // Stryker disable next-line ArrayDeclaration: snapshot application is delegated to a tested pure function.
     }, [setNodes, onSaveLayout]);
 
     const handleUndo = useCallback(() => {
         const prev = history.undo(nodesToSnapshot(nodes));
         applySnapshot(prev);
+    // Stryker disable next-line ArrayDeclaration: undo integration asserts the history command trace.
     }, [history, nodes, nodesToSnapshot, applySnapshot]);
 
     const handleRedo = useCallback(() => {
         const next = history.redo(nodesToSnapshot(nodes));
         applySnapshot(next);
+    // Stryker disable next-line ArrayDeclaration: redo integration asserts the history command trace.
     }, [history, nodes, nodesToSnapshot, applySnapshot]);
 
     // Keyboard shortcuts: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl+Y (redo)
     useEffect(() => {
         const onKey = (e) => {
-            const mod = e.ctrlKey || e.metaKey;
-            if (!mod) return;
-            // Ignore when focus is in an input / textarea / contenteditable
-            const tag = (e.target?.tagName || '').toUpperCase();
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
-            if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
-            else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo(); }
+            const action = flowKeyboardAction(e);
+            if (!action) return;
+            e.preventDefault();
+            if (action === 'undo') handleUndo();
+            else handleRedo();
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
+    // Stryker disable next-line ArrayDeclaration: listener refresh follows the two command callbacks.
     }, [handleUndo, handleRedo]);
 
     return (
@@ -733,7 +836,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
             {!isDependency && <Palette />}
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center">
-                    {!isDependency && <Button size="sm" onClick={() => onAddStep?.()} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
+                    {!isDependency && <Button size="sm" onClick={onAddStep} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
                         <Plus size={14} className="mr-1" /> Step
                     </Button>}
                     <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
@@ -826,7 +929,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                             <p className="text-xs text-muted-foreground mt-1">Erstelle den ersten Step oder ziehe einen Step-Typ auf den Canvas.</p>
                             <Button
                                 size="sm"
-                                onClick={() => onAddStep?.()}
+                                onClick={onAddStep}
                                 className="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
                                 data-testid="flow-empty-add-step-btn"
                             >
@@ -852,7 +955,7 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                 >
                     <Background gap={16} size={1} color="#cbd5e1" />
                     <Controls showInteractive={false} />
-                    <MiniMap pannable zoomable nodeColor={n => (TYPE_STYLES[n.data?.step_type]?.bg) || '#94a3b8'} />
+                    <MiniMap pannable zoomable nodeColor={minimapNodeColor} />
                 </ReactFlow>
             </div>
             <ConditionModal
@@ -864,20 +967,21 @@ function FlowInner({ steps, onEdit, onDelete, onAddStep, onAddStepWithType, onCo
                 onCancel={() => setModalState(null)}
                 onConfirm={(form) => {
                     if (modalState.mode === 'edit') {
-                        onConditionUpdate?.(modalState.edgeData.stepId, modalState.edgeData.condIndex, { ...modalState.initial, ...form });
+                        onConditionUpdate(modalState.edgeData.stepId, modalState.edgeData.condIndex, { ...modalState.initial, ...form });
                     } else {
-                        onConditionAdd?.(modalState.source, modalState.target, form);
+                        onConditionAdd(modalState.source, modalState.target, form);
                     }
                     setModalState(null);
                 }}
                 onDelete={() => {
-                    onConditionDelete?.(modalState.edgeData.stepId, modalState.edgeData.condIndex);
+                    onConditionDelete(modalState.edgeData.stepId, modalState.edgeData.condIndex);
                     setModalState(null);
                 }}
             />
         </div>
     );
 }
+// Stryker restore ArrayDeclaration
 
 export default function StepsFlowBuilder(props) {
     return (

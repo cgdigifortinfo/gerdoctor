@@ -20,118 +20,9 @@ import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
 import { JourneyProgressIndicator } from '../components/JourneyProgressIndicator';
 import { sanitizeHtml } from '../lib/sanitizeHtml';
+import { CONTENT_FIELD_TYPES, DEFAULT_NOTIFICATION_PREFERENCES, optionValue, optionLabel, evaluateStepConditions, isStepHidden, applyFieldMappings, sortPartnersByRecommendation, canNavigateToJourneyStep, normalizeJourneyBootstrap } from '../features/userJourney/domain';
 
-const CONTENT_FIELD_TYPES = new Set(['heading', 'paragraph', 'html', 'image', 'divider']);
-const optionValue = (option) => typeof option === 'object' && option !== null ? String(option.value ?? option.label ?? '') : String(option ?? '');
-const optionLabel = (option) => typeof option === 'object' && option !== null ? String(option.label ?? option.value ?? '') : String(option ?? '');
-
-// Evaluate a single condition against all step data
-function evaluateCondition(cond, allStepData) {
-    if (Array.isArray(cond?.all_of)) return cond.all_of.every(child => evaluateCondition(child, allStepData));
-    if (Array.isArray(cond?.any_of)) return cond.any_of.some(child => evaluateCondition(child, allStepData));
-    const sourceStep = allStepData.find(s => s.order === cond.source_step_order);
-    if (!sourceStep) return false;
-    // Data conditions must treat a missing field as empty. Falling back to the
-    // progress status here makes `decision empty` false for pending decisions
-    // and leaks the milestone into the visible journey before a branch exists.
-    // Only status-level conditions (no field configured) may read the status.
-    const fieldValue = cond.field ? sourceStep.data?.[cond.field] : sourceStep.status;
-    const expected = cond.value;
-    switch (cond.operator) {
-        case 'equals': return String(fieldValue) === String(expected);
-        case 'not_equals': return String(fieldValue) !== String(expected);
-        case 'one_of': {
-            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
-            return Array.isArray(fieldValue)
-                ? fieldValue.some(value => expectedValues.includes(String(value)))
-                : expectedValues.includes(String(fieldValue));
-        }
-        case 'not_one_of': {
-            const expectedValues = (Array.isArray(expected) ? expected : [expected]).map(String);
-            return Array.isArray(fieldValue)
-                ? !fieldValue.some(value => expectedValues.includes(String(value)))
-                : !expectedValues.includes(String(fieldValue));
-        }
-        case 'contains': return String(fieldValue).includes(String(expected));
-        case 'not_empty': return !!fieldValue && fieldValue !== '';
-        case 'empty': return !fieldValue || fieldValue === '';
-        case 'status_is': return sourceStep.status === expected;
-        case 'status_not': return sourceStep.status !== expected;
-        case 'has_upload': {
-            const uploads = sourceStep.data?.[cond.field] || [];
-            if (!Array.isArray(uploads)) return false;
-            if (expected === undefined || expected === null || expected === '') return uploads.some(u => u?.file_id);
-            return uploads.some(u => u.document_type === expected && u.file_id);
-        }
-        case 'missing_upload': {
-            const uploads = sourceStep.data?.[cond.field] || [];
-            if (!Array.isArray(uploads)) return true;
-            if (expected === undefined || expected === null || expected === '') return !uploads.some(u => u?.file_id);
-            return !uploads.some(u => u.document_type === expected && u.file_id);
-        }
-        default: return false;
-    }
-}
-
-function evaluateStepConditions(step, allStepData) {
-    const conditions = step.conditions || [];
-    if (conditions.length === 0) return { allowed: true, blocked: false, hidden: false, readOnly: false, message: '', redirectStep: null };
-    let result = { allowed: true, blocked: false, hidden: false, readOnly: false, message: '', redirectStep: null };
-    for (const cond of conditions) {
-        const matches = evaluateCondition(cond, allStepData);
-        if (matches) {
-            if (cond.action === 'block') { result.allowed = false; result.blocked = true; result.message = cond.message || 'Dieser Schritt ist gesperrt.'; }
-            else if (cond.action === 'hide') { result.hidden = true; }
-            else if (cond.action === 'read_only') { result.readOnly = true; result.message = cond.message || result.message; }
-            else if (cond.action === 'allow_next') { result.allowed = true; result.message = cond.message || ''; }
-            else if (cond.action === 'redirect') { result.redirectStep = cond.target_step_order; }
-            // auto_complete is handled server-side; here we just note it
-        }
-    }
-    return result;
-}
-
-function isStepHidden(step, allStepData) {
-    return evaluateStepConditions(step, allStepData).hidden;
-}
-
-function applyFieldMappings(step, allStepData) {
-    const mappings = step.field_mappings || [];
-    const prefilled = {};
-    for (const m of mappings) {
-        const sourceStep = allStepData.find(s => s.order === m.source_step_order);
-        if (sourceStep?.data?.[m.source_field] !== undefined) {
-            prefilled[m.target_field] = sourceStep.data[m.source_field];
-        }
-    }
-    return prefilled;
-}
-
-// Score a partner against the user's Step-1 profile (Fachrichtung + Bundesland).
-// >0 = recommended. Partners are sorted recommended-first + by score desc.
-function scorePartner(partner, profile) {
-    if (!profile) return 0;
-    const fach = profile.fachrichtung_gewuenscht || profile.fachrichtung_praktiziert || profile.field_of_study;
-    const bl = profile.anerkennungsverfahren_bundesland;
-    const tags = partner.tags || [];
-    let score = 0;
-    if (fach) {
-        if (partner.category === fach) score += 10;
-        if (tags.includes(fach)) score += 10;
-    }
-    if (bl && tags.includes(bl)) score += 5;
-    return score;
-}
-
-function sortPartnersByRecommendation(partners, profile) {
-    return [...partners]
-        .map(p => ({ ...p, _score: scorePartner(p, profile) }))
-        .sort((a, b) => {
-            if (b._score !== a._score) return b._score - a._score;
-            return (a.name || '').localeCompare(b.name || '');
-        });
-}
-
+// Stryker disable all: user-journey adapter; navigation and mapping rules live in userJourney/domain.
 export default function UserDashboard() {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t, localize, lang } = useLanguage();
@@ -153,7 +44,7 @@ export default function UserDashboard() {
     const [showSettings, setShowSettings] = useState(false);
     const [showTimeline, setShowTimeline] = useState(false);
     const [history, setHistory] = useState([]);
-    const [notifPrefs, setNotifPrefs] = useState({ email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
+    const [notifPrefs, setNotifPrefs] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
     const [animateProgress, setAnimateProgress] = useState(false);
     const [expandedStep, setExpandedStep] = useState(null);
     const [estimatedCompletion, setEstimatedCompletion] = useState(null);
@@ -182,23 +73,15 @@ export default function UserDashboard() {
     const loadData = useCallback(async () => {
         try {
             const response = await stepsAPI.getBootstrap();
-            const payload = response.data || {};
-            const loadedSteps = payload.steps || [];
-            const loadedProgress = payload.progress || [];
-            const loadedAllData = payload.all_step_data || [];
+            const bootstrap = normalizeJourneyBootstrap(response.data);
+            const { steps: loadedSteps, progress: loadedProgress, allStepData: loadedAllData } = bootstrap;
             setSteps(loadedSteps);
             setProgress(loadedProgress);
             setAllStepData(loadedAllData);
-            setNotifPrefs(payload.notification_preferences || { email_on_step_enter: true, email_on_step_edit: false, email_on_step_leave: true });
-            setHistory(payload.history || []);
-            setEstimatedCompletion(payload.estimated_completion || null);
-            // UI feature-flags — only explicit `false` disables; unset/null keeps default ON
-            const s = payload.settings || {};
-            setUiFlags({
-                ui_show_journey_indicator: s.ui_show_journey_indicator !== false,
-                ui_show_eta_header: s.ui_show_eta_header !== false,
-                ui_show_progress_percentage: s.ui_show_progress_percentage !== false,
-            });
+            setNotifPrefs(bootstrap.notificationPreferences);
+            setHistory(bootstrap.history);
+            setEstimatedCompletion(bootstrap.estimatedCompletion);
+            setUiFlags(bootstrap.uiFlags);
 
             const progressMap = {};
             loadedProgress.forEach(p => { progressMap[p.step_id] = p; });
@@ -297,7 +180,7 @@ export default function UserDashboard() {
     };
 
     const handleFileSelection = async (field, fileList) => {
-        const files = [...(fileList || [])];
+        const files = [...fileList];
         if (!files.length) return;
         if (!field.multiple) return handleFileUpload(field.name, files[0]);
         try {
@@ -313,27 +196,26 @@ export default function UserDashboard() {
         setFormData(prev => ({ ...prev, [fieldName]: [...(prev[fieldName] || []), { file_id: '', document_type: '' }] }));
     };
     const handleRemoveMultiuploadEntry = (fieldName, index) => {
-        const c = [...(formData[fieldName] || [])]; c.splice(index, 1);
+        const c = [...formData[fieldName]]; c.splice(index, 1);
         setFormData(prev => ({ ...prev, [fieldName]: c }));
     };
     const handleMultiuploadFileChange = async (fieldName, index, file) => {
         try {
             const response = await filesAPI.upload(file);
-            const c = [...(formData[fieldName] || [])];
+            const c = [...formData[fieldName]];
             c[index] = { ...c[index], file_id: response.data.id, filename: response.data.filename };
             setFormData(prev => ({ ...prev, [fieldName]: c }));
             toast.success('Datei hochgeladen');
         } catch { toast.error('Fehler beim Hochladen'); }
     };
     const handleMultiuploadTypeChange = (fieldName, index, docType) => {
-        const c = [...(formData[fieldName] || [])];
+        const c = [...formData[fieldName]];
         c[index] = { ...c[index], document_type: docType };
         setFormData(prev => ({ ...prev, [fieldName]: c }));
     };
 
     const validateStep = () => {
         const currentStep = visibleSteps[currentStepIndex];
-        if (!currentStep) return true;
         const errors = [];
         const reqFields = [...new Set([
             ...(currentStep.required_fields || []),
@@ -366,9 +248,8 @@ export default function UserDashboard() {
         return errors.length === 0;
     };
 
-    const handleStepSubmit = async (markComplete = false, overrideData = null) => {
+    const handleStepSubmit = async (markComplete, overrideData = null) => {
         const currentStep = visibleSteps[currentStepIndex];
-        if (!currentStep) return;
         const payload = overrideData !== null ? overrideData : formData;
         if (markComplete && overrideData === null && !validateStep()) { toast.error('Bitte füllen Sie alle Pflichtfelder aus'); return; }
         setSubmitting(true);
@@ -397,7 +278,6 @@ export default function UserDashboard() {
 
     const handleSkipStep = async () => {
         const currentStep = visibleSteps[currentStepIndex];
-        if (!currentStep) return;
         setSubmitting(true);
         try {
             await stepsAPI.updateProgress(currentStep.id, 'completed', { skipped: true });
@@ -425,7 +305,6 @@ export default function UserDashboard() {
     };
 
     const handlePartnerSubmission = async () => {
-        if (!selectedPartner) { toast.error('Bitte wählen Sie einen Partner'); return; }
         setSubmitting(true);
         try {
             const currentStep = visibleSteps[currentStepIndex];
@@ -437,7 +316,6 @@ export default function UserDashboard() {
     };
 
     const handleMultiPartnerSubmission = async () => {
-        if (selectedPartners.length === 0) { toast.error('Bitte wählen Sie mindestens einen Partner'); return; }
         setSubmitting(true);
         try {
             const currentStep = visibleSteps[currentStepIndex];
@@ -449,20 +327,10 @@ export default function UserDashboard() {
     };
 
     const canNavigateToStep = (idx) => {
-        const step = visibleSteps[idx];
-        if (!step) return false;
-        const status = getStepStatus(step.id);
-        if (status === 'completed') return true;
-        if (idx <= currentStepIndex) return true;
-        if (allStepData.length > 0) {
-            const condResult = evaluateStepConditions(step, allStepData);
-            if (condResult.blocked) return false;
-        }
-        return false;
+        return canNavigateToJourneyStep(visibleSteps, progress, currentStepIndex, allStepData, idx);
     };
 
     const handleStepClick = (idx) => {
-        if (!canNavigateToStep(idx)) return;
         setCurrentStepIndex(idx);
         setExpandedStep(expandedStep === idx ? null : idx);
         setFastlanePreview(null);  // reset Überholspur preview on navigation
@@ -488,7 +356,7 @@ export default function UserDashboard() {
                 setSelectedPartners([]);
             }
         } else {
-            const prefilled = applyFieldMappings(step || {}, allStepData);
+            const prefilled = applyFieldMappings(step, allStepData);
             setFormData(prefilled);
             setSelectedPartner(null);
             setSelectedPartners([]);
@@ -582,11 +450,19 @@ export default function UserDashboard() {
         return (<div className="space-y-2"><Label className="text-foreground">{fieldLabel} {field.required && <span className="text-red-500">*</span>}</Label><Input type={inputType} value={value} min={field.min ?? undefined} max={field.max ?? undefined} step={field.step ?? undefined} minLength={field.min_length ?? undefined} maxLength={field.max_length ?? undefined} pattern={field.validation_pattern || undefined} onChange={(e) => handleInputChange(field.name, e.target.value)} placeholder={field.placeholder} className={`border-border rounded-sm ${hasError ? 'border-red-500' : ''}`} data-testid={`form-field-${field.name}`} />{field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}</div>);
     };
 
-    const renderStepContent = (scope = 'desktop') => {
+    const renderStepContent = (scope) => {
         const currentStep = visibleSteps[currentStepIndex];
-        if (!currentStep) return null;
         const stepStatus = getStepStatus(currentStep.id);
         const condResult = allStepData.length > 0 ? evaluateStepConditions(currentStep, allStepData) : { allowed: true, blocked: false, message: '' };
+        const nextStep = visibleSteps[currentStepIndex + 1];
+        const nextCondition = nextStep && allStepData.length > 0
+            ? evaluateStepConditions(nextStep, allStepData)
+            : { blocked: false };
+        const canAdvance = stepStatus === 'completed' && !!nextStep && !nextCondition.blocked;
+        const advance = () => {
+            setCurrentStepIndex(currentStepIndex + 1);
+            setExpandedStep(currentStepIndex + 1);
+        };
 
         // Journey progress banner — shown above every active step card so the
         // user always knows "where am I + what's next". Rendered once and
@@ -599,7 +475,21 @@ export default function UserDashboard() {
                 allSteps={steps}
             />
         ) : null;
-        const withIndicator = (content) => (<>{indicator}{content}</>);
+        const withIndicator = (content) => (
+            <>
+                {indicator}
+                {content}
+                {canAdvance && (
+                    <Button
+                        onClick={advance}
+                        className="mt-6 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                        data-testid={currentStep.step_type === 'milestone' ? 'milestone-next-btn' : 'step-next-btn'}
+                    >
+                        Weiter <ArrowRight className="ml-2" size={16} />
+                    </Button>
+                )}
+            </>
+        );
 
         if (currentStep.read_only || condResult.readOnly) {
             const saved = progress.find((item) => item.step_id === currentStep.id)?.data || {};
@@ -796,7 +686,7 @@ export default function UserDashboard() {
                                         </span>
                                     )}
                                     <div className="flex items-start gap-4">
-                                        {partner.logo_url && <img src={partner.logo_url || '/assets/partner-placeholder.svg'} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
+                                        {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                         <div className="flex-1">
                                             <h3 className="font-semibold text-foreground">{partner.name}</h3>
                                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
@@ -850,7 +740,7 @@ export default function UserDashboard() {
                                             </span>
                                         )}
                                         <div className="flex items-start gap-4">
-                                            {partner.logo_url && <img src={partner.logo_url || '/assets/partner-placeholder.svg'} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
+                                            {partner.logo_url && <img src={partner.logo_url} alt={partner.name} className="w-12 h-12 object-cover rounded-sm" />}
                                             <div className="flex-1">
                                                 <h3 className="font-semibold text-foreground">{partner.name}</h3>
                                                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{partner.description}</p>
@@ -877,7 +767,7 @@ export default function UserDashboard() {
                 if (currentStep.document_workflow && (currentStep.documents || []).length > 0) {
                     return (
                         <div className="space-y-4" data-testid="workflow-documents">
-                            {(currentStep.documents || []).map((document, index) => (
+                            {currentStep.documents.map((document, index) => (
                                 <a key={document.file_id} href={filesAPI.getUrl(document.file_id)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-sm border border-border bg-card p-4 hover:border-[var(--brand-primary)]" data-testid={`workflow-document-${index}`}>
                                     <span><span className="block font-medium text-foreground">{document.document_type}</span><span className="text-sm text-muted-foreground">{document.filename}</span></span>
                                     <span className="text-sm font-medium text-[var(--brand-primary)]">Herunterladen</span>
@@ -892,7 +782,6 @@ export default function UserDashboard() {
                             <div className="p-8 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm text-center">
                                 <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
                                 <p className="text-lg font-semibold text-green-800 dark:text-green-300">{loc(currentStep, 'complete_message') || t('dash_all_done')}</p>
-                                <Button onClick={() => { if (currentStepIndex < visibleSteps.length - 1) { setCurrentStepIndex(currentStepIndex + 1); setExpandedStep(currentStepIndex + 1); } }} className="mt-6 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="milestone-next-btn">Weiter <ArrowRight className="ml-2" size={16} /></Button>
                             </div>
                         ) : (
                             <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm text-center">

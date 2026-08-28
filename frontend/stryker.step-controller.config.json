@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-step-controller.json",
+  "mutate": ["src/features/admin/hooks/useAdminStepCommands.js", "src/features/admin/useAdminDashboardController.js"],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.step-controller.config.js" }
+}

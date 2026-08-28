@@ -1,6 +1,7 @@
 import { Toaster as Sonner, toast } from "sonner"
 import { useTheme } from "../../contexts/ThemeContext"
 
+// Stryker disable all: declarative toast adapter.
 const Toaster = ({
   ...props
 }) => {

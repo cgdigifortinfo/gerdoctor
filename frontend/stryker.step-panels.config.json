@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-step-panels.json",
+  "mutate": [
+    "src/features/admin/stepEditor/BasicPanel.js", "src/features/admin/stepEditor/ConditionsPanel.js",
+    "src/features/admin/stepEditor/MappingsPanel.js", "src/features/admin/stepEditor/NotificationsPanel.js",
+    "src/features/admin/stepEditor/RequirementsPanel.js", "src/features/admin/stepEditor/TranslationsPanel.js",
+    "src/components/FlowSimulatorPanel.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.step-panels.config.js" }
+}

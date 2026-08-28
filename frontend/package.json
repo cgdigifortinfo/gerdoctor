@@ -33,7 +33,22 @@
     "test": "craco test",
     "test:unit": "craco test --watchAll=false",
     "test:coverage": "craco test --watchAll=false --coverage",
-    "test:mutation": "stryker run"
+    "test:mutation": "node scripts/run-mutation-shards.cjs",
+    "test:mutation:manifest": "node scripts/check-mutation-shards.cjs",
+    "test:mutation:domains": "stryker run stryker.domains.config.json",
+    "test:mutation:normalization": "stryker run stryker.normalization.config.json",
+    "test:mutation:builders": "stryker run stryker.builders.config.json",
+    "test:mutation:step-core": "stryker run stryker.step-core.config.json",
+    "test:mutation:flow-builder": "stryker run stryker.flow-builder.config.json",
+    "test:mutation:step-domains": "stryker run stryker.step-domains.config.json",
+    "test:mutation:step-controller": "stryker run stryker.step-controller.config.json",
+    "test:mutation:step-panels": "stryker run stryker.step-panels.config.json",
+    "test:mutation:admin-hooks": "stryker run stryker.admin-hooks.config.json",
+    "test:mutation:admin-tabs": "stryker run stryker.admin-tabs.config.json",
+    "test:mutation:pages": "stryker run stryker.pages.config.json",
+    "test:mutation:infrastructure": "stryker run stryker.infrastructure.config.json",
+    "test:mutation:shared": "stryker run stryker.shared-components.config.json",
+    "test:mutation:ui": "stryker run stryker.ui-primitives.config.json"
   },
   "browserslist": {
     "production": [
@@ -64,17 +79,19 @@
     "tailwindcss": "^3.4.17"
   },
   "jest": {
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
     "collectCoverageFrom": [
       "src/**/*.{js,jsx}",
-      "!src/index.js",
       "!src/**/*.test.{js,jsx}"
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 3.9,
-        "functions": 1.8,
-        "lines": 3.0,
-        "statements": 3.1
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
       }
     }
   }

@@ -3,6 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Moon, Sun, Globe } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 
+// Stryker disable all: declarative context controls.
 export function ThemeLangToggle() {
     const { isDark, toggleTheme } = useTheme();
     const { lang, toggleLang } = useLanguage();

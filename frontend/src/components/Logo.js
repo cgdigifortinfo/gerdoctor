@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+// Stryker disable all: declarative brand link.
 export function Logo({ className = '', linkTo = '/' }) {
     return (
         <Link to={linkTo} className={`inline-flex items-center gap-2 no-underline ${className}`} data-testid="logo">

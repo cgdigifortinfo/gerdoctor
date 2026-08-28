@@ -67,6 +67,8 @@ chainlit.md
 /.gitconfig
 /test_reports/
 /test_results/e2e-screenshots/
+/container_tools/
+/tmp/
 cookies*.txt
 backend/*.backup
 backend/=*

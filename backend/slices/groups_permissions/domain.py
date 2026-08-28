@@ -142,6 +142,7 @@ def permission_for_portal_request(method: str, path: str) -> str | None:
         return "survey.own.submit"
     if path.startswith("/api/files"): return "files.own.manage"
     if path.startswith("/api/partner/"):
-        if path == "/api/partner/profile" and verb == "PUT": return "profile.self.manage"
+        if path in {"/api/partner/profile", "/api/partner/logo"} and write:
+            return "profile.self.manage"
         return "partner.users.manage" if write else "partner.users.view"
     return None

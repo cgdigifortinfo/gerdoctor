@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-admin-hooks.json",
+  "mutate": [
+    "src/features/admin/hooks/useAdminBilling.js", "src/features/admin/hooks/useAdminBillingCommands.js",
+    "src/features/admin/hooks/useAdminCms.js", "src/features/admin/hooks/useAdminCmsCommands.js",
+    "src/features/admin/hooks/useAdminPartnerCommands.js", "src/features/admin/hooks/useAdminPartners.js",
+    "src/features/admin/hooks/useAdminSteps.js", "src/features/admin/hooks/useAdminUserCommands.js",
+    "src/features/admin/hooks/useAdminUsers.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.admin-ui.config.js" }
+}

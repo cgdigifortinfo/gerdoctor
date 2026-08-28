@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-ui-primitives-sources.json",
+  "mutate": [
+    "src/components/ui/badge.jsx", "src/components/ui/button.jsx", "src/components/ui/checkbox.jsx",
+    "src/components/ui/dialog.jsx", "src/components/ui/entity-badges.jsx", "src/components/ui/help-tooltip.jsx",
+    "src/components/ui/input.jsx", "src/components/ui/label.jsx", "src/components/ui/progress.jsx",
+    "src/components/ui/select.jsx", "src/components/ui/sonner.jsx", "src/components/ui/switch.jsx",
+    "src/components/ui/tabs.jsx", "src/components/ui/textarea.jsx", "src/components/ui/uiDomain.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.ui-primitives.config.js" }
+}

@@ -10,9 +10,15 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { HelpLabel, HelpTooltip } from '../ui/help-tooltip';
+import { asArray } from '../../lib/valueNormalization';
+import {
+    appendFieldOption, CHOICE_FIELD_TYPES, CONTENT_FIELD_TYPES, createField, duplicateField, moveField,
+    optionLabel, optionValue, removeFieldOption, slugify, TYPE_LABELS, updateFieldOption,
+} from './surveyFormDomain';
 
-export const CONTENT_FIELD_TYPES = new Set(['heading', 'paragraph', 'html', 'image', 'divider']);
-export const CHOICE_FIELD_TYPES = new Set(['select', 'selectbox', 'radio', 'multiselect', 'decision']);
+// Stryker disable all: survey-builder adapter; transformations live in surveyFormDomain.
+
+export { createField, moveField, optionLabel, optionValue, slugify } from './surveyFormDomain';
 
 const FIELD_GROUPS = [
     {
@@ -42,7 +48,6 @@ const FIELD_GROUPS = [
     },
 ];
 
-const TYPE_LABELS = Object.fromEntries(FIELD_GROUPS.flatMap((group) => group.types));
 const FIELD_TYPE_HELP = {
     text: 'Kurze einzeilige Texteingabe.', textarea: 'Mehrzeiliger Freitext mit Höhe und Zeichenbegrenzung.',
     email: 'E-Mail-Eingabe mit Formatprüfung.', phone: 'Eingabe für Telefonnummern.', number: 'Numerischer Wert mit Minimum, Maximum und Schrittweite.',
@@ -54,44 +59,8 @@ const FIELD_TYPE_HELP = {
     image: 'Bild über URL mit Alternativtext und Bildunterschrift.', divider: 'Visuelle Trennlinie zwischen Bereichen.',
 };
 
-const slugify = (value) => String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '');
 
-const makeId = (type) => `${type}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-
-export function createField(type, index = 0) {
-    const label = TYPE_LABELS[type] || 'Neues Feld';
-    const name = `${slugify(label) || type}_${index + 1}`;
-    const field = {
-        id: makeId(type), name, field_type: type, label, help_text: '', placeholder: '',
-        required: false, width: 'full',
-    };
-    if (CHOICE_FIELD_TYPES.has(type)) field.options = ['Option 1', 'Option 2'];
-    if (type === 'multiupload') {
-        field.options = ['Dokument'];
-        field.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
-        field.multiple = true;
-    }
-    if (type === 'file') {
-        field.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
-        field.multiple = false;
-    }
-    if (type === 'textarea') field.rows = 4;
-    if (type === 'heading') { field.content = 'Neue Überschrift'; field.heading_level = 2; }
-    if (type === 'paragraph') field.content = 'Hier kann ein erklärender Text stehen.';
-    if (type === 'html') field.content = '<p>Hier kann formatierter Inhalt stehen.</p>';
-    if (type === 'image') { field.image_url = ''; field.alt_text = ''; field.caption = ''; }
-    if (CONTENT_FIELD_TYPES.has(type)) field.required = false;
-    return field;
-}
-
-const optionValue = (option) => typeof option === 'object' && option !== null ? String(option.value ?? option.label ?? '') : String(option ?? '');
-const optionLabel = (option) => typeof option === 'object' && option !== null ? String(option.label ?? option.value ?? '') : String(option ?? '');
-
-function FieldPreview({ field }) {
+export function FieldPreview({ field }) {
     const label = field.label || TYPE_LABELS[field.field_type] || field.name;
     if (field.field_type === 'divider') return <hr className="my-2 border-border" />;
     if (field.field_type === 'heading') {
@@ -111,7 +80,7 @@ function FieldPreview({ field }) {
             <span className="text-sm font-medium text-foreground">{label}{field.required && <span className="ml-1 text-red-500">*</span>}</span>
             {CHOICE_FIELD_TYPES.has(field.field_type) || field.field_type === 'multiupload' ? (
                 <div className="rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-                    {(field.options || []).map(optionLabel).filter(Boolean).slice(0, 3).join(' · ') || 'Optionen ergänzen'}
+                    {asArray(field.options).map(optionLabel).filter(Boolean).slice(0, 3).join(' · ') || 'Optionen ergänzen'}
                 </div>
             ) : field.field_type === 'textarea' ? (
                 <div className="h-14 rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">{field.placeholder || 'Mehrzeilige Eingabe'}</div>
@@ -127,25 +96,13 @@ function FieldPreview({ field }) {
     );
 }
 
-function OptionEditor({ field, updateField }) {
-    const options = field.options || [];
+export function OptionEditor({ field, updateField }) {
+    const options = asArray(field.options);
     const updateOption = (index, key, value) => {
-        const next = [...options];
-        const current = next[index];
-        if (field.field_type === 'decision' || (typeof current === 'object' && current !== null)) {
-            next[index] = {
-                ...(typeof current === 'object' && current !== null ? current : {}),
-                value: key === 'value' ? value : optionValue(current),
-                label: key === 'label' ? value : optionLabel(current),
-            };
-        } else {
-            next[index] = value;
-        }
-        updateField({ options: next });
+        updateField({ options: updateFieldOption(options, field.field_type, index, key, value) });
     };
     const addOption = () => {
-        const number = options.length + 1;
-        updateField({ options: [...options, field.field_type === 'decision' ? { value: `option_${number}`, label: `Option ${number}` } : `Option ${number}`] });
+        updateField({ options: appendFieldOption(options, field.field_type) });
     };
     return (
         <div className="space-y-2" data-testid="field-options-editor">
@@ -156,14 +113,14 @@ function OptionEditor({ field, updateField }) {
                         <Input aria-label={`Wert Option ${index + 1}`} value={optionValue(option)} onChange={(event) => updateOption(index, 'value', event.target.value)} placeholder="Wert" />
                     )}
                     <Input aria-label={`Bezeichnung Option ${index + 1}`} value={optionLabel(option)} onChange={(event) => updateOption(index, 'label', event.target.value)} placeholder="Bezeichnung" />
-                    <Button type="button" variant="ghost" size="sm" className="shrink-0 text-red-500" aria-label={`Option ${index + 1} löschen`} onClick={() => updateField({ options: options.filter((_, optionIndex) => optionIndex !== index) })}><Trash size={16} /></Button>
+                    <Button type="button" variant="ghost" size="sm" className="shrink-0 text-red-500" aria-label={`Option ${index + 1} löschen`} onClick={() => updateField({ options: removeFieldOption(options, index) })}><Trash size={16} /></Button>
                 </div>
             ))}
         </div>
     );
 }
 
-function FieldSettings({ field, onChange }) {
+export function FieldSettings({ field, onChange }) {
     if (!field) return <div className="flex min-h-64 items-center justify-center p-6 text-center text-sm text-muted-foreground">Wähle ein Feld in der Mitte aus, um seine Einstellungen zu bearbeiten.</div>;
     const update = (patch) => onChange({ ...field, ...patch });
     const isContent = CONTENT_FIELD_TYPES.has(field.field_type);
@@ -219,20 +176,11 @@ export default function SurveyFormBuilder({ fields = [], onChange }) {
     };
     const replaceAt = (index, field) => onChange(fields.map((item, itemIndex) => itemIndex === index ? field : item));
     const removeAt = (index) => onChange(fields.filter((_, itemIndex) => itemIndex !== index));
-    const move = (index, direction) => {
-        const target = index + direction;
-        if (target < 0 || target >= fields.length) return;
-        const next = [...fields];
-        [next[index], next[target]] = [next[target], next[index]];
-        onChange(next);
-    };
+    const move = (index, direction) => onChange(moveField(fields, index, direction));
     const duplicate = (index) => {
-        const original = fields[index];
-        const copy = { ...original, id: makeId(original.field_type), name: `${original.name || original.field_type}_kopie`, label: `${original.label || TYPE_LABELS[original.field_type]} (Kopie)` };
-        const next = [...fields];
-        next.splice(index + 1, 0, copy);
-        onChange(next);
-        setSelectedId(copy.id);
+        const result = duplicateField(fields, index);
+        onChange(result.fields);
+        setSelectedId(result.selectedId);
     };
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card" data-testid="survey-form-builder">

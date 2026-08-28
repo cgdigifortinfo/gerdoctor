@@ -1,6 +1,6 @@
 # GerDoctor – Arbeitskontext
 
-Stand: 2026-08-25
+Stand: 2026-08-28
 
 ## Repository und Git
 
@@ -125,22 +125,45 @@ Stand: 2026-08-25
 - Neue Kandidatensuite liegt getrennt unter `backend/unit_tests_next`.
 - Ausführung der Kandidatensuite:
   `cd backend && pytest -c pytest.next.ini`
-- Das strikte Domain-Gate umfasst 5.472 Statements und 1.412 Branches bei
-  100,00 Prozent Line-/Branch-Coverage.
+- Das strikte Backend-Domain-Gate umfasst 5.510 Statements und 1.430 Branches
+  bei 100,00 Prozent Line-/Branch-Coverage (`707 passed`).
 - Sie deckt Modelle, Auth, Berechtigungen, Formularnormalisierung,
   Condition-Auswertung, Metriken und Partnerfreischaltung mit Positiv-,
   Negativ-, Grenzwert- und Fallback-Fällen ab.
-- Relevante Partner-/Rollen-/Step-Regression: zuletzt `60 passed`; finaler
-  Reparatur-/Navigationstest `12 passed`.
-- Stripe-/Billing-/Rechte-Suite: zuletzt `127 passed`.
-- Striktes mypy ist für 223 extrahierte Python-Module grün.
-- Backend-Mutation: 5.485 Mutanten getötet, keine überlebenden Mutanten; drei
-  bekannte CMS-Endlosschleifen-Mutanten enden kontrolliert im Timeout.
-- Frontend: 30 Tests und Produktionsbuild grün; Stryker erreicht 88,50 Prozent
-  bei einem Gate von 85 Prozent.
-- Backend-Gesamtlauf: 387 bestanden, 15 übersprungen. Drei unter gleichzeitigem
-  Stryker-Lauf aufgetretene Browser-Timingfehler wurden anschließend isoliert
-  wiederholt und bestanden 3/3.
+- Backend-Gesamt-Unit-Suite: `583 passed`; 7.007 Statements und 1.610 Branches
+  bei 100,00 Prozent Coverage, keine fehlenden oder partiellen Branches.
+- Striktes mypy ist für 224 Python-Module grün.
+- Backend-Mutation: 5.549/5.549 Mutanten getötet; keine Survived-, Timeout-,
+  Suspicious- oder Uncovered-Mutanten. Das CI-Gate
+  `backend/scripts/assert_mutation_quality.py` ist grün.
+- Frontend-Gesamtsuite: 58/58 Suites, 429/429 Tests und 55/55 Snapshots grün.
+- Frontend-Coverage: Statements 4.492/4.492, Branches 4.154/4.154,
+  Functions 1.676/1.676 und Lines 3.627/3.627, jeweils 100 Prozent.
+- Der Frontend-Production-Build ist grün.
+- Frontend-Stryker verwendet keinen globalen Monolithen mehr. Das kanonische
+  Manifest `frontend/mutation-shards.json` ordnet 113 produktive Quelldateien
+  jeweils exakt einem von 19 fokussierten Shards zu. `npm run test:mutation`
+  prüft zuerst das Manifest und führt danach alle Shards aus; der vollständige
+  Lauf ist bei 100 Prozent Mutation Score ohne Survived-, Timeout- oder
+  No-Coverage-Mutanten grün.
+- `frontend/stryker.config.json` und die überlappenden Legacy-Konfigurationen
+  `stryker.admin-ui.config.json`, `stryker.steps.config.json`,
+  `stryker.step-integration.config.json`, `stryker.step-timeouts.config.json`
+  und `stryker.flow-timeouts.config.json` wurden entfernt.
+- Besonders große, frisch verifizierte Shards: Step-Core 315/315 und
+  StepsFlowBuilder 435/435 Mutanten getötet.
+- Der User-Progress-Endpunkt behandelt `anerkennungsstatus` als gewöhnliches
+  Formulardatum. Er schließt ausschließlich den adressierten Step ab und löst
+  keine impliziten Block-Auto-Skips mehr aus; explizite `auto_complete`-
+  Conditions für Milestones bleiben aktiv.
+- Abgeschlossene User-Steps zeigen zentral eine Vorwärtsaktion, wenn ein
+  nächster sichtbarer und nicht blockierter Step existiert. Dies gilt auch für
+  schreibgeschützte Upload-Übersichten und Dokument-Workflow-Milestones.
+- `backend/tests/test_user_first_steps_e2e.py` registriert einen realen
+  Ärzte-User, füllt Step 1 aus, prüft die ersten fünf Progresszustände, nimmt
+  den Selbst-Upload-Pfad, lädt eine echte Demo-PDF hoch und verifiziert die
+  Rückwärts-/Vorwärtsnavigation zwischen Upload-Übersicht, Dokument-Milestone
+  und folgendem Auswahlstep.
 - Generierte E2E-Screenshots unter `test_results/e2e-screenshots/` wurden aus
   Git entfernt und per `.gitignore` ausgeschlossen.
 
@@ -165,8 +188,15 @@ Stand: 2026-08-25
 - Stripe-Test-Price-IDs und Live-Price-IDs gehören zu getrennten Stripe-Modi.
 - Keine realen Stripe-Zugangsdaten, Webhook-Secrets, Datenbankexporte oder
   personenbezogenen Uploads committen.
-- `frontend/src/pages/AdminDashboard.js` bleibt ein sinnvoller Kandidat für
-  weitere Frontend-Slice-Extraktionen. `backend/server.py` ist bereits auf die
-  stabile Kompatibilitätsfassade reduziert.
+- Die Admin-Oberfläche ist inzwischen fachlich zerlegt: Controller-State und
+  Commands, Admin-Tabs, Dialoge, Step-Editor-Panels sowie wiederverwendbare
+  Layout-, Collection-, Tabellen-, Pagination-, Search-, Badge- und
+  Confirm-Dialog-Primitives besitzen getrennte Module und Tests.
+- Frontend-Orchestrierungs-/Renderadapter sind dort gezielt von Mutation
+  ausgeschlossen, wo die zugrunde liegende Fachlogik in extrahierten, regulär
+  mutation-getesteten Domain-Funktionen liegt. Neue Logik gehört bevorzugt in
+  diese Domain-Module; Adapter dürfen nicht zur Ablage fachlicher Bedingungen
+  werden.
+- `backend/server.py` ist bereits auf die stabile Kompatibilitätsfassade reduziert.
 - Detaillierter Sessionabschluss:
-  `memory/session-2026-08-24-partner-onboarding.md`.
+  `memory/session-2026-08-28-user-journey-completion.md`.

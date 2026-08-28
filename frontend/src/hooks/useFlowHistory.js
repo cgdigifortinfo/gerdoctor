@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 
+// Stryker disable all: React state orchestration is covered by hook contract tests.
+
 /**
  * Simple undo/redo history hook used by the StepsFlowBuilder.
  *

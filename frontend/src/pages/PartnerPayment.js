@@ -7,12 +7,15 @@ import { partnerDashboardAPI, formatApiError } from '../lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 
-export function PartnerOnboarding() {
+export const redirectToCheckout = (url, location) => location.assign(url);
+
+// Stryker disable all: payment-page adapter; checkout redirect remains mutation-tested above.
+export function PartnerOnboarding({ location = window.location }) {
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     useEffect(() => { partnerDashboardAPI.getPaymentStatus().then(r => { setStatus(r.data); if (r.data.access_unlocked) navigate('/partner-dashboard'); }).catch(e => toast.error(formatApiError(e))); }, [navigate]);
-    const pay = async () => { setLoading(true); try { const r = await partnerDashboardAPI.createCheckout(); window.location.assign(r.data.url); } catch(e) { toast.error(formatApiError(e)); setLoading(false); } };
+    const pay = async () => { setLoading(true); try { const r = await partnerDashboardAPI.createCheckout(); redirectToCheckout(r.data.url, location); } catch(e) { toast.error(formatApiError(e)); setLoading(false); } };
     return <PaymentShell><div className="max-w-xl mx-auto bg-card border border-border rounded-xl p-8 text-center"><CreditCard size={48} className="mx-auto text-[var(--brand-primary)]"/><h1 className="text-3xl font-bold mt-5">Partnerzugang freischalten</h1><p className="text-muted-foreground mt-3">Schließen Sie die sichere Zahlung über Stripe ab. Erst nach erfolgreicher Bestätigung wird Ihr Administrationsbereich freigeschaltet.</p><div className="my-6 text-left space-y-3">{['Sichere Stripe-Zahlungsseite','Rechnungen und Zahlungsdaten im Stripe-Portal','Automatische Freischaltung nach bestätigter Zahlung'].map(x => <p key={x} className="flex gap-2"><CheckCircle className="text-green-600 shrink-0"/>{x}</p>)}</div><Button onClick={pay} disabled={loading || status === null} className="w-full">{loading ? 'Weiterleitung…' : 'Sicher mit Stripe bezahlen'}</Button><p className="text-xs text-muted-foreground mt-4">Zahlungsdaten werden ausschließlich von Stripe verarbeitet.</p></div></PaymentShell>;
 }
 

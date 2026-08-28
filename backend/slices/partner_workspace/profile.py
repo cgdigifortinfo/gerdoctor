@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Any, Protocol, cast
 
 from infrastructure.mongo_ids import object_id_or_none
+from slices.partner_workspace.logo import partner_logo_data_url
 
 
 class PartnerProfileNotLinked(ValueError): pass
@@ -68,3 +69,17 @@ class PartnerProfileService:
         fields["updated_at"] = timestamp
         await self._repository.update_partner(str(partner_id), fields)
         return str(partner_id), list(fields)
+
+    async def update_logo(
+        self, user: Mapping[str, Any], filename: str, content_type: str,
+        content: bytes, timestamp: str,
+    ) -> tuple[str, str]:
+        partner_id = user.get("partner_id")
+        if not partner_id:
+            raise PartnerProfileNotLinked
+        logo_url = partner_logo_data_url(filename, content_type, content)
+        await self._repository.update_partner(str(partner_id), {
+            "logo_url": logo_url,
+            "updated_at": timestamp,
+        })
+        return str(partner_id), logo_url

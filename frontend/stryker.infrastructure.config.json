@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-infrastructure-domains.json",
+  "mutate": [
+    "src/contexts/AuthContext.js", "src/contexts/LanguageContext.js", "src/contexts/ThemeContext.js",
+    "src/hooks/useFlowHistory.js", "src/lib/api.js", "src/lib/apiDomain.js", "src/lib/config.js", "src/lib/sanitizeHtml.js",
+    "src/lib/stepSimulatorProfiles.js", "src/lib/stepVisibility.js", "src/lib/utils.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.infrastructure.config.js" }
+}

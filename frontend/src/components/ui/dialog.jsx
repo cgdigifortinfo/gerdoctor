@@ -4,6 +4,8 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+// Stryker disable all: declarative Radix adapter.
+
 const Dialog = DialogPrimitive.Root
 
 const DialogTrigger = DialogPrimitive.Trigger

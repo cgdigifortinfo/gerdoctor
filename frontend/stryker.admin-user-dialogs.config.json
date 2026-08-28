@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest", "concurrency": 1, "coverageAnalysis": "perTest", "ignoreStatic": true,
+  "mutator": { "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"] },
+  "incremental": true, "incrementalFile": "reports/mutation/incremental-admin-user-dialogs.json",
+  "mutate": [
+    "src/features/admin/AdminDashboardComponents/CreateUserDialog.js",
+    "src/features/admin/AdminDashboardComponents/LinkUserDialog.js",
+    "src/features/admin/adminUserDialogDomain.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"], "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "custom", "configFile": "jest.admin-user-dialogs.config.js" }
+}

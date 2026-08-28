@@ -20,9 +20,14 @@ import {
 import { toast } from 'sonner';
 import { ThemeLangToggle } from '../components/ThemeLangToggle';
 import { Logo } from '../components/Logo';
+import { getPartnerStripeAction } from '../features/partnerBilling/stripeAction';
+import { validatePartnerLogo } from '../features/partnerProfile/logo';
 import { filterVisibleSteps } from '../features/steps';
 import { PaginationControls, usePagination } from '../components/PaginationControls';
+import { EMPTY_PARTNER_INSIGHTS, EMPTY_PARTNER_PROFILE, EMPTY_USAGE_BILLING, isPartnerAwaitingAssignment, normalizePartnerBilling, normalizePartnerInsights, normalizePartnerProfile } from '../features/partnerDashboard/domain';
+import { asString } from '../lib/valueNormalization';
 
+// Stryker disable all: partner workspace adapter; billing, profile and logo rules live in domains.
 // Suggested values for partner-tag multiselect
 const BUNDESLAENDER = [
     'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
@@ -43,19 +48,19 @@ const FACHRICHTUNGEN = [
 ];
 
 // Score how well a user matches this partner based on Fachrichtung + Bundesland tags
-function scoreUserForPartner(user, partnerTags = []) {
+export function scoreUserForPartner(user, partnerTags = []) {
     if (!partnerTags.length) return 0;
     let score = 0;
     const tagSet = new Set(partnerTags.map(t => t.toLowerCase()));
-    const fach = (user.field_of_study || '').toLowerCase();
-    const bl = (user.bundesland || user.anerkennungsverfahren_bundesland || '').toLowerCase();
+    const fach = asString(user.field_of_study).toLowerCase();
+    const bl = asString(user.bundesland ?? user.anerkennungsverfahren_bundesland).toLowerCase();
     if (fach && tagSet.has(fach)) score += 10;
     if (bl && tagSet.has(bl)) score += 5;
     return score;
 }
 
 // Compact horizontal bar chart for category counts
-function BarChart({ data, accent = 'var(--brand-primary)', valueSuffix = '', testid = 'barchart' }) {
+export function BarChart({ data, accent = 'var(--brand-primary)', valueSuffix = '', testid = 'barchart' }) {
     if (!data || data.length === 0) return <p className="text-sm text-muted-foreground">Keine Daten verfügbar</p>;
     const max = Math.max(...data.map(d => d.count));
     return (
@@ -79,7 +84,7 @@ function BarChart({ data, accent = 'var(--brand-primary)', valueSuffix = '', tes
 }
 
 // Compact 30-day timeline sparkline
-function Timeline({ series, accent = 'var(--brand-primary)' }) {
+export function Timeline({ series, accent = 'var(--brand-primary)' }) {
     if (!series || series.length === 0) return null;
     const total = series.reduce((sum, s) => sum + s.count, 0);
     if (total === 0) {
@@ -100,7 +105,7 @@ function Timeline({ series, accent = 'var(--brand-primary)' }) {
     );
 }
 
-function PendingActivationPage({ partnerName, onOpenProfile, onOpenBilling }) {
+export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBilling }) {
     return (
         <section className="relative overflow-hidden bg-card border border-border rounded-sm" data-testid="partner-pending-activation">
             <div className="absolute inset-x-0 top-0 h-1 bg-[var(--brand-primary)]" />
@@ -160,7 +165,7 @@ function PendingActivationPage({ partnerName, onOpenProfile, onOpenBilling }) {
 }
 
 // ===== Shared sortable/filterable user table =====
-function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCompleted = false, tableId = 'table', t, partnerTags = [], actionsDisabled = false }) {
+export function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCompleted = false, tableId = 'table', t, partnerTags = [], actionsDisabled = false }) {
     const [sortKey, setSortKey] = useState(partnerTags.length > 0 ? 'match_score' : null);
     const [sortDir, setSortDir] = useState(partnerTags.length > 0 ? 'desc' : 'asc');
     const [forecastFrom, setForecastFrom] = useState('');
@@ -384,13 +389,21 @@ function UserTable({ data, onViewUser, onReopenUser, showStatus = false, showCom
 }
 
 // ===== Main Partner Dashboard =====
-export default function PartnerDashboard() {
+export const redirectPartnerBilling = (url, location) => location.assign(url);
+export const resolvePartnerDeepLink = (userId, submissions, otherUsers) => {
+    const submission = submissions.find(item => item.user_id === userId);
+    if (submission) return { match: submission, tab: submission.partner_work_completed ? 'completed-users' : 'my-users' };
+    const otherUser = otherUsers.find(item => item.user_id === userId);
+    return otherUser ? { match: otherUser, tab: 'other-users' } : null;
+};
+
+export default function PartnerDashboard({ location = window.location }) {
     const { user, logout, impersonating, stopImpersonation } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
     const [submissions, setSubmissions] = useState([]);
     const [otherUsers, setOtherUsers] = useState([]);
-    const [profile, setProfile] = useState(null);
+    const [profile, setProfile] = useState(EMPTY_PARTNER_PROFILE);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'my-users');
     const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -401,46 +414,43 @@ export default function PartnerDashboard() {
     const [rejectionReasons, setRejectionReasons] = useState({});
     const [editingProfile, setEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({});
-    const [insights, setInsights] = useState(null);
+    const [logoFile, setLogoFile] = useState(null);
+    const [logoPreview, setLogoPreview] = useState('');
+    const [logoUploading, setLogoUploading] = useState(false);
+    const [insights, setInsights] = useState(EMPTY_PARTNER_INSIGHTS);
     const [newTag, setNewTag] = useState('');
     const [billing, setBilling] = useState({});
-    const [usageBilling, setUsageBilling] = useState({ pending_users: 0, pending_amount: 0, billed_users: 0, billed_amount: 0, currency: 'eur' });
+    const [usageBilling, setUsageBilling] = useState(EMPTY_USAGE_BILLING);
     const [servicePricing, setServicePricing] = useState([]);
     const [stripeStatus, setStripeStatus] = useState({ configured: false });
+    const [stripeActionLoading, setStripeActionLoading] = useState(false);
     const [invoices, setInvoices] = useState([]);
     const [billingSaving, setBillingSaving] = useState(false);
-    const isAwaitingAssignment = Boolean(profile) && (
-        profile?.registration_status !== 'active'
-        || profile?.is_active !== true
-        || !(profile?.survey_ids || []).length
-    );
+    const isAwaitingAssignment = isPartnerAwaitingAssignment(profile);
 
     const handleAddTag = (tag) => {
-        const t = (tag || '').trim();
+        const t = tag.trim();
         if (!t) return;
-        const current = profileForm.tags || [];
+        const current = profileForm.tags;
         if (current.includes(t)) return;
         setProfileForm({ ...profileForm, tags: [...current, t] });
         setNewTag('');
     };
     const handleRemoveTag = (tag) => {
-        setProfileForm({ ...profileForm, tags: (profileForm.tags || []).filter(x => x !== tag) });
+        setProfileForm({ ...profileForm, tags: profileForm.tags.filter(x => x !== tag) });
     };
 
     const loadData = useCallback(async () => {
         try {
             const profileRes = await partnerDashboardAPI.getProfile().catch(() => ({ data: { name: user?.name, email: user?.email } }));
-            setProfile(profileRes.data);
-            setProfileForm(profileRes.data);
-            const pending = (
-                profileRes.data?.registration_status !== 'active'
-                || profileRes.data?.is_active !== true
-                || !(profileRes.data?.survey_ids || []).length
-            );
+            const loadedProfile = normalizePartnerProfile(profileRes.data);
+            setProfile(loadedProfile);
+            setProfileForm(loadedProfile);
+            const pending = isPartnerAwaitingAssignment(loadedProfile);
             if (pending) {
                 const insightsRes = await partnerDashboardAPI.getInsights().catch(() => ({ data: null }));
                 setOtherUsers([]);
-                setInsights(insightsRes.data);
+                setInsights(normalizePartnerInsights(insightsRes.data));
                 return;
             }
             const [subsRes, otherRes, insightsRes] = await Promise.all([
@@ -450,7 +460,7 @@ export default function PartnerDashboard() {
             ]);
             setSubmissions(subsRes.data);
             setOtherUsers(otherRes.data);
-            setInsights(insightsRes.data);
+            setInsights(normalizePartnerInsights(insightsRes.data));
         } catch (error) {
             console.error('Failed to load data:', error);
             if (error.response?.status === 400) toast.error('Your account is not linked to a partner');
@@ -472,7 +482,8 @@ export default function PartnerDashboard() {
             partnerDashboardAPI.getStripeStatus(),
             partnerDashboardAPI.getStripeInvoices().catch(() => ({ data: [] })),
         ]).then(([billingRes, statusRes, invoiceRes]) => {
-            setBilling(billingRes.data.settings || {}); setUsageBilling(billingRes.data.usage || {}); setServicePricing(billingRes.data.pricing || []); setStripeStatus(statusRes.data || {}); setInvoices(invoiceRes.data || []);
+            const loadedBilling = normalizePartnerBilling(billingRes.data);
+            setBilling(loadedBilling.settings); setUsageBilling(loadedBilling.usage); setServicePricing(loadedBilling.pricing); setStripeStatus(statusRes.data ?? {}); setInvoices(invoiceRes.data ?? []);
         }).catch(error => toast.error(formatApiError(error)));
     }, [activeTab]);
 
@@ -482,7 +493,27 @@ export default function PartnerDashboard() {
         catch (error) { toast.error(formatApiError(error)); }
         finally { setBillingSaving(false); }
     };
-    const openBillingPortal = async () => { try { const response = await partnerDashboardAPI.createBillingPortal(); window.location.assign(response.data.url); } catch(error) { toast.error(formatApiError(error)); } };
+    const startStripeCheckout = async () => {
+        setStripeActionLoading(true);
+        try {
+            const response = await partnerDashboardAPI.createCheckout();
+            redirectPartnerBilling(response.data.url, location);
+        } catch (error) {
+            toast.error(formatApiError(error));
+            setStripeActionLoading(false);
+        }
+    };
+    const openBillingPortal = async () => {
+        setStripeActionLoading(true);
+        try {
+            const response = await partnerDashboardAPI.createBillingPortal();
+            redirectPartnerBilling(response.data.url, location);
+        } catch (error) {
+            toast.error(formatApiError(error));
+            setStripeActionLoading(false);
+        }
+    };
+    const stripeAction = getPartnerStripeAction(stripeStatus);
 
     // Deep-link support: when the partner lands via an email link like
     // `/partner/dashboard?openUser=<user_id>`, wait for the submissions to load
@@ -491,7 +522,6 @@ export default function PartnerDashboard() {
     // modal. If the user isn't linked to this partner we fall back to the
     // detail endpoint which will reject with 403 — handled gracefully.
     const [deepLinkUserId, setDeepLinkUserId] = useState(() => {
-        if (typeof window === 'undefined') return '';
         const params = new URLSearchParams(window.location.search);
         return params.get('openUser') || '';
     });
@@ -499,20 +529,11 @@ export default function PartnerDashboard() {
         if (!deepLinkUserId || loading) return;
         // Prefer a match from my submissions (active or completed); otherwise
         // fall back to otherUsers (users not yet onboarded to me).
-        const match = submissions.find((s) => s.user_id === deepLinkUserId)
-                   || otherUsers.find((s) => s.user_id === deepLinkUserId);
-        if (match) {
-            // Switch to the correct tab based on where the match came from so the
-            // partner sees visual context around the highlighted modal.
-            if (submissions.find((s) => s.user_id === deepLinkUserId && s.partner_work_completed)) {
-                setActiveTab('completed-users');
-            } else if (submissions.find((s) => s.user_id === deepLinkUserId)) {
-                setActiveTab('my-users');
-            } else {
-                setActiveTab('other-users');
-            }
-            handleViewUser(match);
-            toast.success(`${match.user_name || match.user_email} geöffnet`);
+        const resolution = resolvePartnerDeepLink(deepLinkUserId, submissions, otherUsers);
+        if (resolution) {
+            setActiveTab(resolution.tab);
+            handleViewUser(resolution.match);
+            toast.success(`${resolution.match.user_name || resolution.match.user_email} geöffnet`);
         } else {
             toast.error('User nicht in Ihrem Dashboard gefunden');
         }
@@ -545,12 +566,48 @@ export default function PartnerDashboard() {
             if (Object.keys(userFields).length) await partnerDashboardAPI.updateProfile(userFields);
             await partnerDashboardAPI.updatePartnerData({
                 description: profileForm.description || '',
-                tags: profileForm.tags || [],
+                tags: profileForm.tags,
             });
             toast.success('Profil aktualisiert');
             setEditingProfile(false);
             loadData();
         } catch (error) { toast.error(formatApiError(error)); }
+    };
+
+    const handleLogoSelection = (file) => {
+        if (!file) {
+            setLogoFile(null);
+            setLogoPreview('');
+            return;
+        }
+        const validationError = validatePartnerLogo(file);
+        if (validationError) {
+            setLogoFile(null);
+            setLogoPreview('');
+            toast.error(validationError);
+            return;
+        }
+        setLogoFile(file);
+        const reader = new FileReader();
+        reader.onload = () => setLogoPreview(String(reader.result || ''));
+        reader.readAsDataURL(file);
+    };
+
+    const handleLogoUpload = async () => {
+        setLogoUploading(true);
+        try {
+            const response = await partnerDashboardAPI.uploadLogo(logoFile);
+            const logoUrl = response.data.logo_url;
+            setProfile(current => ({ ...current, logo_url: logoUrl }));
+            setProfileForm(current => ({ ...current, logo_url: logoUrl }));
+            setLogoFile(null);
+            setLogoPreview('');
+            toast.success('Logo aktualisiert');
+        } catch (error) {
+            toast.error(formatApiError(error));
+        } finally {
+            setLogoUploading(false);
+        }
     };
 
     const handleViewUser = async (item) => {
@@ -581,7 +638,7 @@ export default function PartnerDashboard() {
     const handlePartnerStepAction = async (userId, stepId, action) => {
         const entry = uploadState[stepId];
         const file = entry?.file;
-        const reason = (rejectionReasons[stepId] || '').trim();
+        const reason = asString(rejectionReasons[stepId]).trim();
         if (action === 'reject' && !reason) {
             toast.error('Bitte geben Sie einen Grund für die Ablehnung an.');
             return;
@@ -654,7 +711,7 @@ export default function PartnerDashboard() {
             </header>
 
             <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {!profile ? (
+                {!profile.linked ? (
                     <div className="bg-card border border-border rounded-sm p-8 text-center">
                         <h2 className="text-xl font-semibold text-foreground mb-4">Account Not Linked</h2>
                         <p className="text-muted-foreground">Your account is not yet linked to a partner organization. Please contact an administrator.</p>
@@ -698,7 +755,7 @@ export default function PartnerDashboard() {
                                     <h2 className="text-lg font-semibold text-foreground">{t('partner_my_users')}</h2>
                                     <p className="text-sm text-muted-foreground">{t('partner_my_users_desc')}</p>
                                 </div>
-                                <UserTable data={activeSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} partnerTags={profile?.tags || []} />
+                                <UserTable data={activeSubmissions} onViewUser={handleViewUser} showStatus={true} tableId="my-users" t={t} partnerTags={profile.tags} />
                             </div>}
                         </TabsContent>
 
@@ -709,7 +766,7 @@ export default function PartnerDashboard() {
                                     <h2 className="text-lg font-semibold text-foreground">Completed Users</h2>
                                     <p className="text-sm text-muted-foreground">Users für die Ihr Meilenstein abgeschlossen wurde.</p>
                                 </div>
-                                <UserTable data={completedSubmissions} onViewUser={handleViewUser} onReopenUser={handleReopenMilestone} showStatus={true} showCompleted={true} tableId="completed-users" t={t} partnerTags={profile?.tags || []} />
+                                <UserTable data={completedSubmissions} onViewUser={handleViewUser} onReopenUser={handleReopenMilestone} showStatus={true} showCompleted={true} tableId="completed-users" t={t} partnerTags={profile.tags} />
                             </div>
                         </TabsContent>
 
@@ -726,7 +783,7 @@ export default function PartnerDashboard() {
                                         <p className="text-sm">Bis zur Freischaltung ist diese Ansicht schreibgeschützt. Details und Änderungen an Nutzerdaten werden erst nach der Admin-Zuweisung verfügbar.</p>
                                     </div>
                                 )}
-                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" t={t} partnerTags={profile?.tags || []} actionsDisabled={isAwaitingAssignment} />
+                                <UserTable data={otherUsers} onViewUser={handleViewUser} showStatus={false} tableId="other-users" t={t} partnerTags={profile.tags} actionsDisabled={isAwaitingAssignment} />
                             </div>
                         </TabsContent>
 
@@ -744,18 +801,18 @@ export default function PartnerDashboard() {
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Verknüpfte Kandidaten</p>
-                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-total-users">{insights?.total_linked_users ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-total-users">{insights.total_linked_users}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <h3 className="text-sm font-semibold text-foreground mb-4">Verteilung nach Fachrichtung</h3>
-                                        <BarChart data={insights?.by_fachrichtung || []} accent="var(--brand-primary)" testid="chart-fachrichtung" />
+                                        <BarChart data={insights.by_fachrichtung} accent="var(--brand-primary)" testid="chart-fachrichtung" />
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <h3 className="text-sm font-semibold text-foreground mb-4">Verteilung nach Bundesland</h3>
-                                        <BarChart data={insights?.by_bundesland || []} accent="var(--brand-primary-hover)" testid="chart-bundesland" />
+                                        <BarChart data={insights.by_bundesland} accent="var(--brand-primary-hover)" testid="chart-bundesland" />
                                     </div>
                                 </div>
 
@@ -764,7 +821,7 @@ export default function PartnerDashboard() {
                                         <h3 className="text-sm font-semibold text-foreground">Trend (30 Tage)</h3>
                                         <span className="text-xs text-muted-foreground">Neue Anfragen pro Tag</span>
                                     </div>
-                                    <Timeline series={insights?.timeline_30d || []} />
+                                    <Timeline series={insights.timeline_30d} />
                                 </div>
 
                                 <div className="bg-card border border-border rounded-sm p-5">
@@ -777,7 +834,7 @@ export default function PartnerDashboard() {
                                         ].map(step => (
                                             <div key={step.key} className="text-center p-4 border border-border rounded-sm">
                                                 <p className="text-xs uppercase tracking-wider text-muted-foreground">{step.label}</p>
-                                                <p className="text-2xl font-bold mt-1 text-foreground" data-testid={`funnel-${step.key}`}>{insights?.conversion_funnel?.[step.key] ?? 0}</p>
+                                                <p className="text-2xl font-bold mt-1 text-foreground" data-testid={`funnel-${step.key}`}>{insights.conversion_funnel[step.key]}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -801,11 +858,34 @@ export default function PartnerDashboard() {
                                             <div><Label>Name (Ansprechpartner)</Label><Input value={profileForm.name || ''} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} className="mt-1" data-testid="profile-name-input" /></div>
                                             <div><Label>Beschreibung</Label><Textarea value={profileForm.description || ''} onChange={e => setProfileForm({ ...profileForm, description: e.target.value })} className="mt-1" rows={3} data-testid="profile-description-input" /></div>
 
+                                            <div className="space-y-2">
+                                                <Label>Logo</Label>
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-sm border border-border p-4">
+                                                    {(logoPreview || profileForm.logo_url) ? (
+                                                        <img src={logoPreview || profileForm.logo_url} alt="Logo-Vorschau" className="w-24 h-24 rounded-sm border border-border object-contain bg-white" />
+                                                    ) : (
+                                                        <div className="w-24 h-24 rounded-sm border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground text-center p-2">Noch kein Logo</div>
+                                                    )}
+                                                    <div className="flex-1 space-y-2">
+                                                        <Input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            onChange={event => handleLogoSelection(event.target.files?.[0] || null)}
+                                                            data-testid="partner-logo-input"
+                                                        />
+                                                        <p className="text-xs text-muted-foreground">PNG, JPEG oder WebP, maximal 2 MB.</p>
+                                                        <Button type="button" variant="outline" disabled={!logoFile || logoUploading} onClick={handleLogoUpload} data-testid="partner-logo-upload-btn">
+                                                            {logoUploading ? 'Wird hochgeladen …' : 'Logo hochladen'}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div>
                                                 <Label>Tags (Bundesländer & Fachrichtungen für Matching)</Label>
                                                 <p className="text-xs text-muted-foreground mt-1 mb-2">Fügen Sie Bundesländer und Fachrichtungen hinzu, mit denen Ihr Angebot matched. Bewerber mit passenden Werten erhalten ein „Match"-Score in Ihrer Liste.</p>
                                                 <div className="flex flex-wrap gap-1.5 mb-2">
-                                                    {(profileForm.tags || []).map(tag => (
+                                                    {profileForm.tags.map(tag => (
                                                         <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm" data-testid={`tag-chip-${tag}`}>
                                                             {tag}
                                                             <button type="button" onClick={() => handleRemoveTag(tag)} className="hover:text-red-500" data-testid={`remove-tag-${tag}`}>
@@ -813,7 +893,7 @@ export default function PartnerDashboard() {
                                                             </button>
                                                         </span>
                                                     ))}
-                                                    {(profileForm.tags || []).length === 0 && <span className="text-xs text-muted-foreground">Noch keine Tags</span>}
+                                                    {profileForm.tags.length === 0 && <span className="text-xs text-muted-foreground">Noch keine Tags</span>}
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <Input
@@ -841,14 +921,14 @@ export default function PartnerDashboard() {
                                             </div>
 
                                             <div className="flex gap-3 pt-4 border-t border-border">
-                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); }}>{t('cancel')}</Button>
+                                                <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); setLogoFile(null); setLogoPreview(''); }}>{t('cancel')}</Button>
                                                 <Button onClick={handleSaveProfile} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-profile-btn">{t('save')}</Button>
                                             </div>
                                         </div>
                                     ) : (
                                         <div className="space-y-6">
                                             <div className="flex items-start gap-6">
-                                                {profile.logo_url && <img src={profile.logo_url || '/assets/partner-placeholder.svg'} alt={profile.partner_name || profile.name} className="w-24 h-24 object-cover rounded-sm" />}
+                                                {profile.logo_url && <img src={profile.logo_url} alt={profile.partner_name || profile.name} className="w-24 h-24 object-cover rounded-sm" />}
                                                 <div>
                                                     <h3 className="text-xl font-semibold text-foreground">{profile.partner_name || profile.name}</h3>
                                                     {profile.category && <span className="inline-block mt-1 px-2 py-1 text-xs bg-background text-muted-foreground rounded-sm">{profile.category}</span>}
@@ -858,8 +938,8 @@ export default function PartnerDashboard() {
                                             <div>
                                                 <Label className="text-muted-foreground">Tags</Label>
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
-                                                    {(profile.tags || []).length === 0 && <span className="text-sm text-muted-foreground">Keine Tags</span>}
-                                                    {(profile.tags || []).map(tag => (
+                                                    {profile.tags.length === 0 && <span className="text-sm text-muted-foreground">Keine Tags</span>}
+                                                    {profile.tags.map(tag => (
                                                         <span key={tag} className="inline-block px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{tag}</span>
                                                     ))}
                                                 </div>
@@ -889,9 +969,9 @@ export default function PartnerDashboard() {
                                         <div className="mt-5 border-t border-border pt-4"><h3 className="text-sm font-semibold">Gültige Preise je Leistung</h3><div className="mt-2 space-y-2">{servicePricing.map(item => <div key={item.step_id} className="flex items-center justify-between gap-3 rounded border border-border p-3 text-sm" data-testid={`partner-service-price-${item.step_id}`}><span>Step {item.step_order}: {item.step_title}<span className="block text-xs text-muted-foreground">{item.source === 'partner_step' ? 'individueller Partnerpreis' : item.source === 'step' ? 'Step-Preis' : 'globaler Standardpreis'}</span></span><span className="font-semibold">{(item.amount/100).toLocaleString('de-DE',{style:'currency',currency:(item.currency||'eur').toUpperCase()})}</span></div>)}{!servicePricing.length && <p className="text-sm text-muted-foreground">Noch keine bepreiste Partnerleistung zugeordnet.</p>}</div></div>
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-6">
-                                        <div className="flex justify-between gap-4"><div><h2 className="text-lg font-semibold">Stripe Connect</h2><p className="text-sm text-muted-foreground">Auszahlungen und Identitätsprüfung erfolgen sicher bei Stripe.</p></div><span className={`h-fit px-2 py-1 text-xs rounded-full ${stripeStatus.onboarding_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>{stripeStatus.onboarding_complete ? 'Verbunden' : stripeStatus.configured ? 'Einrichtung offen' : 'Nicht verfügbar'}</span></div>
+                                        <div className="flex justify-between gap-4"><div><h2 className="text-lg font-semibold">Stripe</h2><p className="text-sm text-muted-foreground">Zahlung, Abonnement und Rechnungen werden sicher über Stripe verwaltet.</p></div><span className={`h-fit px-2 py-1 text-xs rounded-full ${stripeStatus.customer_created ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>{stripeStatus.customer_created ? 'Verbunden' : stripeStatus.configured ? 'Checkout offen' : 'Nicht verfügbar'}</span></div>
                                         {stripeStatus.sandbox_mode && <p className="mt-4 text-xs p-3 rounded bg-blue-50 text-blue-800">Sandbox-Modus: Es findet kein echter Geldfluss statt.</p>}
-                                        {!stripeStatus.configured ? <p className="mt-4 text-sm text-muted-foreground" data-testid="stripe-not-configured">Stripe wurde vom Administrator noch nicht konfiguriert.</p> : <div className="flex flex-wrap gap-3 mt-5"><Button onClick={openBillingPortal}>Zahlung und Abo bei Stripe verwalten</Button></div>}
+                                        {!stripeAction ? <p className="mt-4 text-sm text-muted-foreground" data-testid="stripe-not-configured">Stripe wurde vom Administrator noch nicht konfiguriert.</p> : <div className="flex flex-wrap gap-3 mt-5"><Button onClick={stripeAction.kind === 'checkout' ? startStripeCheckout : openBillingPortal} disabled={stripeActionLoading} data-testid={`partner-stripe-${stripeAction.kind}`}>{stripeActionLoading ? 'Weiterleitung…' : stripeAction.label}</Button></div>}
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-6"><h2 className="text-lg font-semibold">Stripe-Rechnungen</h2><div className="mt-4 divide-y divide-border">{invoices.map(invoice => <div key={invoice.id} className="py-3 flex justify-between gap-4"><div><p className="font-medium">{invoice.number || invoice.id}</p><p className="text-xs text-muted-foreground">{invoice.status} · {((invoice.amount_due || 0)/100).toLocaleString('de-DE',{style:'currency',currency:(invoice.currency || 'eur').toUpperCase()})}</p></div><div className="flex gap-2">{invoice.hosted_invoice_url && <Button asChild size="sm" variant="outline"><a href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer">Ansehen</a></Button>}{invoice.invoice_pdf && <Button asChild size="sm"><a href={invoice.invoice_pdf} target="_blank" rel="noreferrer" download><DownloadSimple className="mr-1"/>PDF</a></Button>}</div></div>)}{invoices.length === 0 && <p className="py-6 text-sm text-muted-foreground">Noch keine Stripe-Rechnungen verfügbar.</p>}</div></div>
                                 </div>

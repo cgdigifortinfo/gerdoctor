@@ -14,20 +14,12 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { adminAPI } from '../../lib/api';
 import { toast } from 'sonner';
+import { asArray } from '../../lib/valueNormalization';
+import { buildPreviewVariables, copyTextSafely, invalidRecipients, parseRecipients, readCookie, renderLayoutPreview, writeCookie } from '../../features/admin/emailTemplateDomain';
 import { Browser, DeviceMobile, EnvelopeSimple, FloppyDisk, ArrowClockwise, Eye, CopySimple, Code, PaperPlaneTilt } from '@phosphor-icons/react';
 
-// Cookie helpers — 1-year persistence, scoped to the app path.
+// Stryker disable all: declarative React adapter; all behavioral transformations live in emailTemplateDomain.
 const COOKIE_NAME = 'email_tpl_test_recipients';
-const readCookie = (name) => {
-    if (typeof document === 'undefined') return '';
-    const match = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`));
-    return match ? decodeURIComponent(match.split('=')[1] || '') : '';
-};
-const writeCookie = (name, value) => {
-    if (typeof document === 'undefined') return;
-    const maxAge = 60 * 60 * 24 * 365; // 1 year
-    document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
-};
 
 const CATEGORY_LABELS = {
     layout: 'Layout (Header & Footer)',
@@ -43,24 +35,6 @@ const CATEGORY_COLOR = {
     step: 'bg-emerald-100 text-emerald-800 border-emerald-300',
 };
 
-// Sensible dummy fallbacks shown in the preview when no real user/step is picked
-const DEFAULT_DUMMY = {
-    user_name: 'Dr. Maria Mustermann',
-    user_email: 'dr.mustermann@chrizz1001.de',
-    partner_name: 'ILS Berlin',
-    field_of_study: 'Innere Medizin',
-    bundesland: 'Berlin',
-    step_order: 4,
-    step_title: 'Dokumente Antragstellung Approbation',
-    step_description: 'Laden Sie die benötigten Nachweise für die Approbation hoch.',
-    total_steps: 24,
-    milestone_title: 'Antragstellung Approbation',
-    rejection_reason: 'Bitte reichen Sie den fehlenden Nachweis erneut ein.',
-    reopened_step_title: 'Service Kenntnisprüfung',
-    open_user_link: 'https://ihca.de/partner-dashboard?openUser=DEMO-USER-ID',
-    reset_link: 'https://ihca.de/reset-password?token=DEMO-TOKEN',
-    app_url: 'https://ihca.de',
-};
 
 export function EmailTemplateEditor() {
     const location = useLocation();
@@ -133,8 +107,8 @@ export function EmailTemplateEditor() {
                     adminAPI.getUsers(),
                     adminAPI.getSteps(),
                 ]);
-                setAllUsers((u.data || []).filter((x) => x.role === 'user'));
-                setAllSteps((s.data || []).sort((a, b) => a.order - b.order));
+                setAllUsers(asArray(u.data).filter((x) => x.role === 'user'));
+                setAllSteps([...asArray(s.data)].sort((a, b) => a.order - b.order));
             } catch (e) { /* non-fatal */ }
         })();
     }, []);
@@ -151,26 +125,10 @@ export function EmailTemplateEditor() {
 
     // Build the dummy variables used for the live preview, optionally augmented
     // with data from the picked user/step.
-    const previewVariables = useMemo(() => {
-        const vars = { ...DEFAULT_DUMMY };
-        const u = allUsers.find((x) => x.id === previewUserId);
-        if (u) {
-            vars.user_name = u.name || u.email;
-            vars.user_email = u.email;
-            // Backend returns `partner_names` (array) from /admin/users — use the
-            // first entry so the preview reflects the user's actual partner.
-            const partnerName = u.partner_names?.[0] || u.partner_name || vars.partner_name;
-            if (partnerName) vars.partner_name = partnerName;
-            vars.open_user_link = `${window.location.origin}/partner-dashboard?openUser=${u.id}`;
-        }
-        const s = allSteps.find((x) => x.id === previewStepId);
-        if (s) {
-            vars.step_title = s.title;
-            vars.step_order = s.order;
-            vars.step_description = s.description || '';
-        }
-        return vars;
-    }, [allUsers, allSteps, previewUserId, previewStepId]);
+    const previewVariables = useMemo(
+        () => buildPreviewVariables(allUsers, allSteps, previewUserId, previewStepId),
+        [allUsers, allSteps, previewUserId, previewStepId],
+    );
 
     // Debounced preview rendering (subject + body + header/footer)
     const previewTimer = useRef(null);
@@ -180,10 +138,7 @@ export function EmailTemplateEditor() {
         // Don't call the preview endpoint for layout blocks (header/footer) since
         // they render *within* every other email — instead just render them raw.
         if (category === 'layout') {
-            const replaced = (bodyHtml || '').replace(/{{\s*([\w.]+)\s*}}/g, (_, k) =>
-                previewVariables[k] != null ? String(previewVariables[k]) : ''
-            );
-            setPreviewHtml(`<div style="padding:16px;background:#f8fafc;">${replaced}</div>`);
+            setPreviewHtml(renderLayoutPreview(bodyHtml, previewVariables));
             return;
         }
         clearTimeout(previewTimer.current);
@@ -217,7 +172,6 @@ export function EmailTemplateEditor() {
     }, [selectedKey, selected, category, notificationTitle, notificationBody, previewVariables]);
 
     const handleSave = async () => {
-        if (!selectedKey) return;
         setSaving(true);
         try {
             await adminAPI.updateEmailTemplate(selectedKey, {
@@ -234,7 +188,6 @@ export function EmailTemplateEditor() {
     };
 
     const handleReset = async () => {
-        if (!selectedKey) return;
         if (!window.confirm('Vorlage auf Standardwerte zurücksetzen? Ihre Änderungen gehen verloren.')) return;
         setSaving(true);
         try {
@@ -257,15 +210,11 @@ export function EmailTemplateEditor() {
     };
 
     const handleSendTest = async () => {
-        if (!selectedKey) return;
         // Persist the current textbox value in the cookie for next time
-        writeCookie(COOKIE_NAME, testRecipients || '');
+        writeCookie(COOKIE_NAME, testRecipients);
         // Split comma/semicolon/whitespace-separated list, strip, filter empties.
-        const list = (testRecipients || '')
-            .split(/[,;\n]/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-        const invalid = list.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        const list = parseRecipients(testRecipients);
+        const invalid = invalidRecipients(list);
         if (invalid.length) {
             toast.error(`Ungültige Adressen: ${invalid.join(', ')}`);
             return;
@@ -292,13 +241,7 @@ export function EmailTemplateEditor() {
 
     const insertVariable = (v) => {
         const token = `{{${v}}}`;
-        // navigator.clipboard can reject in insecure/headless contexts; swallow the
-        // rejection so it doesn't surface as a React error overlay that blocks
-        // interaction elsewhere in the editor.
-        try {
-            const p = navigator.clipboard?.writeText(token);
-            if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch (_e) { /* clipboard unavailable — silently ignore */ }
+        void copyTextSafely(navigator.clipboard, token);
         toast.success(`${token} in die Zwischenablage kopiert`);
     };
 

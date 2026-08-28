@@ -1,0 +1,5760 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: create condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Neue Regel
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          source
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"},{\\"value\\":\\"upload\\",\\"label\\":\\"upload\\",\\"description\\":\\"upload · multiupload\\"},{\\"value\\":\\"choice\\",\\"label\\":\\"Choice\\",\\"description\\":\\"choice · selectbox\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <input
+            class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+            data-testid="condition-value-input"
+            placeholder="Vergleichswert"
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div />
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: empty operator condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Neue Regel
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          source
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"},{\\"value\\":\\"upload\\",\\"label\\":\\"upload\\",\\"description\\":\\"upload · multiupload\\"},{\\"value\\":\\"choice\\",\\"label\\":\\"Choice\\",\\"description\\":\\"choice · selectbox\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+              status
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <div
+            class="mt-1 flex min-h-10 items-center rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-muted-foreground"
+          >
+            Kein Wert erforderlich
+          </div>
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div />
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: legacy condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Regel bearbeiten
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          source
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"},{\\"value\\":\\"upload\\",\\"label\\":\\"upload\\",\\"description\\":\\"upload · multiupload\\"},{\\"value\\":\\"choice\\",\\"label\\":\\"Choice\\",\\"description\\":\\"choice · selectbox\\"},{\\"value\\":\\"legacy\\",\\"label\\":\\"Bestehendes Feld: legacy\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+              legacy
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <button
+            data-options="[{\\"value\\":\\"legacy\\",\\"label\\":\\"legacy\\"}]"
+            data-placeholder="Wert auswählen"
+            data-search-placeholder="Wert durchsuchen …"
+            data-testid="condition-value-input"
+          >
+            select:
+            legacy
+          </button>
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div>
+          <button
+            class="border-red-200 text-red-600 hover:bg-red-50"
+            data-testid="condition-delete-btn"
+            variant="outline"
+          >
+            <i />
+             Löschen
+          </button>
+        </div>
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: sparse condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Regel bearbeiten
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          Sparse
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+              status
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <button
+            data-options="[{\\"value\\":\\"pending\\",\\"label\\":\\"Ausstehend\\"},{\\"value\\":\\"in_progress\\",\\"label\\":\\"In Bearbeitung\\"},{\\"value\\":\\"completed\\",\\"label\\":\\"Abgeschlossen\\"},{\\"value\\":\\"rejected\\",\\"label\\":\\"Abgelehnt\\"}]"
+            data-placeholder="Mehrere Werte auswählen"
+            data-search-placeholder="Werte durchsuchen oder eingeben …"
+            data-testid="condition-value-input"
+            data-values="[\\"completed\\"]"
+          >
+            multi
+          </button>
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div>
+          <button
+            class="border-red-200 text-red-600 hover:bg-red-50"
+            data-testid="condition-delete-btn"
+            variant="outline"
+          >
+            <i />
+             Löschen
+          </button>
+        </div>
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: status condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Regel bearbeiten
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          source
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"},{\\"value\\":\\"upload\\",\\"label\\":\\"upload\\",\\"description\\":\\"upload · multiupload\\"},{\\"value\\":\\"choice\\",\\"label\\":\\"Choice\\",\\"description\\":\\"choice · selectbox\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+              status
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <button
+            data-options="[{\\"value\\":\\"pending\\",\\"label\\":\\"Ausstehend\\"},{\\"value\\":\\"in_progress\\",\\"label\\":\\"In Bearbeitung\\"},{\\"value\\":\\"completed\\",\\"label\\":\\"Abgeschlossen\\"},{\\"value\\":\\"rejected\\",\\"label\\":\\"Abgelehnt\\"}]"
+            data-placeholder="Mehrere Werte auswählen"
+            data-search-placeholder="Werte durchsuchen oder eingeben …"
+            data-testid="condition-value-input"
+            data-values="[]"
+          >
+            multi
+          </button>
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div>
+          <button
+            class="border-red-200 text-red-600 hover:bg-red-50"
+            data-testid="condition-delete-btn"
+            variant="outline"
+          >
+            <i />
+             Löschen
+          </button>
+        </div>
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: upload condition modal 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+  >
+    <div
+      class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
+      data-testid="condition-modal"
+    >
+      <h3
+        class="text-lg font-semibold text-foreground mb-1"
+      >
+        Regel bearbeiten
+      </h3>
+      <p
+        class="text-xs text-muted-foreground mb-4"
+      >
+        Von 
+        <span
+          class="font-semibold"
+        >
+          #
+          1
+           
+          source
+        </span>
+         → auf 
+        <span
+          class="font-semibold"
+        >
+          #
+          2
+           
+          target
+        </span>
+      </p>
+      <div
+        class="space-y-3"
+      >
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Aktion
+          </label>
+          <select
+            class="w-full mt-1 px-2 py-1.5 text-sm bg-background border border-border rounded-sm"
+            data-testid="condition-action-select"
+          >
+            <option
+              value="hide"
+            >
+              Ausblenden
+            </option>
+            <option
+              value="block"
+            >
+              Blockieren
+            </option>
+            <option
+              value="auto_complete"
+            >
+              Auto-Abschließen
+            </option>
+            <option
+              value="read_only"
+            >
+              Schreibschützen
+            </option>
+            <option
+              value="allow_next"
+            >
+              Weiter erlauben
+            </option>
+            <option
+              value="redirect"
+            >
+              Weiterleiten
+            </option>
+          </select>
+        </div>
+        <div
+          class="grid gap-3 sm:grid-cols-2"
+        >
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Status oder Feld
+            </label>
+            <button
+              data-options="[{\\"value\\":\\"status\\",\\"label\\":\\"Schrittstatus\\",\\"description\\":\\"Systemfeld\\"},{\\"value\\":\\"upload\\",\\"label\\":\\"upload\\",\\"description\\":\\"upload · multiupload\\"},{\\"value\\":\\"choice\\",\\"label\\":\\"Choice\\",\\"description\\":\\"choice · selectbox\\"}]"
+              data-placeholder="Feld auswählen"
+              data-search-placeholder="Feld durchsuchen …"
+              data-testid="condition-field-input"
+            >
+              select:
+              upload
+            </button>
+          </div>
+          <div>
+            <label
+              class="text-xs font-medium text-foreground"
+            >
+              Operator
+            </label>
+            <select
+              class="w-full mt-1 min-h-10 px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+              data-testid="condition-operator-select"
+            >
+              <option
+                value="equals"
+              >
+                gleich
+              </option>
+              <option
+                value="not_equals"
+              >
+                ungleich
+              </option>
+              <option
+                value="one_of"
+              >
+                ist einer von
+              </option>
+              <option
+                value="not_one_of"
+              >
+                ist keiner von
+              </option>
+              <option
+                value="contains"
+              >
+                enthält
+              </option>
+              <option
+                value="not_empty"
+              >
+                nicht leer
+              </option>
+              <option
+                value="empty"
+              >
+                leer
+              </option>
+              <option
+                value="status_is"
+              >
+                Status ist
+              </option>
+              <option
+                value="status_not"
+              >
+                Status ungleich
+              </option>
+              <option
+                value="has_upload"
+              >
+                Dokument vorhanden
+              </option>
+              <option
+                value="missing_upload"
+              >
+                Dokument fehlt
+              </option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label
+            class="text-xs font-medium text-foreground"
+          >
+            Wert
+          </label>
+          <button
+            data-options="[{\\"value\\":\\"Passport\\",\\"label\\":\\"Passport\\"}]"
+            data-placeholder="Wert auswählen"
+            data-search-placeholder="Wert durchsuchen …"
+            data-testid="condition-value-input"
+          >
+            select:
+            Passport
+          </button>
+        </div>
+      </div>
+      <div
+        class="flex gap-2 justify-between mt-5"
+      >
+        <div>
+          <button
+            class="border-red-200 text-red-600 hover:bg-red-50"
+            data-testid="condition-delete-btn"
+            variant="outline"
+          >
+            <i />
+             Löschen
+          </button>
+        </div>
+        <div
+          class="flex gap-2"
+        >
+          <button
+            data-testid="condition-cancel-btn"
+            variant="outline"
+          >
+            Abbrechen
+          </button>
+          <button
+            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="condition-confirm-btn"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`default wrapper composes the flow provider and empty editor controls: empty flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-[640px]"
+    data-fullscreen="false"
+    data-layout-mode="editor"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      data-testid="flow-palette"
+    >
+      <p
+        class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+      >
+        Step-Typen
+      </p>
+      <p
+        class="text-[11px] text-muted-foreground mb-3"
+      >
+        Ziehen Sie einen Typ auf den Canvas.
+      </p>
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-form"
+          draggable="true"
+          style="border-left-width: 3px;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+          />
+          <span
+            class="truncate"
+          >
+            Formular
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-decision"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #d97706;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(217, 119, 6);"
+          />
+          <span
+            class="truncate"
+          >
+            Entscheidung
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_selection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #2563eb;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(37, 99, 235);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_multiselection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #7c3aed;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(124, 58, 237);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner (Multi)
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-milestone"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #059669;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(5, 150, 105);"
+          />
+          <span
+            class="truncate"
+          >
+            Meilenstein
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-display"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #64748b;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(100, 116, 139);"
+          />
+          <span
+            class="truncate"
+          >
+            Info
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          data-testid="flow-add-step-btn"
+        >
+          <i />
+           Step
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Auto-Layout
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild"
+          variant="outline"
+        >
+          <i />
+          Vollbild
+        </button>
+        <div
+          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+        >
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+            data-testid="flow-undo-btn"
+            title="Rückgängig (Strg+Z)"
+            type="button"
+          >
+            <i />
+             Undo
+          </button>
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            data-testid="flow-redo-btn"
+            title="Wiederherstellen (Strg+Shift+Z)"
+            type="button"
+          >
+            <i />
+             Redo
+          </button>
+        </div>
+        <button
+          data-testid="simulator"
+        >
+          simulator
+        </button>
+        <button
+          class="shadow bg-card border-border"
+          data-testid="flow-playback-btn"
+          title="Animierten Durchlauf starten"
+          variant="outline"
+        >
+          <i />
+           Abspielen
+        </button>
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+        data-testid="flow-empty-state"
+      >
+        <div
+          class="pointer-events-auto bg-card border border-border rounded-sm shadow-sm p-5 text-center max-w-sm"
+        >
+          <p
+            class="text-sm font-semibold text-foreground"
+          >
+            Keine Steps in diesem Survey
+          </p>
+          <p
+            class="text-xs text-muted-foreground mt-1"
+          >
+            Erstelle den ersten Step oder ziehe einen Step-Typ auf den Canvas.
+          </p>
+          <button
+            class="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            data-testid="flow-empty-add-step-btn"
+          >
+            <i />
+             Step erstellen
+          </button>
+        </div>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`dependency flow disables editing and reports graph statistics: dependency flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-[640px]"
+    data-fullscreen="false"
+    data-layout-mode="dependency"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Graph neu ordnen
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild"
+          variant="outline"
+        >
+          <i />
+          Vollbild
+        </button>
+      </div>
+      <div
+        class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow px-3 py-2 text-xs text-muted-foreground"
+        data-testid="dependency-graph-stats"
+      >
+        Nur echte Abhängigkeiten · 
+        <strong
+          class="text-foreground"
+        >
+          2
+        </strong>
+         Kanten · 
+        <strong
+          class="text-violet-700 dark:text-violet-300"
+        >
+          1
+        </strong>
+         kompakte Schreibschutzregeln · 
+        <strong
+          class="text-foreground"
+        >
+          1
+        </strong>
+         Startpunkte · 
+        <strong
+          class="text-foreground"
+        >
+          1
+        </strong>
+         Verzweigungen
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`editor flow handles simulation, connections, condition editing, drops, dragging, layout and history: editor flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-[640px]"
+    data-fullscreen="false"
+    data-layout-mode="editor"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      data-testid="flow-palette"
+    >
+      <p
+        class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+      >
+        Step-Typen
+      </p>
+      <p
+        class="text-[11px] text-muted-foreground mb-3"
+      >
+        Ziehen Sie einen Typ auf den Canvas.
+      </p>
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-form"
+          draggable="true"
+          style="border-left-width: 3px;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+          />
+          <span
+            class="truncate"
+          >
+            Formular
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-decision"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #d97706;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(217, 119, 6);"
+          />
+          <span
+            class="truncate"
+          >
+            Entscheidung
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_selection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #2563eb;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(37, 99, 235);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_multiselection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #7c3aed;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(124, 58, 237);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner (Multi)
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-milestone"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #059669;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(5, 150, 105);"
+          />
+          <span
+            class="truncate"
+          >
+            Meilenstein
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-display"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #64748b;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(100, 116, 139);"
+          />
+          <span
+            class="truncate"
+          >
+            Info
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          data-testid="flow-add-step-btn"
+        >
+          <i />
+           Step
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Auto-Layout
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild"
+          variant="outline"
+        >
+          <i />
+          Vollbild
+        </button>
+        <div
+          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+        >
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+            data-testid="flow-undo-btn"
+            title="Rückgängig (Strg+Z)"
+            type="button"
+          >
+            <i />
+             Undo
+          </button>
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            data-testid="flow-redo-btn"
+            title="Wiederherstellen (Strg+Shift+Z)"
+            type="button"
+          >
+            <i />
+             Redo
+          </button>
+        </div>
+        <button
+          data-testid="simulator"
+        >
+          simulator
+        </button>
+        <button
+          class="shadow bg-card border-border"
+          data-testid="flow-playback-btn"
+          title="Animierten Durchlauf starten"
+          variant="outline"
+        >
+          <i />
+           Abspielen
+        </button>
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`editor flow handles simulation, connections, condition editing, drops, dragging, layout and history: editor flow command trace 1`] = `
+Object {
+  "fitView": Array [],
+  "historyClear": Array [
+    Array [],
+  ],
+  "historyPush": Array [
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+  ],
+  "historyRedo": Array [
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+  ],
+  "historyUndo": Array [
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+    Array [
+      Object {
+        "a": Object {
+          "x": 20,
+          "y": 140,
+        },
+        "b": Object {
+          "x": 300,
+          "y": 140,
+        },
+        "c": Object {
+          "x": 580,
+          "y": 140,
+        },
+        "d": Object {
+          "x": 860,
+          "y": 140,
+        },
+      },
+    ],
+  ],
+  "setEdges": Array [
+    Array [
+      Array [
+        Object {
+          "animated": false,
+          "data": Object {
+            "condIndex": 0,
+            "condition": Object {
+              "action": "hide",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "yes",
+            },
+            "group": null,
+            "isCondition": true,
+            "isDependency": true,
+            "stepId": "b",
+          },
+          "id": "cond-b-0-0",
+          "label": "Ausblenden: answer = yes",
+          "labelBgBorderRadius": 2,
+          "labelBgPadding": Array [
+            4,
+            2,
+          ],
+          "labelBgStyle": Object {
+            "cursor": "pointer",
+            "fill": "white",
+            "fillOpacity": 0.95,
+          },
+          "labelStyle": Object {
+            "cursor": "pointer",
+            "fill": "#94a3b8",
+            "fontSize": 10,
+            "fontWeight": 600,
+          },
+          "markerEnd": Object {
+            "color": "#94a3b8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "cursor": "pointer",
+            "stroke": "#94a3b8",
+            "strokeDasharray": "4 3",
+            "strokeWidth": 1.6,
+          },
+          "target": "b",
+          "type": "smoothstep",
+        },
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-b-c",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "b",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "c",
+        },
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-c-d",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "c",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "d",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "animated": false,
+          "data": Object {
+            "condIndex": 0,
+            "condition": Object {
+              "action": "hide",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "yes",
+            },
+            "group": null,
+            "isCondition": true,
+            "isDependency": true,
+            "stepId": "b",
+          },
+          "id": "cond-b-0-0",
+          "label": "Ausblenden: answer = yes",
+          "labelBgBorderRadius": 2,
+          "labelBgPadding": Array [
+            4,
+            2,
+          ],
+          "labelBgStyle": Object {
+            "cursor": "pointer",
+            "fill": "white",
+            "fillOpacity": 0.95,
+          },
+          "labelStyle": Object {
+            "cursor": "pointer",
+            "fill": "#94a3b8",
+            "fontSize": 10,
+            "fontWeight": 600,
+          },
+          "markerEnd": Object {
+            "color": "#94a3b8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "cursor": "pointer",
+            "stroke": "#94a3b8",
+            "strokeDasharray": "4 3",
+            "strokeWidth": 1.6,
+          },
+          "target": "b",
+          "type": "smoothstep",
+        },
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-b-c",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "b",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "c",
+        },
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-c-d",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "c",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "d",
+        },
+      ],
+    ],
+  ],
+  "setNodes": Array [
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 24,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 24,
+              "fields": Array [
+                Object {
+                  "name": "answer",
+                  "options": Array [
+                    "yes",
+                  ],
+                },
+              ],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "weeks",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [
+                Object {
+                  "action": "hide",
+                  "field": "answer",
+                  "operator": "equals",
+                  "source_step_order": 1,
+                  "value": "yes",
+                },
+              ],
+              "duration_unit": "weeks",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "months",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "c",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 3,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "months",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "c",
+              "order": 3,
+              "step_type": "form",
+              "title": "c",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "c",
+          },
+          "id": "c",
+          "position": Object {
+            "x": 580,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "years",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "d",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 4,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "years",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "d",
+              "order": 4,
+              "step_type": "form",
+              "title": "d",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "d",
+          },
+          "id": "d",
+          "position": Object {
+            "x": 860,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 24,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 24,
+              "fields": Array [
+                Object {
+                  "name": "answer",
+                  "options": Array [
+                    "yes",
+                  ],
+                },
+              ],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "simState": "hidden",
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "weeks",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [
+                Object {
+                  "action": "hide",
+                  "field": "answer",
+                  "operator": "equals",
+                  "source_step_order": 1,
+                  "value": "yes",
+                },
+              ],
+              "duration_unit": "weeks",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "simState": "blocked",
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "months",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "c",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 3,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "months",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "c",
+              "order": 3,
+              "step_type": "form",
+              "title": "c",
+            },
+            "readOnlyRules": Array [],
+            "simState": "auto_complete",
+            "step_type": "form",
+            "title": "c",
+          },
+          "id": "c",
+          "position": Object {
+            "x": 580,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": "years",
+            "duration_value": 1,
+            "filter_tag": undefined,
+            "id": "d",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 4,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "years",
+              "duration_value": 1,
+              "fields": Array [],
+              "id": "d",
+              "order": 4,
+              "step_type": "form",
+              "title": "d",
+            },
+            "readOnlyRules": Array [],
+            "simState": "visible",
+            "step_type": "form",
+            "title": "d",
+          },
+          "id": "d",
+          "position": Object {
+            "x": 860,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      [Function],
+    ],
+    Array [
+      [Function],
+    ],
+    Array [
+      [Function],
+    ],
+  ],
+  "viewport": Array [
+    Array [
+      Object {
+        "x": 28,
+        "y": 245,
+        "zoom": 0.82,
+      },
+      Object {
+        "duration": 200,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`editor flow handles simulation, connections, condition editing, drops, dragging, layout and history: simulated flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-[640px]"
+    data-fullscreen="false"
+    data-layout-mode="editor"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      data-testid="flow-palette"
+    >
+      <p
+        class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+      >
+        Step-Typen
+      </p>
+      <p
+        class="text-[11px] text-muted-foreground mb-3"
+      >
+        Ziehen Sie einen Typ auf den Canvas.
+      </p>
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-form"
+          draggable="true"
+          style="border-left-width: 3px;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+          />
+          <span
+            class="truncate"
+          >
+            Formular
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-decision"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #d97706;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(217, 119, 6);"
+          />
+          <span
+            class="truncate"
+          >
+            Entscheidung
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_selection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #2563eb;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(37, 99, 235);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_multiselection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #7c3aed;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(124, 58, 237);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner (Multi)
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-milestone"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #059669;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(5, 150, 105);"
+          />
+          <span
+            class="truncate"
+          >
+            Meilenstein
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-display"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #64748b;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(100, 116, 139);"
+          />
+          <span
+            class="truncate"
+          >
+            Info
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          data-testid="flow-add-step-btn"
+        >
+          <i />
+           Step
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Auto-Layout
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild"
+          variant="outline"
+        >
+          <i />
+          Vollbild
+        </button>
+        <div
+          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+        >
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+            data-testid="flow-undo-btn"
+            title="Rückgängig (Strg+Z)"
+            type="button"
+          >
+            <i />
+             Undo
+          </button>
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            data-testid="flow-redo-btn"
+            title="Wiederherstellen (Strg+Shift+Z)"
+            type="button"
+          >
+            <i />
+             Redo
+          </button>
+        </div>
+        <button
+          data-testid="simulator"
+        >
+          simulator
+        </button>
+        <button
+          class="shadow bg-card border-border"
+          data-testid="flow-playback-btn"
+          title="Animierten Durchlauf starten"
+          variant="outline"
+        >
+          <i />
+           Abspielen
+        </button>
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`fullscreen and playback controls cover start, stop, ETA completion and empty simulation: active playback flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-screen w-screen"
+    data-fullscreen="true"
+    data-layout-mode="editor"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      data-testid="flow-palette"
+    >
+      <p
+        class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+      >
+        Step-Typen
+      </p>
+      <p
+        class="text-[11px] text-muted-foreground mb-3"
+      >
+        Ziehen Sie einen Typ auf den Canvas.
+      </p>
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-form"
+          draggable="true"
+          style="border-left-width: 3px;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+          />
+          <span
+            class="truncate"
+          >
+            Formular
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-decision"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #d97706;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(217, 119, 6);"
+          />
+          <span
+            class="truncate"
+          >
+            Entscheidung
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_selection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #2563eb;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(37, 99, 235);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_multiselection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #7c3aed;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(124, 58, 237);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner (Multi)
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-milestone"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #059669;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(5, 150, 105);"
+          />
+          <span
+            class="truncate"
+          >
+            Meilenstein
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-display"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #64748b;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(100, 116, 139);"
+          />
+          <span
+            class="truncate"
+          >
+            Info
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          data-testid="flow-add-step-btn"
+        >
+          <i />
+           Step
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Auto-Layout
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild beenden"
+          variant="outline"
+        >
+          <i />
+          Vollbild beenden
+        </button>
+        <div
+          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+        >
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+            data-testid="flow-undo-btn"
+            title="Rückgängig (Strg+Z)"
+            type="button"
+          >
+            <i />
+             Undo
+          </button>
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            data-testid="flow-redo-btn"
+            title="Wiederherstellen (Strg+Shift+Z)"
+            type="button"
+          >
+            <i />
+             Redo
+          </button>
+        </div>
+        <button
+          data-testid="simulator"
+        >
+          simulator
+        </button>
+        <button
+          class="shadow bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+          data-testid="flow-playback-btn"
+          title="Abspielen stoppen"
+          variant="outline"
+        >
+          <i />
+           Stop
+        </button>
+      </div>
+      <div
+        class="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 bg-amber-50 dark:bg-amber-900/70 border border-amber-300 dark:border-amber-700 rounded-sm shadow-lg px-4 py-2 text-xs flex items-center gap-4"
+        data-testid="flow-playback-status"
+      >
+        <span
+          class="font-semibold text-amber-900 dark:text-amber-100"
+        >
+          ▶ Step 
+          1
+           / 
+          2
+        </span>
+        <span
+          class="text-amber-800 dark:text-amber-200"
+        >
+          ETA: 
+          <span
+            class="font-semibold"
+            data-testid="flow-playback-eta"
+          >
+            0d
+          </span>
+        </span>
+        <button
+          class="text-[11px] text-amber-900 dark:text-amber-100 underline hover:no-underline"
+          data-testid="flow-playback-stop-btn"
+          type="button"
+        >
+          Stoppen
+        </button>
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`fullscreen and playback controls cover start, stop, ETA completion and empty simulation: fullscreen flow builder 1`] = `
+<div>
+  <div
+    class="flow-workspace relative border border-border rounded-sm bg-muted/20 flex h-screen w-screen"
+    data-fullscreen="true"
+    data-layout-mode="editor"
+    data-testid="steps-flow-builder"
+  >
+    <div
+      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      data-testid="flow-palette"
+    >
+      <p
+        class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+      >
+        Step-Typen
+      </p>
+      <p
+        class="text-[11px] text-muted-foreground mb-3"
+      >
+        Ziehen Sie einen Typ auf den Canvas.
+      </p>
+      <div
+        class="space-y-2"
+      >
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-form"
+          draggable="true"
+          style="border-left-width: 3px;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+          />
+          <span
+            class="truncate"
+          >
+            Formular
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-decision"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #d97706;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(217, 119, 6);"
+          />
+          <span
+            class="truncate"
+          >
+            Entscheidung
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_selection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #2563eb;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(37, 99, 235);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-partner_multiselection"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #7c3aed;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(124, 58, 237);"
+          />
+          <span
+            class="truncate"
+          >
+            Partner (Multi)
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-milestone"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #059669;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(5, 150, 105);"
+          />
+          <span
+            class="truncate"
+          >
+            Meilenstein
+          </span>
+        </div>
+        <div
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          data-testid="palette-item-display"
+          draggable="true"
+          style="border-left-width: 3px; border-left-color: #64748b;"
+        >
+          <span
+            class="w-2 h-2 rounded-sm flex-shrink-0"
+            style="background: rgb(100, 116, 139);"
+          />
+          <span
+            class="truncate"
+          >
+            Info
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex-1 relative"
+    >
+      <div
+        class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
+      >
+        <button
+          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          data-testid="flow-add-step-btn"
+        >
+          <i />
+           Step
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-auto-layout-btn"
+          variant="outline"
+        >
+          <i />
+           
+          Auto-Layout
+        </button>
+        <button
+          class="bg-card border-border shadow"
+          data-testid="flow-fullscreen-btn"
+          title="Vollbild beenden"
+          variant="outline"
+        >
+          <i />
+          Vollbild beenden
+        </button>
+        <div
+          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+        >
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
+            data-testid="flow-undo-btn"
+            title="Rückgängig (Strg+Z)"
+            type="button"
+          >
+            <i />
+             Undo
+          </button>
+          <button
+            class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            data-testid="flow-redo-btn"
+            title="Wiederherstellen (Strg+Shift+Z)"
+            type="button"
+          >
+            <i />
+             Redo
+          </button>
+        </div>
+        <button
+          data-testid="simulator"
+        >
+          simulator
+        </button>
+        <button
+          class="shadow bg-card border-border"
+          data-testid="flow-playback-btn"
+          title="Animierten Durchlauf starten"
+          variant="outline"
+        >
+          <i />
+           Abspielen
+        </button>
+      </div>
+      <div
+        class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
+      >
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(148, 163, 184);"
+          />
+          Ausblenden
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(220, 38, 38);"
+          />
+          Blockieren
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(5, 150, 105);"
+          />
+          Auto-Abschluss
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+          />
+          Weiter
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+        >
+          <span
+            class="w-3 h-[1.5px]"
+            style="background: rgb(37, 99, 235);"
+          />
+          Weiterleiten
+        </span>
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+        >
+          <i />
+           Schreibschutz am Step
+        </span>
+      </div>
+      <div
+        data-testid="react-flow"
+      >
+        <i />
+        <i
+          data-props="{\\"showInteractive\\":false}"
+          data-testid="controls"
+        />
+        <button
+          data-fallback-color="#94a3b8"
+          data-form-color="var(--brand-primary)"
+          data-props="{\\"pannable\\":true,\\"zoomable\\":true}"
+          data-testid="minimap"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`fullscreen and playback controls cover start, stop, ETA completion and empty simulation: playback command trace 1`] = `
+Object {
+  "setEdges": Array [
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "isCondition": false,
+          },
+          "id": "seq-a-b",
+          "markerEnd": Object {
+            "color": "#d4d4d8",
+            "type": "arrow",
+          },
+          "source": "a",
+          "style": Object {
+            "stroke": "#d4d4d8",
+            "strokeDasharray": "2 4",
+            "strokeWidth": 1,
+          },
+          "target": "b",
+        },
+      ],
+    ],
+    Array [
+      Array [],
+    ],
+  ],
+  "setNodes": Array [
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "isPlayback": true,
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "isPlayback": true,
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "isPlayback": true,
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "isPlayback": true,
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [
+        Object {
+          "data": Object {
+            "duration_unit": "hours",
+            "duration_value": 12,
+            "filter_tag": undefined,
+            "id": "a",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 1,
+            "raw": Object {
+              "conditions": Array [],
+              "duration_unit": "hours",
+              "duration_value": 12,
+              "fields": Array [],
+              "id": "a",
+              "order": 1,
+              "step_type": "form",
+              "title": "a",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "a",
+          },
+          "id": "a",
+          "position": Object {
+            "x": 20,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+        Object {
+          "data": Object {
+            "duration_unit": undefined,
+            "duration_value": undefined,
+            "filter_tag": undefined,
+            "id": "b",
+            "onDelete": [MockFunction],
+            "onEdit": [MockFunction],
+            "order": 2,
+            "raw": Object {
+              "conditions": Array [],
+              "fields": Array [],
+              "id": "b",
+              "order": 2,
+              "step_type": "form",
+              "title": "b",
+            },
+            "readOnlyRules": Array [],
+            "step_type": "form",
+            "title": "b",
+          },
+          "id": "b",
+          "position": Object {
+            "x": 300,
+            "y": 140,
+          },
+          "type": "stepNode",
+        },
+      ],
+    ],
+    Array [
+      Array [],
+    ],
+  ],
+  "viewport": Array [
+    Array [
+      Object {
+        "x": 28,
+        "y": 245,
+        "zoom": 0.82,
+      },
+      Object {
+        "duration": 200,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`graph builder creates grouped dependency edges, read-only badges, saved positions and sequence arrows: dependency graph 1`] = `
+Object {
+  "edges": Array [
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 0,
+        "condition": Object {
+          "action": "hide",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "yes",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-0-0",
+      "label": "Ausblenden: answer = yes",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#94a3b8",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#94a3b8",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#94a3b8",
+        "strokeDasharray": "4 3",
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": true,
+      "data": Object {
+        "condIndex": 1,
+        "condition": Object {
+          "action": "auto_complete",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "automatic",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-1-0",
+      "label": "Auto-Abschluss: answer = automatic",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#059669",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#059669",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#059669",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 3,
+        "condition": Object {
+          "action": "block",
+          "all_of": Array [
+            Object {
+              "field": "answer",
+              "source_step_order": 1,
+              "value": Array [
+                "a",
+                "b",
+              ],
+            },
+            Object {
+              "field": "x",
+              "source_step_order": 99,
+            },
+          ],
+        },
+        "group": "UND",
+        "isCondition": false,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-3-0",
+      "label": "UND · Blockieren: answer = a, b",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#dc2626",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#dc2626",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#dc2626",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 0,
+        "condition": Object {
+          "action": "block",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "later",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "three",
+      },
+      "id": "cond-three-0-0",
+      "label": "Blockieren: answer = later",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#dc2626",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#dc2626",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#dc2626",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "three",
+      "type": "smoothstep",
+    },
+  ],
+  "nodes": Array [
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "one",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 1,
+        "raw": Object {
+          "conditions": Array [],
+          "fields": Array [
+            Object {
+              "name": "answer",
+            },
+          ],
+          "flow_position": Object {
+            "x": 9,
+            "y": 8,
+          },
+          "id": "one",
+          "order": 1,
+          "step_type": "form",
+          "title": "One",
+        },
+        "readOnlyRules": Array [],
+        "step_type": "form",
+        "title": "One",
+      },
+      "id": "one",
+      "position": Object {
+        "x": 20,
+        "y": 94,
+      },
+      "type": "stepNode",
+    },
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "two",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 2,
+        "raw": Object {
+          "conditions": Array [
+            Object {
+              "action": "hide",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "yes",
+            },
+            Object {
+              "action": "auto_complete",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "automatic",
+            },
+            Object {
+              "action": "read_only",
+              "field": "",
+              "operator": "completed",
+              "source_step_order": 1,
+            },
+            Object {
+              "action": "block",
+              "all_of": Array [
+                Object {
+                  "field": "answer",
+                  "source_step_order": 1,
+                  "value": Array [
+                    "a",
+                    "b",
+                  ],
+                },
+                Object {
+                  "field": "x",
+                  "source_step_order": 99,
+                },
+              ],
+            },
+          ],
+          "fields": Array [],
+          "flow_position": null,
+          "id": "two",
+          "order": 2,
+          "step_type": "form",
+          "title": "two",
+        },
+        "readOnlyRules": Array [
+          "#1 One · Status",
+        ],
+        "step_type": "form",
+        "title": "two",
+      },
+      "id": "two",
+      "position": Object {
+        "x": 350,
+        "y": 20,
+      },
+      "type": "stepNode",
+    },
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "three",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 3,
+        "raw": Object {
+          "conditions": Array [
+            Object {
+              "action": "block",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "later",
+            },
+          ],
+          "fields": Array [],
+          "id": "three",
+          "order": 3,
+          "step_type": "unknown",
+          "title": "three",
+        },
+        "readOnlyRules": Array [],
+        "step_type": "unknown",
+        "title": "three",
+      },
+      "id": "three",
+      "position": Object {
+        "x": 350,
+        "y": 168,
+      },
+      "type": "stepNode",
+    },
+  ],
+}
+`;
+
+exports[`graph builder creates grouped dependency edges, read-only badges, saved positions and sequence arrows: editor graph 1`] = `
+Object {
+  "edges": Array [
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 0,
+        "condition": Object {
+          "action": "hide",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "yes",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-0-0",
+      "label": "Ausblenden: answer = yes",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#94a3b8",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#94a3b8",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#94a3b8",
+        "strokeDasharray": "4 3",
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": true,
+      "data": Object {
+        "condIndex": 1,
+        "condition": Object {
+          "action": "auto_complete",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "automatic",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-1-0",
+      "label": "Auto-Abschluss: answer = automatic",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#059669",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#059669",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#059669",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 3,
+        "condition": Object {
+          "action": "block",
+          "all_of": Array [
+            Object {
+              "field": "answer",
+              "source_step_order": 1,
+              "value": Array [
+                "a",
+                "b",
+              ],
+            },
+            Object {
+              "field": "x",
+              "source_step_order": 99,
+            },
+          ],
+        },
+        "group": "UND",
+        "isCondition": false,
+        "isDependency": true,
+        "stepId": "two",
+      },
+      "id": "cond-two-3-0",
+      "label": "UND · Blockieren: answer = a, b",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#dc2626",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#dc2626",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#dc2626",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "two",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 0,
+        "condition": Object {
+          "action": "block",
+          "field": "answer",
+          "operator": "equals",
+          "source_step_order": 1,
+          "value": "later",
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "three",
+      },
+      "id": "cond-three-0-0",
+      "label": "Blockieren: answer = later",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#dc2626",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#dc2626",
+        "type": "arrow",
+      },
+      "source": "one",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#dc2626",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "three",
+      "type": "smoothstep",
+    },
+    Object {
+      "data": Object {
+        "isCondition": false,
+      },
+      "id": "seq-two-three",
+      "markerEnd": Object {
+        "color": "#d4d4d8",
+        "type": "arrow",
+      },
+      "source": "two",
+      "style": Object {
+        "stroke": "#d4d4d8",
+        "strokeDasharray": "2 4",
+        "strokeWidth": 1,
+      },
+      "target": "three",
+    },
+  ],
+  "nodes": Array [
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "one",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 1,
+        "raw": Object {
+          "conditions": Array [],
+          "fields": Array [
+            Object {
+              "name": "answer",
+            },
+          ],
+          "flow_position": Object {
+            "x": 9,
+            "y": 8,
+          },
+          "id": "one",
+          "order": 1,
+          "step_type": "form",
+          "title": "One",
+        },
+        "readOnlyRules": Array [],
+        "step_type": "form",
+        "title": "One",
+      },
+      "id": "one",
+      "position": Object {
+        "x": 9,
+        "y": 8,
+      },
+      "type": "stepNode",
+    },
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "two",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 2,
+        "raw": Object {
+          "conditions": Array [
+            Object {
+              "action": "hide",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "yes",
+            },
+            Object {
+              "action": "auto_complete",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "automatic",
+            },
+            Object {
+              "action": "read_only",
+              "field": "",
+              "operator": "completed",
+              "source_step_order": 1,
+            },
+            Object {
+              "action": "block",
+              "all_of": Array [
+                Object {
+                  "field": "answer",
+                  "source_step_order": 1,
+                  "value": Array [
+                    "a",
+                    "b",
+                  ],
+                },
+                Object {
+                  "field": "x",
+                  "source_step_order": 99,
+                },
+              ],
+            },
+          ],
+          "fields": Array [],
+          "flow_position": null,
+          "id": "two",
+          "order": 2,
+          "step_type": "form",
+          "title": "two",
+        },
+        "readOnlyRules": Array [
+          "#1 One · Status",
+        ],
+        "step_type": "form",
+        "title": "two",
+      },
+      "id": "two",
+      "position": Object {
+        "x": 280,
+        "y": 140,
+      },
+      "type": "stepNode",
+    },
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "three",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 3,
+        "raw": Object {
+          "conditions": Array [
+            Object {
+              "action": "block",
+              "field": "answer",
+              "operator": "equals",
+              "source_step_order": 1,
+              "value": "later",
+            },
+          ],
+          "fields": Array [],
+          "id": "three",
+          "order": 3,
+          "step_type": "unknown",
+          "title": "three",
+        },
+        "readOnlyRules": Array [],
+        "step_type": "unknown",
+        "title": "three",
+      },
+      "id": "three",
+      "position": Object {
+        "x": 560,
+        "y": 140,
+      },
+      "type": "stepNode",
+    },
+  ],
+}
+`;
+
+exports[`graph builder creates grouped dependency edges, read-only badges, saved positions and sequence arrows: sparse graph 1`] = `
+Object {
+  "edges": Array [
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 0,
+        "condition": Object {
+          "source_step_order": 1,
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "s2",
+      },
+      "id": "cond-s2-0-0",
+      "label": "Bedingung: (Status)",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#64748b",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#64748b",
+        "type": "arrow",
+      },
+      "source": "s1",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#64748b",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "s2",
+      "type": "smoothstep",
+    },
+    Object {
+      "animated": false,
+      "data": Object {
+        "condIndex": 1,
+        "condition": Object {
+          "action": "custom",
+          "field": "",
+          "source_step_order": 1,
+        },
+        "group": null,
+        "isCondition": true,
+        "isDependency": true,
+        "stepId": "s2",
+      },
+      "id": "cond-s2-1-0",
+      "label": "custom: (Status)",
+      "labelBgBorderRadius": 2,
+      "labelBgPadding": Array [
+        4,
+        2,
+      ],
+      "labelBgStyle": Object {
+        "cursor": "pointer",
+        "fill": "white",
+        "fillOpacity": 0.95,
+      },
+      "labelStyle": Object {
+        "cursor": "pointer",
+        "fill": "#64748b",
+        "fontSize": 10,
+        "fontWeight": 600,
+      },
+      "markerEnd": Object {
+        "color": "#64748b",
+        "type": "arrow",
+      },
+      "source": "s1",
+      "style": Object {
+        "cursor": "pointer",
+        "stroke": "#64748b",
+        "strokeDasharray": undefined,
+        "strokeWidth": 1.6,
+      },
+      "target": "s2",
+      "type": "smoothstep",
+    },
+  ],
+  "nodes": Array [
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "s1",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 1,
+        "raw": Object {
+          "id": "s1",
+          "order": 1,
+          "title": "Sparse",
+        },
+        "readOnlyRules": Array [],
+        "step_type": undefined,
+        "title": "Sparse",
+      },
+      "id": "s1",
+      "position": Object {
+        "x": 20,
+        "y": 140,
+      },
+      "type": "stepNode",
+    },
+    Object {
+      "data": Object {
+        "duration_unit": undefined,
+        "duration_value": undefined,
+        "filter_tag": undefined,
+        "id": "s2",
+        "onDelete": [MockFunction],
+        "onEdit": [MockFunction],
+        "order": 2,
+        "raw": Object {
+          "conditions": Array [
+            Object {
+              "source_step_order": 1,
+            },
+            Object {
+              "action": "custom",
+              "field": "",
+              "source_step_order": 1,
+            },
+            Object {
+              "action": "read_only",
+              "field": "",
+              "source_step_order": 99,
+            },
+          ],
+          "id": "s2",
+          "order": 2,
+          "title": "Target",
+        },
+        "readOnlyRules": Array [
+          "#99  · Status",
+        ],
+        "step_type": undefined,
+        "title": "Target",
+      },
+      "id": "s2",
+      "position": Object {
+        "x": 300,
+        "y": 140,
+      },
+      "type": "stepNode",
+    },
+  ],
+}
+`;
+
+exports[`linear and dagre layouts position normal, conditional and invalid edges: conditional linear layout 1`] = `
+Object {
+  "a": Object {
+    "x": 300,
+    "y": 60,
+  },
+  "b": Object {
+    "x": 300,
+    "y": 220,
+  },
+  "decision": Object {
+    "x": 20,
+    "y": 140,
+  },
+  "merge": Object {
+    "x": 580,
+    "y": 140,
+  },
+}
+`;
+
+exports[`linear and dagre layouts position normal, conditional and invalid edges: dagre layout 1`] = `
+Object {
+  "a": Object {
+    "x": 350,
+    "y": 20,
+  },
+  "b": Object {
+    "x": 20,
+    "y": 168,
+  },
+  "decision": Object {
+    "x": 20,
+    "y": 20,
+  },
+  "merge": Object {
+    "x": 20,
+    "y": 316,
+  },
+}
+`;
+
+exports[`linear and dagre layouts position normal, conditional and invalid edges: sparse conditional layout 1`] = `
+Object {
+  "after": Object {
+    "x": 580,
+    "y": 140,
+  },
+  "branch": Object {
+    "x": 300,
+    "y": 60,
+  },
+  "branch2": Object {
+    "x": 300,
+    "y": 220,
+  },
+  "plain": Object {
+    "x": 20,
+    "y": 140,
+  },
+}
+`;
+
+exports[`palette exposes all types and writes drag transfer metadata: step palette 1`] = `
+<div>
+  <div
+    class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+    data-testid="flow-palette"
+  >
+    <p
+      class="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold"
+    >
+      Step-Typen
+    </p>
+    <p
+      class="text-[11px] text-muted-foreground mb-3"
+    >
+      Ziehen Sie einen Typ auf den Canvas.
+    </p>
+    <div
+      class="space-y-2"
+    >
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-form"
+        draggable="true"
+        style="border-left-width: 3px;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+        />
+        <span
+          class="truncate"
+        >
+          Formular
+        </span>
+      </div>
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-decision"
+        draggable="true"
+        style="border-left-width: 3px; border-left-color: #d97706;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+          style="background: rgb(217, 119, 6);"
+        />
+        <span
+          class="truncate"
+        >
+          Entscheidung
+        </span>
+      </div>
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-partner_selection"
+        draggable="true"
+        style="border-left-width: 3px; border-left-color: #2563eb;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+          style="background: rgb(37, 99, 235);"
+        />
+        <span
+          class="truncate"
+        >
+          Partner
+        </span>
+      </div>
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-partner_multiselection"
+        draggable="true"
+        style="border-left-width: 3px; border-left-color: #7c3aed;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+          style="background: rgb(124, 58, 237);"
+        />
+        <span
+          class="truncate"
+        >
+          Partner (Multi)
+        </span>
+      </div>
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-milestone"
+        draggable="true"
+        style="border-left-width: 3px; border-left-color: #059669;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+          style="background: rgb(5, 150, 105);"
+        />
+        <span
+          class="truncate"
+        >
+          Meilenstein
+        </span>
+      </div>
+      <div
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        data-testid="palette-item-display"
+        draggable="true"
+        style="border-left-width: 3px; border-left-color: #64748b;"
+      >
+        <span
+          class="w-2 h-2 rounded-sm flex-shrink-0"
+          style="background: rgb(100, 116, 139);"
+        />
+        <span
+          class="truncate"
+        >
+          Info
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: auto_complete step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-emerald-500 "
+    data-playback="false"
+    data-sim-state="auto_complete"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #2563eb;"
+  >
+    <span
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      data-testid="sim-badge-s"
+    >
+      auto-abgeschlossen
+    </span>
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+      <span
+        class="mt-1 inline-block px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded-sm"
+      >
+        tag: 
+        tag
+      </span>
+      <span
+        class="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm"
+      >
+        ⏱ 
+        2
+        d
+      </span>
+      <span
+        class="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+        data-testid="flow-read-only-badge-s"
+        title="Schreibschutz durch: first · second"
+      >
+        <i />
+         Schreibschutz ×
+        2
+      </span>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: blocked step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-red-500 "
+    data-playback="false"
+    data-sim-state="blocked"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #2563eb;"
+  >
+    <span
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      data-testid="sim-badge-s"
+    >
+      blockiert
+    </span>
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+      <span
+        class="mt-1 inline-block px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded-sm"
+      >
+        tag: 
+        tag
+      </span>
+      <span
+        class="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm"
+      >
+        ⏱ 
+        2
+        d
+      </span>
+      <span
+        class="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+        data-testid="flow-read-only-badge-s"
+        title="Schreibschutz durch: first · second"
+      >
+        <i />
+         Schreibschutz ×
+        2
+      </span>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: default step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative  "
+    data-playback="false"
+    data-sim-state="none"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #2563eb;"
+  >
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+      <span
+        class="mt-1 inline-block px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded-sm"
+      >
+        tag: 
+        tag
+      </span>
+      <span
+        class="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm"
+      >
+        ⏱ 
+        2
+        d
+      </span>
+      <span
+        class="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+        data-testid="flow-read-only-badge-s"
+        title="Schreibschutz durch: first · second"
+      >
+        <i />
+         Schreibschutz ×
+        2
+      </span>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: hidden step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-slate-400 opacity-40 grayscale"
+    data-playback="false"
+    data-sim-state="hidden"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #2563eb;"
+  >
+    <span
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      data-testid="sim-badge-s"
+    >
+      versteckt
+    </span>
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+      <span
+        class="mt-1 inline-block px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded-sm"
+      >
+        tag: 
+        tag
+      </span>
+      <span
+        class="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm"
+      >
+        ⏱ 
+        2
+        d
+      </span>
+      <span
+        class="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+        data-testid="flow-read-only-badge-s"
+        title="Schreibschutz durch: first · second"
+      >
+        <i />
+         Schreibschutz ×
+        2
+      </span>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: playback step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-4 ring-amber-400 animate-pulse"
+    data-playback="true"
+    data-sim-state="none"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #f59e0b;"
+  >
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`step nodes render every simulation state and invoke edit/delete without bubbling: visible step node 1`] = `
+<div>
+  <div
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-[var(--brand-secondary)] "
+    data-playback="false"
+    data-sim-state="visible"
+    data-step-type="partner_selection"
+    data-testid="flow-node-s"
+    style="border-color: #2563eb;"
+  >
+    <i
+      data-position="left"
+      data-testid="handle-in"
+      data-type="target"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+    <div
+      class="px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-white"
+      style="background: rgb(37, 99, 235);"
+    >
+      <span>
+        #
+        1
+         · 
+        Partner
+      </span>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="hover:bg-white/20 rounded p-0.5"
+          data-testid="flow-edit-s"
+          title="Bearbeiten"
+        >
+          <i />
+        </button>
+        <button
+          class="hover:bg-red-500/40 rounded p-0.5"
+          data-testid="flow-delete-s"
+          title="Löschen"
+        >
+          <i />
+        </button>
+      </div>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="text-sm font-semibold text-foreground line-clamp-2"
+      >
+        Title
+      </p>
+      <span
+        class="mt-1 inline-block px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded-sm"
+      >
+        tag: 
+        tag
+      </span>
+      <span
+        class="mt-1 ml-1 inline-block px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-800 rounded-sm"
+      >
+        ⏱ 
+        2
+        d
+      </span>
+      <span
+        class="mt-1 ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 rounded-sm"
+        data-testid="flow-read-only-badge-s"
+        title="Schreibschutz durch: first · second"
+      >
+        <i />
+         Schreibschutz ×
+        2
+      </span>
+    </div>
+    <i
+      data-position="right"
+      data-testid="handle-out"
+      data-type="source"
+      style="background: rgb(37, 99, 235); width: 10px; height: 10px;"
+    />
+  </div>
+</div>
+`;

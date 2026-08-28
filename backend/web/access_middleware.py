@@ -34,7 +34,7 @@ def install_access_middleware(
         if required_admin and user.get("role") != "admin" or not await has_permission(user, permission):
             return JSONResponse(status_code=403, content={"detail": f"Missing permission: {permission}"})
         path = request.url.path
-        own_settings = {"/api/partner/profile", "/api/partner/partner-data"}
+        own_settings = {"/api/partner/profile", "/api/partner/partner-data", "/api/partner/logo"}
         pending_reads = {"/api/partner/insights"}
         partner_id = user.get("partner_id")
         if (path.startswith("/api/partner/") and path not in own_settings

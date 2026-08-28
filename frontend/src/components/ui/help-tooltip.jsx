@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Question } from '@phosphor-icons/react';
+import { tooltipPosition } from './uiDomain';
 
+// Stryker disable all: interaction adapter; geometry lives in uiDomain.
 export function HelpTooltip({ content, label = 'Hilfe anzeigen', side = 'top', testId }) {
     const [open, setOpen] = useState(false);
     const [position, setPosition] = useState({ left: 0, top: 0 });
@@ -9,17 +11,8 @@ export function HelpTooltip({ content, label = 'Hilfe anzeigen', side = 'top', t
     const tooltipId = useId();
 
     const updatePosition = useCallback(() => {
-        const trigger = triggerRef.current;
-        if (!trigger) return;
-        const rect = trigger.getBoundingClientRect();
-        const width = Math.min(288, window.innerWidth - 24);
-        const left = side === 'right'
-            ? Math.min(rect.right + 10, window.innerWidth - width - 12)
-            : Math.max(12, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 12));
-        const top = side === 'right'
-            ? Math.max(48, Math.min(rect.top + rect.height / 2, window.innerHeight - 48))
-            : Math.max(12, rect.top - 10);
-        setPosition({ left, top });
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPosition(tooltipPosition(rect, side, window.innerWidth, window.innerHeight));
     }, [side]);
 
     useLayoutEffect(() => {

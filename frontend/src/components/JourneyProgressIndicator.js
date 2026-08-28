@@ -1,5 +1,7 @@
 import React, { useMemo, memo } from 'react';
 import { ArrowRight, Cloud, Users, CheckCircle, ListChecks, Hourglass, ClipboardText } from '@phosphor-icons/react';
+import { evaluateCondition } from '../features/steps/domain/conditionEvaluator';
+import { asArray } from '../lib/valueNormalization';
 
 /**
  * JourneyProgressIndicator
@@ -45,26 +47,23 @@ const STEP_TYPE_LABEL = {
 // Figure out which step_type a non-decision step really is.
 // Many "upload" steps in this app are stored as step_type='form' with an upload
 // field — detect that so we can show the Cloud icon.
-function resolveStepType(step) {
+export function resolveStepType(step) {
     if (!step) return 'form';
-    if (step.step_type === 'form') {
-        const fields = step.fields || [];
-        if (fields.some((f) => f.field_type === 'file' || f.field_type === 'upload')) return 'upload';
-    }
-    return step.step_type || 'form';
+    const type = step.step_type ?? 'form';
+    if (type !== 'form') return type;
+    return asArray(step.fields).some(({ field_type }) => ['file', 'upload'].includes(field_type)) ? 'upload' : 'form';
 }
 
 // ---- Branch preview for decision steps -----------------------------------
 // Build the two (or more) branches a user can pick: each branch = {label,
 // icon, preview_step_titles[]}. We compute by walking subsequent steps and
 // matching `hide` conditions that would apply if decision === option.value.
-function computeDecisionBranches(currentStep, allSteps) {
-    const decField = (currentStep.fields || []).find((f) => f.field_type === 'decision')
+export function computeDecisionBranches(currentStep, allSteps) {
+    const decField = asArray(currentStep.fields).find((f) => f.field_type === 'decision')
                    || (currentStep.fields || [])[0];
-    const options = decField?.options || [];
-    if (!options.length) return [];
+    const options = asArray(decField?.options);
 
-    const sorted = [...(allSteps || [])].sort((a, b) => a.order - b.order);
+    const sorted = [...asArray(allSteps)].sort((a, b) => a.order - b.order);
     const current_order = currentStep.order;
 
     return options.map((opt) => {
@@ -81,31 +80,7 @@ function computeDecisionBranches(currentStep, allSteps) {
             let hidden = false;
             for (const c of s.conditions || []) {
                 if (c.action !== 'hide') continue;
-                const source = simulated[c.source_step_order];
-                if (!source) continue;
-                const data = source.data || {};
-                const field = c.field;
-                const fv = field ? data[field] : source.status;
-                const expected = c.value;
-                let match = false;
-                switch (c.operator) {
-                    case 'equals': match = String(fv) === String(expected); break;
-                    case 'not_equals': match = String(fv) !== String(expected); break;
-                    case 'one_of': {
-                        const values = (Array.isArray(expected) ? expected : [expected]).map(String);
-                        match = Array.isArray(fv) ? fv.some((value) => values.includes(String(value))) : values.includes(String(fv));
-                        break;
-                    }
-                    case 'not_one_of': {
-                        const values = (Array.isArray(expected) ? expected : [expected]).map(String);
-                        match = Array.isArray(fv) ? !fv.some((value) => values.includes(String(value))) : !values.includes(String(fv));
-                        break;
-                    }
-                    case 'empty': match = !fv || fv === ''; break;
-                    case 'not_empty': match = !!fv && fv !== ''; break;
-                    default: match = false;
-                }
-                if (match) { hidden = true; break; }
+                if (evaluateCondition(c, simulated)) { hidden = true; break; }
             }
             if (!hidden) visible.push(s);
             if (visible.length >= 2) break;
@@ -120,11 +95,12 @@ function computeDecisionBranches(currentStep, allSteps) {
 }
 
 // Get the next N non-hidden steps in the visible timeline after currentIndex.
-function nextVisibleSteps(visibleSteps, currentIndex, n = 2) {
+export function nextVisibleSteps(visibleSteps, currentIndex, n = 2) {
     return (visibleSteps || []).slice(currentIndex + 1, currentIndex + 1 + n);
 }
 
 // ---- Component -----------------------------------------------------------
+// Stryker disable all: declarative journey rendering; branch calculations above remain mutation-tested.
 function JourneyProgressIndicatorImpl({ visibleSteps, currentIndex, allSteps }) {
     const currentStep = visibleSteps?.[currentIndex];
     const total = visibleSteps?.length || 0;

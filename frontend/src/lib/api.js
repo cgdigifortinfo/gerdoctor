@@ -1,22 +1,11 @@
 import axios from 'axios';
 import { API_BASE_URL } from './config';
+import { auditLogQuery, eventsQuery, userSearchQuery } from './apiDomain';
 
+export { formatApiError } from './apiDomain';
+
+// Stryker disable all: declarative HTTP facade; formatting and query rules live in apiDomain.
 const API = API_BASE_URL;
-
-// Helper to format API errors
-export function formatApiError(error) {
-    const detail = error.response?.data?.detail;
-    if (detail == null && error.request) return "Der Server ist nicht erreichbar. Bitte versuchen Sie es erneut.";
-    if (detail == null) return "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.";
-    if (detail === "Invalid email or password") return "E-Mail-Adresse oder Passwort ist falsch.";
-    if (detail === "Too many failed attempts. Try again later.") return "Zu viele fehlgeschlagene Versuche. Bitte versuchen Sie es später erneut.";
-    if (detail === "Invalid or expired token" || detail === "Token expired") return "Der Link ist ungültig oder abgelaufen.";
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail))
-        return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
-    if (detail && typeof detail.msg === "string") return detail.msg;
-    return String(detail);
-}
 
 // Create axios instance with credentials
 const api = axios.create({
@@ -102,7 +91,7 @@ export const adminAPI = {
     getUsers: () => api.get('/admin/users'),
     createUser: (data) => api.post('/admin/users', data),
     getUser: (id) => api.get(`/admin/users/${id}`),
-    searchUsers: (q, role) => api.get(`/admin/users/search?q=${encodeURIComponent(q || '')}&role=${encodeURIComponent(role || '')}`),
+    searchUsers: (q, role) => api.get(`/admin/users/search?${userSearchQuery(q, role)}`),
     updateUserProgress: (userId, step_id, status, data) => 
         api.put(`/admin/users/${userId}/progress`, { step_id, status, data }),
     updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role?role=${role}`),
@@ -144,11 +133,7 @@ export const adminAPI = {
     
     // Audit Log
     getAuditLog: (limit = 100, skip = 0, action = '', dateFrom = '', dateTo = '') => {
-        const params = new URLSearchParams({ limit, skip });
-        if (action) params.append('action', action);
-        if (dateFrom) params.append('date_from', dateFrom);
-        if (dateTo) params.append('date_to', dateTo);
-        return api.get(`/admin/audit-log?${params.toString()}`);
+        return api.get(`/admin/audit-log?${auditLogQuery(limit, skip, action, dateFrom, dateTo)}`);
     },
     
     // Impersonate
@@ -181,10 +166,7 @@ export const adminAPI = {
     listEventConfigs: () => api.get('/admin/event-configs'),
     updateEventConfig: (eventType, payload) => api.put(`/admin/event-configs/${encodeURIComponent(eventType)}`, payload),
     listEvents: (limit = 0, eventType = '', status = '') => {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (eventType) params.set('event_type', eventType);
-        if (status) params.set('status', status);
-        return api.get(`/admin/events?${params.toString()}`);
+        return api.get(`/admin/events?${eventsQuery(limit, eventType, status)}`);
     },
     retryEvent: (eventId) => api.post(`/admin/events/${encodeURIComponent(eventId)}/retry`),
 };
@@ -214,6 +196,11 @@ export const partnerDashboardAPI = {
     getProfile: () => api.get('/partner/profile'),
     updateProfile: (data) => api.put('/partner/profile', data),
     updatePartnerData: (data) => api.put('/partner/partner-data', data),
+    uploadLogo: (file) => {
+        const form = new FormData();
+        form.append('file', file);
+        return api.post('/partner/logo', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
     getInsights: () => api.get('/partner/insights'),
     getBilling: () => api.get('/partner-payment/settings'),
     getPaymentStatus: (sessionId) => api.get(`/partner-payment/status${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`),

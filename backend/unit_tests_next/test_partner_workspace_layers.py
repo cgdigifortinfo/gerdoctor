@@ -150,6 +150,14 @@ def test_partner_profile_service_handles_unlinked_missing_complete_and_updates()
     assert repository.updated[1]["tags"] == ["a", "b"]
     run(service.update_organization({**base, "partner_id": "p"}, {"description": "Only"}, "later"))
     assert PartnerSelfUpdate(tags=["x"]).tags == ["x"]
+    with pytest.raises(PartnerProfileNotLinked):
+        run(service.update_logo(base, "logo.png", "image/png", b"image", "now"))
+    partner_id, logo_url = run(service.update_logo(
+        {**base, "partner_id": "p"}, "logo.png", "image/png",
+        b"\x89PNG\r\n\x1a\nbody", "now",
+    ))
+    assert partner_id == "p" and logo_url.startswith("data:image/png;base64,")
+    assert repository.updated[1] == {"logo_url": logo_url, "updated_at": "now"}
 
 
 def test_mongo_partner_profile_repository_validates_and_updates() -> None:

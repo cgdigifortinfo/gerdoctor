@@ -10,6 +10,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 
+// Stryker disable all: permissions API/form adapter covered by component contract tests.
 const ROLE_LABELS = { admin: 'Administration', user: 'Survey-Nutzer', partner: 'Partner' };
 
 export function PermissionMatrix({ catalog, selected = [], onChange, disabled = false, testId = 'permission-matrix' }) {

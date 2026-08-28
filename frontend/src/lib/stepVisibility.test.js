@@ -6,6 +6,13 @@ import {
     simulateJourney,
 } from '../features/steps';
 
+test('condition evaluator rejects an equal status and treats omitted upload type as any upload', () => {
+    expect(evaluateCondition({ source_step_order: 1, operator: 'status_not', value: 'completed' }, { 1: { status: 'completed' } })).toBe(false);
+    expect(evaluateCondition({ source_step_order: 1, field: 'documents', operator: 'has_upload' }, {
+        1: { data: { documents: [{ document_type: 'Diplom', file_id: 'file' }] } },
+    })).toBe(true);
+});
+
 
 describe('multi-value step conditions', () => {
     const byOrder = {
@@ -67,6 +74,9 @@ describe('multi-value step conditions', () => {
         expect(evaluateCondition({ any_of: [equalsUpload, equalsPartner] }, byOrder)).toBe(true);
         expect(evaluateCondition({ any_of: [equalsUpload] }, byOrder)).toBe(false);
         expect(evaluateCondition({ source_step_order: 99, operator: 'empty' }, byOrder)).toBe(false);
+        expect(evaluateCondition(null, byOrder)).toBe(false);
+        expect(evaluateCondition(undefined, byOrder)).toBe(false);
+        expect(evaluateCondition('invalid', byOrder)).toBe(false);
     });
 
     test('upload operators distinguish type, any upload, invalid values and missing uploads', () => {
@@ -83,6 +93,12 @@ describe('multi-value step conditions', () => {
         expect(evaluateCondition(condition('missing_upload', undefined, 'invalid'), { 1: { data: { invalid: 'no-array' } } })).toBe(true);
         expect(evaluateCondition(condition('has_upload', undefined, 'absent'), context)).toBe(false);
         expect(evaluateCondition(condition('missing_upload', undefined, 'absent'), context)).toBe(true);
+        const invalidUploads = { 1: { data: { documents: [null, {}, { file_id: '' }] } } };
+        expect(evaluateCondition(condition('has_upload', undefined), invalidUploads)).toBe(false);
+        expect(evaluateCondition(condition('missing_upload', undefined), invalidUploads)).toBe(true);
+        expect(evaluateCondition(condition('has_upload', undefined), context)).toBe(true);
+        expect(evaluateCondition(condition('missing_upload', undefined), context)).toBe(false);
+        expect(evaluateCondition(condition('missing_upload', null), context)).toBe(false);
     });
 
     test('normalizes scalar choices, empty data and all boolean branches', () => {
@@ -91,6 +107,8 @@ describe('multi-value step conditions', () => {
         expect(evaluateCondition({ source_step_order: 4, field: 'regions', operator: 'not_one_of', value: 'Berlin' }, byOrder)).toBe(false);
         const emptyData = { 1: { status: 'pending', data: null } };
         expect(evaluateCondition({ source_step_order: 1, field: 'missing', operator: 'contains', value: 'x' }, emptyData)).toBe(false);
+        expect(evaluateCondition({ source_step_order: 1, field: 'missing', operator: 'contains', value: '' }, emptyData)).toBe(true);
+        expect(evaluateCondition({ source_step_order: 1, field: 'missing', operator: 'contains', value: 'Stryker was here!' }, emptyData)).toBe(false);
         expect(evaluateCondition({ source_step_order: 1, field: 'missing', operator: 'not_empty' }, emptyData)).toBe(false);
         expect(evaluateCondition({ source_step_order: 1, field: 'missing', operator: 'empty' }, emptyData)).toBe(true);
         expect(evaluateCondition({ source_step_order: 4, field: 'decision', operator: 'not_equals', value: 'partner' }, byOrder)).toBe(false);
@@ -119,12 +137,14 @@ describe('step visibility composition', () => {
             3: { data: {}, status: 'pending' },
         });
         expect(buildStepDataByOrder(null, null)).toEqual({});
+        expect(buildStepDataByOrder('invalid', 'invalid')).toEqual({});
     });
 
     test('hides only matching hide conditions and filters the same ids', () => {
         expect([...getHiddenStepIds(steps, progress)]).toEqual(['hidden']);
         expect(filterVisibleSteps(steps, progress).map(step => step.id || step.step_id)).toEqual(['decision', 'visible']);
         expect(filterVisibleSteps(null, null)).toEqual([]);
+        expect(filterVisibleSteps('invalid', [])).toEqual([]);
         expect([...getHiddenStepIds([
             { id: 'decision', order: 1 },
             { step_id: 'fallback', order: 2, conditions: [
@@ -133,6 +153,12 @@ describe('step visibility composition', () => {
             ] },
             { id: 'plain', order: 3 },
         ], progress)]).toEqual(['fallback']);
+        expect([...getHiddenStepIds([
+            { id: 'decision', order: 1 },
+            { id: 'never-hidden', order: 2, conditions: [
+                { action: 'hide', source_step_order: 1, field: 'decision', operator: 'equals', value: 'upload' },
+            ] },
+        ], progress)]).toEqual([]);
     });
 
     test('simulates hide, block and auto-complete independently in sorted order', () => {
@@ -161,5 +187,23 @@ describe('step visibility composition', () => {
         ], { 1: { data: { choice: 'no' }, status: 'in_progress' } })).toEqual({
             hidden: new Set(), blocked: new Set(), autoComplete: new Set(),
         });
+        const sorted = simulateJourney([
+            { id: 'late', order: 3, conditions: [{ action: 'hide', source_step_order: 1, operator: 'status_is', value: 'completed' }] },
+            { id: 'early', order: 2, conditions: [{ action: 'hide', source_step_order: 1, operator: 'status_is', value: 'completed' }] },
+            { id: 'source', order: 1 },
+        ], { 1: { data: {}, status: 'completed' } });
+        expect([...sorted.hidden]).toEqual(['early', 'late']);
+        expect(simulateJourney('invalid')).toEqual({ hidden: new Set(), blocked: new Set(), autoComplete: new Set() });
+        const fallbackStatuses = simulateJourney([
+            { id: 'with-data', order: 1 },
+            { id: 'without-data', order: 2 },
+            { id: 'explicit', order: 3 },
+            { id: 'completed-target', order: 4, conditions: [{ action: 'hide', source_step_order: 1, operator: 'status_is', value: 'completed' }] },
+            { id: 'pending-target', order: 5, conditions: [{ action: 'block', source_step_order: 2, operator: 'status_is', value: 'pending' }] },
+            { id: 'explicit-target', order: 6, conditions: [{ action: 'auto_complete', source_step_order: 3, operator: 'status_is', value: 'review' }] },
+        ], { 1: { data: {} }, 2: {}, 3: { status: 'review' } });
+        expect([...fallbackStatuses.hidden]).toEqual(['completed-target']);
+        expect([...fallbackStatuses.blocked]).toEqual(['pending-target']);
+        expect([...fallbackStatuses.autoComplete]).toEqual(['explicit-target']);
     });
 });

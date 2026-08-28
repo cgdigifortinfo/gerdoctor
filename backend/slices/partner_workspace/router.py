@@ -4,12 +4,15 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from slices.identity_access.service import IdentityAccessService
 from slices.identity_access.web import ProfileUpdate
 from slices.partner_insights.service import PartnerInsightsService
 from slices.partner_workspace.profile import PartnerProfileNotLinked, PartnerProfileService
+from slices.partner_workspace.logo import (
+    InvalidPartnerLogo, MAX_PARTNER_LOGO_BYTES, PartnerLogoTooLarge,
+)
 from slices.partner_workspace.read_service import PartnerNotLinked, PartnerWorkspaceReadService
 from slices.partner_workspace.detail_service import PartnerWorkspaceDetailService
 from slices.partner_workspace.service import WorkspaceUserNotFound
@@ -64,6 +67,26 @@ def build_partner_workspace_router(
         await audit(user["_id"], user["email"], "partner_self_update", "partner",
                     partner_id, {"fields": fields})
         return {"message": "Partner data updated"}
+
+    @router.post("/logo")
+    async def upload_logo(
+        request: Request, file: UploadFile = File(...),
+    ) -> dict[str, str]:
+        user = await require_role("partner")(request)
+        content = await file.read(MAX_PARTNER_LOGO_BYTES + 1)
+        try:
+            partner_id, logo_url = await profile.update_logo(
+                user, file.filename or "", file.content_type or "", content, now_iso(),
+            )
+        except PartnerProfileNotLinked as error:
+            raise HTTPException(400, "User not linked to a partner") from error
+        except PartnerLogoTooLarge as error:
+            raise HTTPException(413, "Logo must not exceed 2 MB") from error
+        except InvalidPartnerLogo as error:
+            raise HTTPException(415, str(error)) from error
+        await audit(user["_id"], user["email"], "partner_logo_update", "partner",
+                    partner_id, {"fields": ["logo_url"]})
+        return {"message": "Partner logo updated", "logo_url": logo_url}
 
     @router.get("/insights")
     async def partner_insights(request: Request) -> dict[str, Any]:

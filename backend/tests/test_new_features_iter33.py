@@ -107,7 +107,7 @@ def reset_user_progress(admin_session, email):
 
 
 # ==========================================================
-# Feature 1 — Anerkennungsstatus auto-skip
+# Feature 1 — Anerkennungsstatus is ordinary user survey data
 # ==========================================================
 def _step1_payload(anerk: str):
     return {
@@ -121,10 +121,10 @@ def _step1_payload(anerk: str):
 
 
 @pytest.mark.parametrize("user_key,anerk,expected_completed,expected_auto_skip_count", [
-    ("petrov", "Ich bin in Deutschland approbiert", 13, 12),
-    ("tanaka", "Ich habe die Fachsprachenprüfung Medizin bestanden", 4, 3),
+    ("petrov", "Ich bin in Deutschland approbiert", 1, 0),
+    ("tanaka", "Ich habe die Fachsprachenprüfung Medizin bestanden", 1, 0),
 ])
-def test_anerkennungsstatus_autoskip(admin_session, steps_by_order, user_key, anerk, expected_completed, expected_auto_skip_count):
+def test_user_anerkennungsstatus_does_not_complete_future_steps(admin_session, steps_by_order, user_key, anerk, expected_completed, expected_auto_skip_count):
     email = TEST_USERS[user_key]
     reset_user_progress(admin_session, email)
     step1_id = steps_by_order[1]["id"]
@@ -164,8 +164,7 @@ def test_anerkennungsstatus_no_skip(admin_session, steps_by_order):
     assert len(completed) == 1, f"expected only Stammdaten completed, got {len(completed)}"
 
 
-def test_anerkennungsstatus_idempotent(admin_session, steps_by_order):
-    """Re-applying same anerkennungsstatus should not double-insert progress_history rows."""
+def test_user_anerkennungsstatus_never_inserts_auto_skip_history(admin_session, steps_by_order):
     email = TEST_USERS["petrov"]
     reset_user_progress(admin_session, email)
     step1_id = steps_by_order[1]["id"]
@@ -184,7 +183,7 @@ def test_anerkennungsstatus_idempotent(admin_session, steps_by_order):
     after2 = sum(1 for h in hist2 if h.get("action") == "auto_skipped_by_status")
     first_delta = after1 - before
     second_delta = after2 - after1
-    assert first_delta == 12, f"first apply should insert 12 auto_skip rows, got {first_delta}"
+    assert first_delta == 0, f"user progress must insert 0 auto_skip rows, got {first_delta}"
     assert second_delta == 0, f"re-apply should insert 0 new auto_skip rows, got {second_delta}"
 
 

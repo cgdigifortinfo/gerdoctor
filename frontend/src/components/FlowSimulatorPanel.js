@@ -25,7 +25,7 @@ export default function FlowSimulatorPanel({ value, onChange }) {
                 Simulator
             </label>
             <select
-                value={value || 'none'}
+                value={normalizeSimulatorProfile(value)}
                 onChange={(e) => onChange(e.target.value)}
                 className="text-xs bg-background border border-border rounded-sm px-1.5 py-1"
                 data-testid="flow-simulator-select"
@@ -46,4 +46,8 @@ export default function FlowSimulatorPanel({ value, onChange }) {
             )}
         </div>
     );
+}
+
+export function normalizeSimulatorProfile(value) {
+    return value || 'none';
 }

@@ -1,0 +1,3099 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compound condition normalizes sources, fields, operators and values exactly 1`] = `
+Array [
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-0",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-0",
+    "value": "choice",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-1",
+    "value": "",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-1",
+    "value": "",
+  },
+  Object {
+    "allowCustom": true,
+    "options": Array [
+      Object {
+        "label": "A",
+        "value": "a",
+      },
+    ],
+    "placeholder": "Wert auswählen",
+    "searchPlaceholder": "Wert suchen …",
+    "testId": "condition-child-value-0-1",
+    "value": "",
+  },
+]
+`;
+
+exports[`compound condition normalizes sources, fields, operators and values exactly 2`] = `
+Array [
+  Object {
+    "allowCustom": true,
+    "options": Array [
+      Object {
+        "label": "A",
+        "value": "a",
+      },
+    ],
+    "placeholder": "Werte auswählen",
+    "searchPlaceholder": "Werte suchen …",
+    "testId": "condition-child-values-0-0",
+    "values": Array [
+      "a",
+    ],
+  },
+]
+`;
+
+exports[`compound condition normalizes sources, fields, operators and values exactly 3`] = `
+Array [
+  Object {
+    "value": "all_of",
+  },
+  Object {
+    "value": "one_of",
+  },
+  Object {
+    "value": "has_upload",
+  },
+  Object {
+    "value": "redirect",
+  },
+]
+`;
+
+exports[`compound condition normalizes sources, fields, operators and values exactly 4`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-0"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            1
+             · 
+            UND-Gruppe
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Alle Teilbedingungen müssen zutreffen.
+             Bei Treffer: 
+            Zu anderem Schritt weiterleiten
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="mb-4 flex flex-wrap items-end gap-3 rounded-md bg-muted/30 p-3"
+      >
+        <div
+          class="min-w-48"
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Gruppierung
+          </label>
+          <div>
+            <div
+              data-testid="condition-group-type-0"
+            />
+            <span>
+              UND – alle müssen zutreffen
+            </span>
+            <span>
+              ODER – eine muss zutreffen
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="condition-add-child-0"
+          type="button"
+        >
+           Teilbedingung
+        </button>
+      </div>
+      <div
+        class="space-y-2"
+        data-testid="condition-compound-0"
+      >
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-0"
+          open=""
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                1
+              </strong>
+               · #
+              1
+               
+              Source
+               · 
+              choice
+               · 
+              Ist einer von
+               · 
+              a
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-0"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <button
+                data-testid="condition-child-values-0-0"
+              >
+                multi
+              </button>
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-0"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-1"
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                2
+              </strong>
+               · #
+               
+              Unbekannt
+               · 
+              Status
+               · 
+              Dokument vorhanden
+               · 
+              beliebiges Dokument
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-1"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <div
+                data-testid="condition-child-value-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-1"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-0"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-0"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`compound operator conversion preserves empty and populated array boundaries 1`] = `
+Array [
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-0",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-0",
+    "value": "choice",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-1",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-1",
+    "value": "choice",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-2",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-2",
+    "value": "choice",
+  },
+]
+`;
+
+exports[`compound operator conversion preserves empty and populated array boundaries 2`] = `
+Array [
+  Object {
+    "allowCustom": true,
+    "options": Array [],
+    "placeholder": "Werte auswählen",
+    "searchPlaceholder": "Werte suchen …",
+    "testId": "condition-child-values-0-1",
+    "values": Array [],
+  },
+  Object {
+    "allowCustom": true,
+    "options": Array [],
+    "placeholder": "Werte auswählen",
+    "searchPlaceholder": "Werte suchen …",
+    "testId": "condition-child-values-0-2",
+    "values": Array [
+      "first",
+      "second",
+    ],
+  },
+]
+`;
+
+exports[`compound operator conversion preserves empty and populated array boundaries 3`] = `
+Array [
+  Object {
+    "value": "any_of",
+  },
+  Object {
+    "value": "equals",
+  },
+  Object {
+    "value": "one_of",
+  },
+  Object {
+    "value": "one_of",
+  },
+  Object {
+    "value": "block",
+  },
+]
+`;
+
+exports[`compound operator conversion preserves empty and populated array boundaries 4`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-0"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            1
+             · 
+            ODER-Gruppe
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Mindestens eine Teilbedingung muss zutreffen.
+             Bei Treffer: 
+            Schritt blockieren
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="mb-4 flex flex-wrap items-end gap-3 rounded-md bg-muted/30 p-3"
+      >
+        <div
+          class="min-w-48"
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Gruppierung
+          </label>
+          <div>
+            <div
+              data-testid="condition-group-type-0"
+            />
+            <span>
+              UND – alle müssen zutreffen
+            </span>
+            <span>
+              ODER – eine muss zutreffen
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="condition-add-child-0"
+          type="button"
+        >
+           Teilbedingung
+        </button>
+      </div>
+      <div
+        class="space-y-2"
+        data-testid="condition-compound-0"
+      >
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-0"
+          open=""
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                1
+              </strong>
+               · #
+              1
+               
+              Source
+               · 
+              choice
+               · 
+              Ist gleich
+               · 
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-0"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <input
+                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                data-testid="condition-child-value-input-0-0"
+                value=""
+              />
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-0"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-1"
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                2
+              </strong>
+               · #
+              1
+               
+              Source
+               · 
+              choice
+               · 
+              Ist einer von
+               · 
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-1"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <button
+                data-testid="condition-child-values-0-1"
+              >
+                multi
+              </button>
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-1"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-2"
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                3
+              </strong>
+               · #
+              1
+               
+              Source
+               · 
+              choice
+               · 
+              Ist einer von
+               · 
+              first, second
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-2"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-2"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-2"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <button
+                data-testid="condition-child-values-0-2"
+              >
+                multi
+              </button>
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-2"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-0"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-0"
+          >
+            Blocked
+          </textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`conditions panel covers empty preset options and missing compound metadata 1`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-0"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            1
+             · 
+            UND-Gruppe
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Alle Teilbedingungen müssen zutreffen.
+             Bei Treffer: 
+            Zu anderem Schritt weiterleiten
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="mb-4 flex flex-wrap items-end gap-3 rounded-md bg-muted/30 p-3"
+      >
+        <div
+          class="min-w-48"
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Gruppierung
+          </label>
+          <div>
+            <div
+              data-testid="condition-group-type-0"
+            />
+            <span>
+              UND – alle müssen zutreffen
+            </span>
+            <span>
+              ODER – eine muss zutreffen
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="condition-add-child-0"
+          type="button"
+        >
+           Teilbedingung
+        </button>
+      </div>
+      <div
+        class="space-y-2"
+        data-testid="condition-compound-0"
+      >
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-0"
+          open=""
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                1
+              </strong>
+               · #
+              9
+               
+              Unbekannt
+               · 
+              Status
+               · 
+              –
+               · 
+              –
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-0"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-0"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <input
+                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                data-testid="condition-child-value-input-0-0"
+                value=""
+              />
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-0"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+        <details
+          class="group rounded-md border border-border bg-card"
+          data-testid="condition-compound-0-1"
+        >
+          <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs hover:bg-muted/40"
+          >
+            <span>
+              <strong>
+                Teilbedingung 
+                2
+              </strong>
+               · #
+              1
+               
+              Source
+               · 
+              choice
+               · 
+              Ist einer von
+               · 
+            </span>
+            <span
+              class="text-muted-foreground group-open:rotate-180"
+            >
+              ⌄
+            </span>
+          </summary>
+          <div
+            class="grid gap-3 border-t border-border p-3 lg:grid-cols-2"
+          >
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                1. Quell-Step
+              </label>
+              <div
+                data-testid="condition-child-source-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                2. Status oder Feld
+              </label>
+              <div
+                data-testid="condition-child-field-0-1"
+              >
+                <button>
+                  empty
+                </button>
+                <button>
+                  2
+                </button>
+                <button>
+                  status
+                </button>
+                <button>
+                  partner_uploads
+                </button>
+                <button>
+                  normal
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                3. Vergleich
+              </label>
+              <div>
+                <div
+                  data-testid="condition-child-operator-0-1"
+                />
+                <span>
+                  Equals
+                </span>
+                <button
+                  data-testid="select-one_of"
+                >
+                  one_of
+                </button>
+                <button
+                  data-testid="select-equals"
+                >
+                  equals
+                </button>
+                <button
+                  data-testid="select-empty"
+                >
+                  empty
+                </button>
+                <button
+                  data-testid="select-redirect"
+                >
+                  redirect
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+              >
+                4. Vergleichswert
+              </label>
+              <button
+                data-testid="condition-child-values-0-1"
+              >
+                multi
+              </button>
+            </div>
+            <div
+              class="lg:col-span-2 flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                data-testid="condition-remove-child-0-1"
+                type="button"
+              >
+                 Teilbedingung entfernen
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-0"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-0"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-1"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            2
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Bei Treffer: 
+            Zu anderem Schritt weiterleiten
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="grid gap-3 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            1. Schritt auswählen
+          </label>
+          <div
+            data-testid="condition-source-step-1"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            2. Status oder Feld auswählen
+          </label>
+          <div
+            data-testid="condition-source-field-1"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            3. Vergleich
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-operator-1"
+            />
+            <span>
+              Equals
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            4. Vergleichswert
+          </label>
+          <input
+            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            data-testid="condition-value-input-1"
+            placeholder="Vergleichswert eingeben"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            5. Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-1"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Ziel-Schritt
+          </label>
+          <div
+            data-testid="condition-target-step-1"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div
+          class="lg:col-span-2"
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer (optional)
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-1"
+            placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`conditions panel covers empty preset options and missing compound metadata 2`] = `
+Array [
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 9",
+        "value": "9",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-0",
+    "value": "9",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-0",
+    "value": "",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Step auswählen",
+    "searchPlaceholder": "Step suchen …",
+    "testId": "condition-child-source-0-1",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld suchen …",
+    "testId": "condition-child-field-0-1",
+    "value": "choice",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 1",
+        "value": "1",
+      },
+    ],
+    "placeholder": "Quell-Schritt auswählen",
+    "searchPlaceholder": "Schritt nach Nummer, Titel oder Typ suchen …",
+    "testId": "condition-source-step-1",
+    "value": "1",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld nach Name oder Typ suchen …",
+    "testId": "condition-source-field-1",
+    "value": "choice",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Nicht gefundener Schritt: 0",
+        "value": "0",
+      },
+    ],
+    "placeholder": "Ziel-Schritt auswählen",
+    "searchPlaceholder": "Ziel-Schritt suchen …",
+    "testId": "condition-target-step-1",
+    "value": "0",
+  },
+]
+`;
+
+exports[`conditions panel covers empty preset options and missing compound metadata 3`] = `
+Array [
+  Object {
+    "allowCustom": true,
+    "options": Array [],
+    "placeholder": "Werte auswählen",
+    "searchPlaceholder": "Werte suchen …",
+    "testId": "condition-child-values-0-1",
+    "values": Array [
+      "",
+    ],
+  },
+]
+`;
+
+exports[`conditions panel covers empty state, creation commands and every preset 1`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <p
+      class="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+    >
+      Keine Regeln konfiguriert. Dieser Schritt ist ohne zusätzliche Einschränkung erreichbar.
+    </p>
+  </div>
+</div>
+`;
+
+exports[`non-redirect simple input condition wires every command and hides its target 1`] = `
+Array [
+  Object {
+    "options": Array [],
+    "placeholder": "Quell-Schritt auswählen",
+    "searchPlaceholder": "Schritt nach Nummer, Titel oder Typ suchen …",
+    "testId": "condition-source-step-0",
+    "value": "",
+  },
+  Object {
+    "options": Array [],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld nach Name oder Typ suchen …",
+    "testId": "condition-source-field-0",
+    "value": "",
+  },
+]
+`;
+
+exports[`non-redirect simple input condition wires every command and hides its target 2`] = `
+Array [
+  Object {
+    "value": "equals",
+  },
+  Object {
+    "value": "block",
+  },
+]
+`;
+
+exports[`non-redirect simple input condition wires every command and hides its target 3`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-0"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            1
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Bei Treffer: 
+            Schritt blockieren
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="grid gap-3 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            1. Schritt auswählen
+          </label>
+          <div
+            data-testid="condition-source-step-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            2. Status oder Feld auswählen
+          </label>
+          <div
+            data-testid="condition-source-field-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            3. Vergleich
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-operator-0"
+            />
+            <span>
+              Equals
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            4. Vergleichswert
+          </label>
+          <input
+            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            data-testid="condition-value-input-0"
+            placeholder="Vergleichswert eingeben"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            5. Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-0"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div
+          class=""
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer (optional)
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-0"
+            placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`simple condition exposes the exact editor contract and emits exact updates 1`] = `
+Array [
+  Object {
+    "options": Array [
+      Object {
+        "label": "One",
+        "value": "1",
+      },
+      Object {
+        "label": "Five",
+        "value": "5",
+      },
+    ],
+    "placeholder": "Quell-Schritt auswählen",
+    "searchPlaceholder": "Schritt nach Nummer, Titel oder Typ suchen …",
+    "testId": "condition-source-step-0",
+    "value": "1",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "Status",
+        "value": "status",
+      },
+    ],
+    "placeholder": "Feld auswählen",
+    "searchPlaceholder": "Feld nach Name oder Typ suchen …",
+    "testId": "condition-source-field-0",
+    "value": "choice",
+  },
+  Object {
+    "allowCustom": true,
+    "options": Array [
+      Object {
+        "label": "A",
+        "value": "a",
+      },
+    ],
+    "placeholder": "Wert auswählen",
+    "searchPlaceholder": "Wert durchsuchen …",
+    "testId": "condition-value-0",
+    "value": "a",
+  },
+  Object {
+    "options": Array [
+      Object {
+        "label": "One",
+        "value": "1",
+      },
+      Object {
+        "label": "Five",
+        "value": "5",
+      },
+    ],
+    "placeholder": "Ziel-Schritt auswählen",
+    "searchPlaceholder": "Ziel-Schritt suchen …",
+    "testId": "condition-target-step-0",
+    "value": "5",
+  },
+]
+`;
+
+exports[`simple condition exposes the exact editor contract and emits exact updates 2`] = `
+Array [
+  Object {
+    "value": "equals",
+  },
+  Object {
+    "value": "redirect",
+  },
+]
+`;
+
+exports[`simple condition exposes the exact editor contract and emits exact updates 3`] = `
+<div>
+  <div
+    class="space-y-4"
+  >
+    <div
+      class="flex items-start justify-between gap-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Regeln für diesen Schritt
+        </label>
+        <p
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          Eine Regel liest den Status oder ein Feld eines anderen Schritts und führt bei einem Treffer die gewählte Aktion aus.
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition"
+          type="button"
+        >
+           Einzelregel
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-all"
+          type="button"
+        >
+           UND-Gruppe
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          data-testid="add-condition-any"
+          type="button"
+        >
+           ODER-Gruppe
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+    >
+      <p
+        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+      >
+        Schnellstart mit sinnvoll vorbelegten Regeln
+      </p>
+      <div
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-0"
+          type="button"
+        >
+          Vorherigen Schritt voraussetzen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-1"
+          type="button"
+        >
+          Fehlendes Dokument blockiert
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-2"
+          type="button"
+        >
+          Mehrere Antworten zulassen
+        </button>
+        <button
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          data-testid="condition-preset-3"
+          type="button"
+        >
+          Nach Abschluss weiterleiten
+        </button>
+      </div>
+    </div>
+    <div
+      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      data-testid="condition-card-0"
+    >
+      <div
+        class="mb-4 flex items-start justify-between gap-3"
+      >
+        <div>
+          <p
+            class="text-sm font-semibold"
+          >
+            Regel 
+            1
+          </p>
+          <p
+            class="mt-0.5 text-xs text-muted-foreground"
+          >
+            Bei Treffer: 
+            Zu anderem Schritt weiterleiten
+          </p>
+        </div>
+        <button
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          type="button"
+        >
+           Entfernen
+        </button>
+      </div>
+      <div
+        class="grid gap-3 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            1. Schritt auswählen
+          </label>
+          <div
+            data-testid="condition-source-step-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            2. Status oder Feld auswählen
+          </label>
+          <div
+            data-testid="condition-source-field-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            3. Vergleich
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-operator-0"
+            />
+            <span>
+              Equals
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            4. Vergleichswert
+          </label>
+          <div
+            data-testid="condition-value-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-2"
+      >
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            5. Aktion bei Treffer
+          </label>
+          <div>
+            <div
+              class="min-h-10"
+              data-testid="condition-action-0"
+            />
+            <span>
+              Schritt blockieren
+            </span>
+            <span>
+              Schritt ausblenden
+            </span>
+            <span>
+              Schritt schreibschützen
+            </span>
+            <span>
+              Automatisch abschließen
+            </span>
+            <span>
+              Zugriff erlauben
+            </span>
+            <span>
+              Zu anderem Schritt weiterleiten
+            </span>
+            <button
+              data-testid="select-one_of"
+            >
+              one_of
+            </button>
+            <button
+              data-testid="select-equals"
+            >
+              equals
+            </button>
+            <button
+              data-testid="select-empty"
+            >
+              empty
+            </button>
+            <button
+              data-testid="select-redirect"
+            >
+              redirect
+            </button>
+          </div>
+        </div>
+        <div>
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Ziel-Schritt
+          </label>
+          <div
+            data-testid="condition-target-step-0"
+          >
+            <button>
+              empty
+            </button>
+            <button>
+              2
+            </button>
+            <button>
+              status
+            </button>
+            <button>
+              partner_uploads
+            </button>
+            <button>
+              normal
+            </button>
+          </div>
+        </div>
+        <div
+          class="lg:col-span-2"
+        >
+          <label
+            class="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-xs"
+          >
+            Hinweis für Nutzer (optional)
+          </label>
+          <textarea
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            data-testid="condition-message-0"
+            placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
+          >
+            Hinweis
+          </textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

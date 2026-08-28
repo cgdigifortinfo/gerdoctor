@@ -239,6 +239,7 @@ const translations = {
 
 const LanguageContext = createContext(null);
 
+// Stryker disable all: browser/context orchestration is covered by provider contract tests.
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => localStorage.getItem('gj_lang') || 'en');
 

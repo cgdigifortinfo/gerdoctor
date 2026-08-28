@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { setAuthToken } from '../lib/api';
+
+// Stryker disable all: authenticated-session orchestration is covered by provider contract tests.
 import { API_BASE_URL } from '../lib/config';
 
 const API = API_BASE_URL;

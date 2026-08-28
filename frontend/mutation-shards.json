@@ -1,0 +1,23 @@
+{
+  "shards": [
+    "stryker.admin-dialogs.config.json",
+    "stryker.admin-hooks.config.json",
+    "stryker.admin-primitives.config.json",
+    "stryker.admin-tabs.config.json",
+    "stryker.admin-user-dialogs.config.json",
+    "stryker.builders.config.json",
+    "stryker.domains.config.json",
+    "stryker.flow-builder.config.json",
+    "stryker.infrastructure.config.json",
+    "stryker.normalization.config.json",
+    "stryker.pages.config.json",
+    "stryker.partner-dialog.config.json",
+    "stryker.shared-components.config.json",
+    "stryker.step-controller.config.json",
+    "stryker.step-core.config.json",
+    "stryker.step-domains.config.json",
+    "stryker.step-panels.config.json",
+    "stryker.ui-primitives.config.json",
+    "stryker.user-detail.config.json"
+  ]
+}

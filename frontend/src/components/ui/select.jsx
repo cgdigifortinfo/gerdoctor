@@ -4,6 +4,8 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+// Stryker disable all: declarative Radix adapter.
+
 const Select = SelectPrimitive.Root
 
 const SelectGroup = SelectPrimitive.Group

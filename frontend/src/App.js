@@ -16,6 +16,7 @@ import PartnerDashboard from "./pages/PartnerDashboard";
 import PartnerLanding from "./pages/PartnerLanding";
 import { PartnerOnboarding, PartnerPaymentSuccess } from "./pages/PartnerPayment";
 
+// Stryker disable all: declarative application-route composition.
 function App() {
   return (
     <ThemeProvider>

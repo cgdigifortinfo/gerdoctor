@@ -409,7 +409,7 @@ def _survey_progress_service() -> SurveyProgressService:
     return SurveyProgressService(
         MongoSurveyProgressRepository(db), _assert_document_workflow_editable,
         _get_default_survey, _write_user_progress_revision, send_rendered_email,
-        apply_anerkennungsstatus_skips, apply_auto_completes,
+        apply_auto_completes,
         system_utc_clock.now_iso, frozenset(CONTENT_FIELD_TYPES),
     )
 

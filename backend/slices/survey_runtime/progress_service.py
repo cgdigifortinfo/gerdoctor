@@ -35,13 +35,12 @@ class SurveyProgressService:
         assert_editable: Callable[[str, Mapping[str, Any]], Awaitable[None]],
         default_survey: Callable[[], Awaitable[Mapping[str, Any]]],
         write_revision: WriteRevision, send_email: SendEmail,
-        apply_skips: Callable[[str, str], Awaitable[Any]],
         auto_complete: Callable[[str], Awaitable[Any]],
         now_iso: Callable[[], str], content_field_types: frozenset[str],
     ) -> None:
         self._repo, self._editable, self._default = repository, assert_editable, default_survey
         self._write, self._email = write_revision, send_email
-        self._skips, self._auto = apply_skips, auto_complete
+        self._auto = auto_complete
         self._now, self._content = now_iso, content_field_types
 
     async def update(self, user: Mapping[str, Any], command: ProgressCommand) -> None:
@@ -89,9 +88,9 @@ class SurveyProgressService:
             "user_id": user_id, "step_id": command.step_id, "step_title": step["title"],
             "step_order": step["order"], "action": command.status, "timestamp": now,
         })
-        recognition = command.data.get("anerkennungsstatus")
-        if step.get("order") == 1 and recognition:
-            await self._skips(user_id, str(recognition))
+        # A form answer must only complete the addressed step. Recognition
+        # status is ordinary survey data and must never bulk-complete future
+        # blocks as an implicit side effect of the user progress endpoint.
         await self._auto(user_id)
 
     async def _send(self, user: Mapping[str, Any], template: str, variables: Mapping[str, Any],

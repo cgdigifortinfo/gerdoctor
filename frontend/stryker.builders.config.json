@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest",
+  "concurrency": 2,
+  "coverageAnalysis": "perTest",
+  "ignoreStatic": true,
+  "mutator": {
+    "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration", "ArrowFunction", "BlockStatement"]
+  },
+  "incremental": true,
+  "incrementalFile": "reports/mutation/incremental-builders-adapters.json",
+  "mutate": [
+    "src/components/admin/surveyFormDomain.js",
+    "src/components/admin/eventManagementDomain.js",
+    "src/components/admin/EntityPickers.js",
+    "src/components/admin/EventManagement.js",
+    "src/components/admin/PermissionGroupsManager.js",
+    "src/components/admin/SurveyFormBuilder.js"
+  ],
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "jest": { "projectType": "create-react-app" }
+}

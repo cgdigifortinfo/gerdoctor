@@ -23,14 +23,13 @@ class Repository:
 
 
 def service(repository):
-    calls = SimpleNamespace(edit=[], write=[], email=[], skips=[], auto=[])
+    calls = SimpleNamespace(edit=[], write=[], email=[], auto=[])
     async def editable(*args): calls.edit.append(args)
     async def default(): return {"_id": "default"}
     async def write(**kwargs): calls.write.append(kwargs)
     async def email(*args, **kwargs): calls.email.append((args, kwargs))
-    async def skips(*args): calls.skips.append(args)
     async def auto(*args): calls.auto.append(args)
-    subject = SurveyProgressService(repository, editable, default, write, email, skips, auto,
+    subject = SurveyProgressService(repository, editable, default, write, email, auto,
                                     lambda: "now", frozenset({"content"}))
     return subject, calls
 
@@ -50,7 +49,7 @@ def test_service_rejects_unknown_step():
         run(subject.update(user(), ProgressCommand("missing", "pending", {})))
 
 
-def test_new_completed_progress_uses_default_survey_sends_enter_leave_and_skips():
+def test_new_completed_progress_uses_default_survey_and_only_completes_current_step():
     repository = Repository(step(
         email_on_enter=True, email_on_leave=True,
         email_subject_enter="Enter", email_body_enter="Body",
@@ -65,7 +64,6 @@ def test_new_completed_progress_uses_default_survey_sends_enter_leave_and_skips(
     assert calls.write[0]["extra_fields"] == {
         "survey_id": "default", "started_at": "now", "completed_at": "now",
     }
-    assert calls.skips == [("user", "planned")]
     assert calls.auto == [("user",)]
     assert repository.history_rows[0]["timestamp"] == "now"
 
@@ -81,7 +79,6 @@ def test_existing_progress_sends_edit_and_preserves_started_time():
     assert [row[0][1] for row in calls.email] == ["user_step_updated"]
     assert calls.email[0][1] == {"override_subject": "", "override_body": ""}
     assert calls.write[0]["extra_fields"] == {"survey_id": "survey"}
-    assert calls.skips == []
 
 
 def test_pending_or_skipped_progress_suppresses_optional_notifications_and_validation():

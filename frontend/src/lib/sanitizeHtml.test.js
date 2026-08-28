@@ -52,10 +52,37 @@ describe('sanitizeHtml', () => {
         expect(result).toContain('alt="portrait"');
         expect(result).toContain('src="/safe.png"');
         expect(result).toContain('title="Profile"');
+        expect(sanitizeHtml('<b>B</b>')).toBe('<b>B</b>');
+        expect(sanitizeHtml('<i>I</i>')).toBe('<i>I</i>');
+        expect(sanitizeHtml('<u>U</u>')).toBe('<u>U</u>');
     });
 
     it('trims URL schemes before validating and removes arbitrary attributes', () => {
         const result = sanitizeHtml('<a href="  javascript:alert(1)" style="color:red" data-x="x">X</a>');
         expect(result).toBe('<a>X</a>');
+    });
+
+    it('rejects data URLs outside image src attributes and malformed image prefixes', () => {
+        const result = sanitizeHtml(
+            '<a href="data:image/png;base64,AAAA">link</a>' +
+            '<span src="data:image/png;base64,AAAA">span</span>' +
+            '<img src="data:invalid-data:image/png;base64,AAAA">'
+        );
+        expect(result).toBe('<a>link</a><span>span</span><img>');
+    });
+
+    it('handles empty URLs and only secures anchor targets', () => {
+        const result = sanitizeHtml('<a href="">empty</a><span target="_blank">span</span>');
+        expect(result).toBe('<a href="">empty</a><span target="_blank">span</span>');
+    });
+
+    it('returns an empty result when no DOM is available', () => {
+        const originalDocument = global.document;
+        Object.defineProperty(global, 'document', { configurable: true, value: undefined });
+        try {
+            expect(sanitizeHtml('<b>ignored</b>')).toBe('');
+        } finally {
+            Object.defineProperty(global, 'document', { configurable: true, value: originalDocument });
+        }
     });
 });

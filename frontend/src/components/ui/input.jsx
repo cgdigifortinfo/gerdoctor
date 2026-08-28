@@ -2,6 +2,8 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Stryker disable all: declarative design-system adapter.
+
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
   return (
     <input

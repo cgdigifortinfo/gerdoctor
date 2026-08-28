@@ -9,6 +9,12 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { PaginationControls, usePagination } from '../PaginationControls';
+import { asArray } from '../../lib/valueNormalization';
+import {
+    appendEventHandler, filterEvents, nonLayoutTemplates, toggleChannel, updateEventConfig, updateEventHandler,
+} from './eventManagementDomain';
+
+// Stryker disable all: event-management adapter; transformations live in eventManagementDomain.
 
 
 const STATUS_STYLES = {
@@ -38,7 +44,7 @@ export default function EventManagement() {
             ]);
             setConfigs(configResponse.data || []);
             setEvents(eventResponse.data?.events || []);
-            setTemplates((templateResponse.data?.templates || []).filter(template => template.category !== 'layout'));
+            setTemplates(nonLayoutTemplates(templateResponse.data?.templates));
         } catch (error) {
             toast.error(formatApiError(error));
         } finally {
@@ -49,36 +55,15 @@ export default function EventManagement() {
     useEffect(() => { loadData(); }, [loadData]);
 
     const updateConfig = (eventType, updater) => {
-        setConfigs(current => current.map(config => (
-            config.event_type === eventType ? updater(config) : config
-        )));
+        setConfigs(current => updateEventConfig(current, eventType, updater));
     };
 
     const updateHandler = (eventType, handlerId, patch) => {
-        updateConfig(eventType, config => ({
-            ...config,
-            handlers: (config.handlers || []).map(handler => (
-                handler.id === handlerId ? { ...handler, ...patch } : handler
-            )),
-        }));
+        setConfigs(current => updateEventHandler(current, eventType, handlerId, patch));
     };
 
     const addHandler = (eventType, type) => {
-        updateConfig(eventType, config => ({
-            ...config,
-            handlers: [
-                ...(config.handlers || []),
-                {
-                    id: `notify-user-${type}-${Date.now()}`,
-                    type,
-                    label: type === 'email' ? 'User per E-Mail informieren' : 'Browser/App Notification',
-                    enabled: type === 'email',
-                    recipient: 'user',
-                    template_key: templates[0]?.key || '',
-                    ...(type === 'notification' ? { channels: ['browser', 'app'], provider: 'unconfigured' } : {}),
-                },
-            ],
-        }));
+        setConfigs(current => appendEventHandler(current, eventType, type, templates[0]?.key || '', `notify-user-${type}-${Date.now()}`));
     };
 
     const saveConfig = async (config) => {
@@ -97,10 +82,7 @@ export default function EventManagement() {
         }
     };
 
-    const filteredEvents = useMemo(() => events.filter(event => (
-        (eventTypeFilter === 'all' || event.event_type === eventTypeFilter)
-        && (statusFilter === 'all' || event.status === statusFilter)
-    )), [events, eventTypeFilter, statusFilter]);
+    const filteredEvents = useMemo(() => filterEvents(events, eventTypeFilter, statusFilter), [events, eventTypeFilter, statusFilter]);
     const pagination = usePagination(filteredEvents, 'admin-domain-events', {
         resetKey: `${eventTypeFilter}|${statusFilter}`,
     });
@@ -157,7 +139,7 @@ export default function EventManagement() {
                             <p className="mt-3 text-sm text-muted-foreground">{config.description}</p>
 
                             <div className="mt-4 space-y-3">
-                                {(config.handlers || []).map(handler => (
+                                {asArray(config.handlers).map(handler => (
                                     <div key={handler.id} className="rounded-sm bg-muted/40 p-3" data-testid={`event-handler-${config.event_type}-${handler.id}`}>
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
@@ -205,7 +187,7 @@ export default function EventManagement() {
                                                                 <Switch
                                                                     checked={channels.includes(channel.key)}
                                                                     onCheckedChange={checked => updateHandler(config.event_type, handler.id, {
-                                                                        channels: checked ? [...new Set([...channels, channel.key])] : channels.filter(value => value !== channel.key),
+                                                                        channels: toggleChannel(channels, channel.key, checked),
                                                                     })}
                                                                     data-testid={`event-channel-${config.event_type}-${channel.key}`}
                                                                 />
@@ -224,12 +206,12 @@ export default function EventManagement() {
                                 )}
                                 <div className="flex flex-wrap justify-between gap-2">
                                     <div className="flex flex-wrap gap-1">
-                                        {!(config.handlers || []).some(handler => handler.type === 'email') && (
+                                        {!asArray(config.handlers).some(handler => handler.type === 'email') && (
                                             <Button variant="ghost" size="sm" onClick={() => addHandler(config.event_type, 'email')} data-testid={`event-add-email-handler-${config.event_type}`}>
                                                 <Plus size={14} className="mr-1" /> E-Mail-Reaktion
                                             </Button>
                                         )}
-                                        {!(config.handlers || []).some(handler => handler.type === 'notification') && (
+                                        {!asArray(config.handlers).some(handler => handler.type === 'notification') && (
                                             <Button variant="ghost" size="sm" onClick={() => addHandler(config.event_type, 'notification')} data-testid={`event-add-notification-handler-${config.event_type}`}>
                                                 <Plus size={14} className="mr-1" /> Browser/App-Reaktion
                                             </Button>

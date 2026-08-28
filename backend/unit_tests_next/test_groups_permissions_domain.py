@@ -99,6 +99,7 @@ def test_all_admin_permission_routes(method, path, expected):
     ("POST", "/api/partners/p/submit", "survey.own.submit"),
     ("GET", "/api/partners/p", None), ("GET", "/api/files/f", "files.own.manage"),
     ("GET", "/api/partner/profile", "partner.users.view"), ("POST", "/unrelated", None),
+    ("POST", "/api/partner/logo", "profile.self.manage"),
     ("PATCH", "/api/partner/users/u", "partner.users.manage"),
 ])
 def test_all_portal_permission_routes(method, path, expected):

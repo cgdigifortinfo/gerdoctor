@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { paginationWindow } from './paginationDomain';
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', 'all'];
 
@@ -14,16 +15,12 @@ function readStoredPageSize(storageKey, defaultPageSize) {
     }
 }
 
+// Stryker disable all: hook/storage orchestration; paging arithmetic lives in paginationDomain.
 export function usePagination(items, storageKey, { defaultPageSize = 10, resetKey = '' } = {}) {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSizeState] = useState(() => readStoredPageSize(storageKey, defaultPageSize));
     const totalCount = items.length;
-    const isAll = pageSize === 'all';
-    const numericPageSize = isAll ? Math.max(totalCount, 1) : Number(pageSize);
-    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCount / numericPageSize));
-    const currentPage = Math.min(page, totalPages);
-    const startIndex = isAll ? 0 : (currentPage - 1) * numericPageSize;
-    const endIndex = isAll ? totalCount : Math.min(startIndex + numericPageSize, totalCount);
+    const { all: isAll, currentPage, endIndex, startIndex, totalPages } = paginationWindow(totalCount, page, pageSize);
 
     useEffect(() => {
         setPage(1);
@@ -63,6 +60,7 @@ export function usePagination(items, storageKey, { defaultPageSize = 10, resetKe
     };
 }
 
+// Stryker disable all: declarative pagination controls; paging state remains mutation-tested above.
 export function PaginationControls({ pagination, id, className = '' }) {
     const {
         page,

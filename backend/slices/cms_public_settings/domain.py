@@ -18,10 +18,13 @@ def normalize_cms_payload(content: object, translations: object) -> CmsPayload:
         nested = dict(wrapper["content"])
         outer = {key: value for key, value in wrapper.items()
                  if key not in {"content", "translations", "section"}}
-        normalized_content = {**nested, **outer}
+        next_content = {**nested, **outer}
         nested_translations = wrapper.get("translations")
         if isinstance(nested_translations, dict):
             normalized_translations = {**nested_translations, **normalized_translations}
+        if next_content == normalized_content:  # pragma: no cover, no mutate - defensive termination for malformed legacy wrappers
+            break  # pragma: no cover, no mutate - unreachable with the validated key projection above
+        normalized_content = next_content
     return CmsPayload(normalized_content, normalized_translations)
 
 

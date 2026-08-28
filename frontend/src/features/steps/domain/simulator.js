@@ -1,7 +1,10 @@
 import { evaluateCondition } from './conditionEvaluator';
 
 export function simulateJourney(steps, profile = {}) {
-    const sortedSteps = [...(steps || [])].sort((left, right) => left.order - right.order);
+    const emptyResult = () => ({ hidden: new Set(), blocked: new Set(), autoComplete: new Set() });
+    if (!Array.isArray(steps)) return emptyResult();
+    const sourceSteps = steps;
+    const sortedSteps = [...sourceSteps].sort((left, right) => left.order - right.order);
     const stepDataByOrder = {};
     sortedSteps.forEach(step => {
         const entry = profile[step.order] || {};
@@ -15,7 +18,9 @@ export function simulateJourney(steps, profile = {}) {
     const autoComplete = new Set();
     sortedSteps.forEach(step => {
         const stepId = step.id || step.step_id;
-        for (const condition of (step.conditions || [])) {
+        if (!Array.isArray(step.conditions)) return;
+        const conditions = step.conditions;
+        for (const condition of conditions) {
             if (!evaluateCondition(condition, stepDataByOrder)) continue;
             if (condition.action === 'hide') hidden.add(stepId);
             else if (condition.action === 'block') blocked.add(stepId);
