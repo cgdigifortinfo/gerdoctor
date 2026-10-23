@@ -51,7 +51,7 @@ export function AuditTab(props) {
                                         <Label className="text-xs text-muted-foreground">To</Label>
                                         <Input type="date" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)} className="h-9 text-sm border-border w-40" data-testid="audit-date-to" />
                                     </div>
-                                    <Button size="sm" onClick={handleAuditFilter} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white h-9" data-testid="audit-apply-filter">
+                                    <Button size="sm" onClick={handleAuditFilter} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white h-9" data-testid="audit-apply-filter">
                                         Filter
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={handleClearAuditFilter} className="text-muted-foreground h-9" data-testid="audit-clear-filter">

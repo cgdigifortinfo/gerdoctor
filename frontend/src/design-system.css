@@ -6,6 +6,9 @@
  * All dimensions introduced here use rem or fluid units.
  */
 
+/* Share Tailwind's layer so utility classes retain their original specificity. */
+@layer utilities {
+
 :root {
   --brand-primary: #004856;
   --brand-primary-hover: #003845;
@@ -892,4 +895,6 @@ button:not([role="switch"]):not([data-testid^="flow-edit-"]):not([data-testid^="
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
 }

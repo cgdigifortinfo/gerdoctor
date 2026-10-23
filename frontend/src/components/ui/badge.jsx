@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 // Stryker disable all: declarative design-system adapter.
 
 const badgeVariants = cva(
-  "inline-flex min-h-6 items-center rounded-lg border px-2 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex min-h-6 items-center rounded-lg border px-2 py-0.5 text-xs font-medium transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {

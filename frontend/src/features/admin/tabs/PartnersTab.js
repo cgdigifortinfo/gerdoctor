@@ -29,7 +29,7 @@ export function PartnersTab(props) {
                         <div className="bg-card border border-border rounded-sm">
                             <div className="p-4 border-b border-border flex flex-wrap gap-3 justify-between items-center">
                                 <div><h2 className="text-lg font-semibold text-foreground">Partner Management</h2><SegmentedControl className="mt-2" value={partnerView} onChange={setPartnerView} options={[{ value: 'active', label: 'Aktive Partner' }, { value: 'pending', label: `Neue Partner (${pendingPartnerCount(partners)})`, testId: 'pending-partners-view' }]} /></div>
-                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="add-partner-btn">
+                                <Button onClick={() => { setEditingPartner(null); setShowPartnerDialog(true); }} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="add-partner-btn">
                                     <Plus size={18} className="mr-2" /> Add Partner
                                 </Button>
                             </div>
@@ -90,7 +90,7 @@ export function PartnersTab(props) {
                                                                 </Button>
                                                             </div>
                                                         ) : (
-                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-[var(--brand-primary)] h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
+                                                            <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(partner)} className="text-(--brand-primary) h-7 text-xs" data-testid={`link-partner-${partner.id}`}>
                                                                 <UserPlus size={14} className="mr-1" /> Link User
                                                             </Button>
                                                         )}

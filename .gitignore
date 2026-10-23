@@ -24,7 +24,9 @@ backend/htmlcov/
 backend/mutants/
 backend/.mutmut-cache
 frontend/coverage/
+frontend/build/
 frontend/reports/mutation/
+frontend/.stryker-tmp/
 
 # Next.js
 /.next/

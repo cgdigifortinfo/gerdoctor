@@ -60,14 +60,14 @@ export function AnalyticsTab(props) {
                                             <div key={step.step_id} className="space-y-2">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="w-6 h-6 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-xs font-bold">
+                                                        <span className="w-6 h-6 rounded-full bg-(--brand-primary) text-white flex items-center justify-center text-xs font-bold">
                                                             {step.order}
                                                         </span>
                                                         <span className="font-medium text-sm text-foreground">{step.title}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span>{step.completed}/{step.total} completed</span>
-                                                        <span className="font-bold text-[var(--brand-primary)]">{step.completion_rate}%</span>
+                                                        <span className="font-bold text-(--brand-primary)">{step.completion_rate}%</span>
                                                     </div>
                                                 </div>
                                                 <Progress value={step.completion_rate} className="h-2" />

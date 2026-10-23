@@ -1,6 +1,6 @@
 services:
   mongo:
-    image: mongo:7
+    image: mongo:7.0.45
     container_name: gerdoctor-mongo
     restart: unless-stopped
     ports:
@@ -47,7 +47,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3001
       BROWSER: none
-      # Keep browser API calls same-origin; CRACO proxies /api to the backend.
+      # Keep browser API calls same-origin; Vite proxies /api to the backend.
       REACT_APP_BACKEND_URL: ""
       API_PROXY_TARGET: http://backend:8001
 

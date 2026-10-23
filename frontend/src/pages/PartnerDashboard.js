@@ -108,10 +108,10 @@ export function Timeline({ series, accent = 'var(--brand-primary)' }) {
 export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBilling }) {
     return (
         <section className="relative overflow-hidden bg-card border border-border rounded-sm" data-testid="partner-pending-activation">
-            <div className="absolute inset-x-0 top-0 h-1 bg-[var(--brand-primary)]" />
+            <div className="absolute inset-x-0 top-0 h-1 bg-(--brand-primary)" />
             <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
                 <div className="p-7 sm:p-10 lg:p-12">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/10 px-3 py-1 text-xs font-semibold text-[var(--brand-primary)]">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-(--brand-primary)/20 bg-(--brand-primary)/10 px-3 py-1 text-xs font-semibold text-(--brand-primary)">
                         <ClockCountdown size={16} weight="duotone" /> Freischaltung wird vorbereitet
                     </div>
                     <p className="mt-7 text-sm font-medium text-muted-foreground">Willkommen{partnerName ? `, ${partnerName}` : ''}</p>
@@ -123,7 +123,7 @@ export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBillin
                     </p>
 
                     <div className="mt-8 flex flex-wrap gap-3">
-                        <Button onClick={onOpenProfile} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="pending-open-profile">
+                        <Button onClick={onOpenProfile} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="pending-open-profile">
                             <Gear size={18} className="mr-2" /> Profil vervollständigen
                         </Button>
                         <Button variant="outline" onClick={onOpenBilling} data-testid="pending-open-billing">
@@ -138,7 +138,7 @@ export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBillin
                             { number: '03', title: 'Freischaltung', text: 'Surveys und Nutzeransichten werden aktiviert.' },
                         ].map(item => (
                             <div key={item.number} className="rounded-sm border border-border bg-background/60 p-4">
-                                <span className="text-xs font-bold tracking-wider text-[var(--brand-primary)]">{item.number}</span>
+                                <span className="text-xs font-bold tracking-wider text-(--brand-primary)">{item.number}</span>
                                 <p className="mt-2 text-sm font-semibold text-foreground">{item.title}</p>
                                 <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
                             </div>
@@ -147,7 +147,7 @@ export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBillin
                 </div>
 
                 <aside className="border-t lg:border-l lg:border-t-0 border-border bg-muted/25 p-7 sm:p-10 flex flex-col justify-center">
-                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-(--brand-primary)/10 text-(--brand-primary)">
                         <ShieldCheck size={42} weight="duotone" />
                     </div>
                     <h2 className="mt-6 text-center text-lg font-semibold text-foreground">Ihre Einstellungen bleiben verfügbar</h2>
@@ -155,7 +155,7 @@ export function PendingActivationPage({ partnerName, onOpenProfile, onOpenBillin
                         Profil-, Rechnungs- und Stripe-Einstellungen können Sie bereits jetzt vollständig pflegen.
                     </p>
                     <div className="mt-7 flex items-start gap-3 rounded-sm border border-border bg-card p-4">
-                        <EnvelopeSimple size={20} className="mt-0.5 shrink-0 text-[var(--brand-primary)]" />
+                        <EnvelopeSimple size={20} className="mt-0.5 shrink-0 text-(--brand-primary)" />
                         <p className="text-xs leading-5 text-muted-foreground">Sie müssen nichts weiter veranlassen. Wir informieren Sie, sobald Ihr Bereich freigeschaltet wurde.</p>
                     </div>
                 </aside>
@@ -199,8 +199,8 @@ export function UserTable({ data, onViewUser, onReopenUser, showStatus = false, 
             <div className="flex items-center gap-1">
                 {label}
                 <span className="inline-flex flex-col leading-none">
-                    <CaretUp size={10} weight={sortKey === sortField && sortDir === 'asc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'asc' ? 'text-[var(--brand-primary)]' : 'text-muted-foreground/40'} />
-                    <CaretDown size={10} weight={sortKey === sortField && sortDir === 'desc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'desc' ? 'text-[var(--brand-primary)]' : 'text-muted-foreground/40'} />
+                    <CaretUp size={10} weight={sortKey === sortField && sortDir === 'asc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'asc' ? 'text-(--brand-primary)' : 'text-muted-foreground/40'} />
+                    <CaretDown size={10} weight={sortKey === sortField && sortDir === 'desc' ? 'bold' : 'regular'} className={sortKey === sortField && sortDir === 'desc' ? 'text-(--brand-primary)' : 'text-muted-foreground/40'} />
                 </span>
             </div>
         </th>
@@ -299,7 +299,7 @@ export function UserTable({ data, onViewUser, onReopenUser, showStatus = false, 
                                 {partnerTags.length > 0 && (
                                     <td className="px-4 py-3 text-sm" data-testid={`match-${item.user_id || item.id}`}>
                                         {item.match_score > 0 ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold bg-(--brand-primary)/10 text-(--brand-primary)">
                                                 <Star size={11} weight="fill" />
                                                 {item.match_score}
                                             </span>
@@ -317,7 +317,7 @@ export function UserTable({ data, onViewUser, onReopenUser, showStatus = false, 
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2 min-w-[100px]">
                                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${item.completion_pct || 0}%` }} />
+                                            <div className="h-full bg-(--brand-primary) rounded-full transition-all" style={{ width: `${item.completion_pct || 0}%` }} />
                                         </div>
                                         <span className="text-xs font-medium text-muted-foreground w-8 text-right">{item.completion_pct || 0}%</span>
                                     </div>
@@ -542,7 +542,6 @@ export default function PartnerDashboard({ location = window.location }) {
         url.searchParams.delete('openUser');
         window.history.replaceState({}, '', url.toString());
         setDeepLinkUserId('');
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [deepLinkUserId, loading, submissions, otherUsers]);
 
     // Split submissions into active ("My Users") vs completed ("Completed Users")
@@ -719,27 +718,27 @@ export default function PartnerDashboard({ location = window.location }) {
                 ) : (
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList className="main-navigation mb-6 bg-card border border-border">
-                            <TabsTrigger value="my-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-my-users">
+                            <TabsTrigger value="my-users" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-my-users">
                                 <UserList size={18} className="mr-2" />
                                 {isAwaitingAssignment ? 'Übersicht' : `${t('partner_my_users')} (${activeSubmissions.length})`}
                             </TabsTrigger>
-                            {!isAwaitingAssignment && <TabsTrigger value="completed-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-completed-users">
+                            {!isAwaitingAssignment && <TabsTrigger value="completed-users" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-completed-users">
                                 <CheckCircle size={18} className="mr-2" />
                                 Completed Users ({completedSubmissions.length})
                             </TabsTrigger>}
-                            {!isAwaitingAssignment && <TabsTrigger value="other-users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-other-users">
+                            {!isAwaitingAssignment && <TabsTrigger value="other-users" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-other-users">
                                 <UsersThree size={18} className="mr-2" />
                                 {t('partner_other_users')} ({otherUsers.length})
                             </TabsTrigger>}
-                            <TabsTrigger value="insights" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-insights">
+                            <TabsTrigger value="insights" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-insights">
                                 <ChartLine size={18} className="mr-2" />
                                 Insights
                             </TabsTrigger>
-                            <TabsTrigger value="profile" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-profile">
+                            <TabsTrigger value="profile" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-profile">
                                 <Gear size={18} className="mr-2" />
                                 {t('partner_profile')}
                             </TabsTrigger>
-                            <TabsTrigger value="billing" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="tab-billing"><CreditCard size={18} className="mr-2"/>Abrechnung</TabsTrigger>
+                            <TabsTrigger value="billing" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="tab-billing"><CreditCard size={18} className="mr-2"/>Abrechnung</TabsTrigger>
                         </TabsList>
 
                         {/* Tab 1: My Users (submitted to this partner — work still ongoing) */}
@@ -793,15 +792,15 @@ export default function PartnerDashboard({ location = window.location }) {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Neue Anfragen (7 Tage)</p>
-                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-new-7d">{insights?.new_submissions_7d ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-(--brand-primary)" data-testid="kpi-new-7d">{insights?.new_submissions_7d ?? 0}</p>
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Neue Anfragen (30 Tage)</p>
-                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-new-30d">{insights?.new_submissions_30d ?? 0}</p>
+                                        <p className="text-3xl font-bold mt-2 text-(--brand-primary)" data-testid="kpi-new-30d">{insights?.new_submissions_30d ?? 0}</p>
                                     </div>
                                     <div className="bg-card border border-border rounded-sm p-5">
                                         <p className="text-xs uppercase tracking-wider text-muted-foreground">Verknüpfte Kandidaten</p>
-                                        <p className="text-3xl font-bold mt-2 text-[var(--brand-primary)]" data-testid="kpi-total-users">{insights.total_linked_users}</p>
+                                        <p className="text-3xl font-bold mt-2 text-(--brand-primary)" data-testid="kpi-total-users">{insights.total_linked_users}</p>
                                     </div>
                                 </div>
 
@@ -839,7 +838,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                         ))}
                                     </div>
                                     <p className="text-center text-sm text-muted-foreground mt-4">
-                                        Conversion-Rate: <span className="font-semibold text-[var(--brand-primary)]" data-testid="conversion-rate">{insights?.conversion_rate_pct ?? 0}%</span>
+                                        Conversion-Rate: <span className="font-semibold text-(--brand-primary)" data-testid="conversion-rate">{insights?.conversion_rate_pct ?? 0}%</span>
                                     </p>
                                 </div>
                             </div>
@@ -886,7 +885,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                 <p className="text-xs text-muted-foreground mt-1 mb-2">Fügen Sie Bundesländer und Fachrichtungen hinzu, mit denen Ihr Angebot matched. Bewerber mit passenden Werten erhalten ein „Match"-Score in Ihrer Liste.</p>
                                                 <div className="flex flex-wrap gap-1.5 mb-2">
                                                     {profileForm.tags.map(tag => (
-                                                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm" data-testid={`tag-chip-${tag}`}>
+                                                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-(--brand-primary)/10 text-(--brand-primary) rounded-sm" data-testid={`tag-chip-${tag}`}>
                                                             {tag}
                                                             <button type="button" onClick={() => handleRemoveTag(tag)} className="hover:text-red-500" data-testid={`remove-tag-${tag}`}>
                                                                 <X size={11} weight="bold" />
@@ -915,14 +914,14 @@ export default function PartnerDashboard({ location = window.location }) {
                                                 <div className="mt-3 flex flex-wrap gap-1">
                                                     <span className="text-[11px] text-muted-foreground mr-1">Schnellauswahl:</span>
                                                     {BUNDESLAENDER.slice(0, 8).map(bl => (
-                                                        <button key={bl} type="button" onClick={() => handleAddTag(bl)} className="text-[11px] px-1.5 py-0.5 border border-border rounded-sm text-muted-foreground hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]">{bl}</button>
+                                                        <button key={bl} type="button" onClick={() => handleAddTag(bl)} className="text-[11px] px-1.5 py-0.5 border border-border rounded-sm text-muted-foreground hover:border-(--brand-primary) hover:text-(--brand-primary)">{bl}</button>
                                                     ))}
                                                 </div>
                                             </div>
 
                                             <div className="flex gap-3 pt-4 border-t border-border">
                                                 <Button variant="outline" onClick={() => { setEditingProfile(false); setProfileForm(profile); setLogoFile(null); setLogoPreview(''); }}>{t('cancel')}</Button>
-                                                <Button onClick={handleSaveProfile} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-profile-btn">{t('save')}</Button>
+                                                <Button onClick={handleSaveProfile} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="save-profile-btn">{t('save')}</Button>
                                             </div>
                                         </div>
                                     ) : (
@@ -940,7 +939,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     {profile.tags.length === 0 && <span className="text-sm text-muted-foreground">Keine Tags</span>}
                                                     {profile.tags.map(tag => (
-                                                        <span key={tag} className="inline-block px-2 py-1 text-xs bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{tag}</span>
+                                                        <span key={tag} className="inline-block px-2 py-1 text-xs bg-(--brand-primary)/10 text-(--brand-primary) rounded-sm">{tag}</span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1000,7 +999,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
                                         <Label className="text-muted-foreground">Fortschritt</Label>
-                                        <span className="text-sm font-medium text-[var(--brand-primary)]" data-testid="detail-completion-pct">{userDetail.completion_pct}%</span>
+                                        <span className="text-sm font-medium text-(--brand-primary)" data-testid="detail-completion-pct">{userDetail.completion_pct}%</span>
                                     </div>
                                     <Progress value={userDetail.completion_pct} className="h-2 mb-4" />
                                     <div className="space-y-3">
@@ -1013,10 +1012,10 @@ export default function PartnerDashboard({ location = window.location }) {
                                             const isPartnerMilestone = isPartnerStep && step.step_type === 'milestone';
                                             const upload = uploadState[step.id] || {};
                                             return (
-                                                <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
+                                                <div key={step.id} className={`border rounded-sm overflow-hidden ${isPartnerStep && status !== 'completed' ? 'border-(--brand-primary) ring-1 ring-(--brand-primary)/20' : 'border-border'}`} data-testid={`detail-step-${step.order}`}>
                                                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${status === 'completed' ? 'bg-green-500 text-white' : status === 'in_progress' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>
                                                                 {status === 'completed' ? <Check size={12} weight="bold" /> : step.order}
                                                             </div>
                                                             <div>
@@ -1052,9 +1051,9 @@ export default function PartnerDashboard({ location = window.location }) {
                                                                                 <div className="mt-1 space-y-1.5">
                                                                                     {value.map((entry, i) => (
                                                                                         <div key={i} className="flex items-center gap-2 text-sm">
-                                                                                            {entry.document_type && <span className="px-2 py-0.5 text-xs font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{entry.document_type}</span>}
+                                                                                            {entry.document_type && <span className="px-2 py-0.5 text-xs font-medium bg-(--brand-primary)/10 text-(--brand-primary) rounded-sm">{entry.document_type}</span>}
                                                                                             {entry.file_id ? (
-                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline font-medium" data-testid={`download-${step.order}-${key}-${i}`}>
+                                                                                                <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-(--brand-primary) hover:underline font-medium" data-testid={`download-${step.order}-${key}-${i}`}>
                                                                                                     <DownloadSimple size={14} />{entry.filename || 'Download'}
                                                                                                 </a>
                                                                                             ) : <span className="text-muted-foreground">{entry.filename || '-'}</span>}
@@ -1068,7 +1067,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                                         return (
                                                                             <div key={key} data-testid={`step-data-${step.order}-${key}`}>
                                                                                 <span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span>
-                                                                                <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[var(--brand-primary)] hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
+                                                                                <div className="mt-0.5"><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-(--brand-primary) hover:underline font-medium"><DownloadSimple size={14} />Download</a></div>
                                                                             </div>
                                                                         );
                                                                     }
@@ -1099,7 +1098,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                                     <div key={i} className="flex items-center gap-2 text-sm">
                                                                         <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-sm">{entry.document_type || 'Nachweis'}</span>
                                                                         {entry.file_id && (
-                                                                            <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--brand-primary)] hover:underline font-medium" data-testid={`partner-upload-dl-${step.order}-${i}`}>
+                                                                            <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-(--brand-primary) hover:underline font-medium" data-testid={`partner-upload-dl-${step.order}-${i}`}>
                                                                                 <DownloadSimple size={14} />{entry.filename || 'Download'}
                                                                             </a>
                                                                         )}
@@ -1115,7 +1114,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                         </div>
                                                     )}
                                                     {isPartnerMilestone && status !== 'completed' && (
-                                                        <div className="px-4 py-3 border-t border-border bg-[var(--brand-primary)]/5" data-testid={`milestone-partner-action-${step.order}`}>
+                                                        <div className="px-4 py-3 border-t border-border bg-(--brand-primary)/5" data-testid={`milestone-partner-action-${step.order}`}>
                                                             <p className="text-sm font-semibold text-foreground">Partner-Aktion</p>
                                                             <p className="mb-3 mt-1 text-xs text-muted-foreground">Optional einen Nachweis hochladen und den Step abschließen – oder mit Begründung ablehnen.</p>
                                                             <div className="space-y-3">
@@ -1137,7 +1136,7 @@ export default function PartnerDashboard({ location = window.location }) {
                                                                         size="sm"
                                                                         onClick={() => handlePartnerStepAction(userDetail.id, step.id, 'complete')}
                                                                         disabled={upload.uploading}
-                                                                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-xs h-9 px-3"
+                                                                        className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white text-xs h-9 px-3"
                                                                         data-testid={`milestone-complete-btn-${step.order}`}
                                                                     >
                                                                         <CheckCircle size={14} className="mr-1" />

@@ -2,9 +2,9 @@ import { adminAPI, settingsAPI } from '../../../lib/api';
 import { toast } from 'sonner';
 import { useAdminBillingCommands } from './useAdminBillingCommands';
 import { useAdminCmsCommands } from './useAdminCmsCommands';
-import { useAdminPartnerCommands } from './useAdminPartnerCommands';
-import { useAdminStepCommands } from './useAdminStepCommands';
-import { useAdminUserCommands } from './useAdminUserCommands';
+import { useAdminPartnerCommands as createAdminPartnerCommands } from './useAdminPartnerCommands';
+import { useAdminStepCommands as createAdminStepCommands } from './useAdminStepCommands';
+import { useAdminUserCommands as createAdminUserCommands } from './useAdminUserCommands';
 
 jest.mock('../../../lib/api', () => ({
   adminAPI: Object.fromEntries(['auditStripeConnections','repairStripeConnection','repairAllStripeConnections','updateCmsContent','updatePartner','createPartner','deletePartner','linkPartnerUser','unlinkPartnerUser','updateStep','createStep','createSurvey','deleteStep','reorderSteps','saveStepAsTemplate','applyStepTemplate','deleteStepTemplate','impersonateUser','getUser','updateUserPermissions','updateUserRole','updateUserProgress','bulkUpdateRole','exportUsersCsv','createUser'].map(key => [key, jest.fn()])),
@@ -77,7 +77,7 @@ test('CMS command saves and reports failures with balanced busy state', async ()
 
 function partnerCommands(editingPartner = null) {
   const deps = { editingPartner, setShowPartnerDialog: jest.fn(), setEditingPartner: jest.fn(), loadData: jest.fn(), setConfirmDialog: jest.fn(), setShowLinkDialog: jest.fn() };
-  return { deps, commands: useAdminPartnerCommands(deps) };
+  return { deps, commands: createAdminPartnerCommands(deps) };
 }
 
 test('partner commands create, update, delete, link and unlink', async () => {
@@ -115,7 +115,7 @@ test('partner commands report failures including deferred delete', async () => {
 
 function stepCommands(overrides = {}) {
   const deps = { activeSurveyId: 'survey', editingStep: null, setSteps: jest.fn(), setShowStepDialog: jest.fn(), setEditingStep: jest.fn(), loadData: jest.fn(), setActiveSurveyId: jest.fn(), setShowTemplatesPanel: jest.fn(), setStepsView: jest.fn(), surveys: [{ id: 'survey', slug: 'survey-slug' }], navigate: jest.fn(), setConfirmDialog: jest.fn(), steps: [{ id: 'a', order: 1 }, { id: 'b', order: 2 }], ...overrides };
-  return { deps, commands: useAdminStepCommands(deps) };
+  return { deps, commands: createAdminStepCommands(deps) };
 }
 
 test('step commands create and update steps and switch surveys', async () => {
@@ -283,7 +283,7 @@ test('step command guards reject cancelled input and movement boundaries exactly
 
 function userCommands(overrides = {}) {
   const deps = { impersonate: jest.fn(), navigate: jest.fn(), setSelectedUser: jest.fn(), setUserPermissionDraft: jest.fn(), setShowUserDialog: jest.fn(), selectedUser: { id: 'u1' }, setSavingUserPermissions: jest.fn(), userPermissionDraft: { allow: [] }, loadPermissionData: jest.fn(), loadData: jest.fn(), setSelectedUserIds: jest.fn(), selectedUserIds: ['u1'], filteredUsers: [{ id: 'u1' }, { id: 'u2' }], bulkRole: 'partner', setShowCreateUserDialog: jest.fn(), ...overrides };
-  return { deps, commands: useAdminUserCommands(deps) };
+  return { deps, commands: createAdminUserCommands(deps) };
 }
 
 test('user commands cover impersonation, details, permissions, progress and roles', async () => {

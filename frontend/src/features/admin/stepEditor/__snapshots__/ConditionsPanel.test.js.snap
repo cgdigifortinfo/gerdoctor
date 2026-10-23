@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`compound condition normalizes sources, fields, operators and values exactly 1`] = `
 Array [
@@ -112,21 +112,21 @@ exports[`compound condition normalizes sources, fields, operators and values exa
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -135,10 +135,10 @@ exports[`compound condition normalizes sources, fields, operators and values exa
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -146,28 +146,28 @@ exports[`compound condition normalizes sources, fields, operators and values exa
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -176,7 +176,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-0"
     >
       <div
@@ -200,7 +200,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -250,7 +250,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
           </div>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="condition-add-child-0"
           type="button"
         >
@@ -397,7 +397,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-0"
                 type="button"
               >
@@ -554,7 +554,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-1"
                 type="button"
               >
@@ -625,7 +625,7 @@ exports[`compound condition normalizes sources, fields, operators and values exa
             Hinweis für Nutzer
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-0"
           />
         </div>
@@ -765,21 +765,21 @@ exports[`compound operator conversion preserves empty and populated array bounda
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -788,10 +788,10 @@ exports[`compound operator conversion preserves empty and populated array bounda
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -799,28 +799,28 @@ exports[`compound operator conversion preserves empty and populated array bounda
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -829,7 +829,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-0"
     >
       <div
@@ -853,7 +853,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -903,7 +903,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
           </div>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="condition-add-child-0"
           type="button"
         >
@@ -1040,7 +1040,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
                 4. Vergleichswert
               </label>
               <input
-                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                 data-testid="condition-child-value-input-0-0"
                 value=""
               />
@@ -1049,7 +1049,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-0"
                 type="button"
               >
@@ -1192,7 +1192,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-1"
                 type="button"
               >
@@ -1336,7 +1336,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-2"
                 type="button"
               >
@@ -1407,7 +1407,7 @@ exports[`compound operator conversion preserves empty and populated array bounda
             Hinweis für Nutzer
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-0"
           >
             Blocked
@@ -1443,21 +1443,21 @@ exports[`conditions panel covers empty preset options and missing compound metad
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -1466,10 +1466,10 @@ exports[`conditions panel covers empty preset options and missing compound metad
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -1477,28 +1477,28 @@ exports[`conditions panel covers empty preset options and missing compound metad
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -1507,7 +1507,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-0"
     >
       <div
@@ -1531,7 +1531,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -1581,7 +1581,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
           </div>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="condition-add-child-0"
           type="button"
         >
@@ -1719,7 +1719,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
                 4. Vergleichswert
               </label>
               <input
-                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                 data-testid="condition-child-value-input-0-0"
                 value=""
               />
@@ -1728,7 +1728,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-0"
                 type="button"
               >
@@ -1871,7 +1871,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
               class="lg:col-span-2 flex justify-end"
             >
               <button
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm text-red-500"
                 data-testid="condition-remove-child-0-1"
                 type="button"
               >
@@ -1942,14 +1942,14 @@ exports[`conditions panel covers empty preset options and missing compound metad
             Hinweis für Nutzer
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-0"
           />
         </div>
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-1"
     >
       <div
@@ -1970,7 +1970,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -2074,7 +2074,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
             4. Vergleichswert
           </label>
           <input
-            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             data-testid="condition-value-input-1"
             placeholder="Vergleichswert eingeben"
             value=""
@@ -2170,7 +2170,7 @@ exports[`conditions panel covers empty preset options and missing compound metad
             Hinweis für Nutzer (optional)
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-1"
             placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
           />
@@ -2294,21 +2294,21 @@ exports[`conditions panel covers empty state, creation commands and every preset
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -2317,10 +2317,10 @@ exports[`conditions panel covers empty state, creation commands and every preset
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -2328,28 +2328,28 @@ exports[`conditions panel covers empty state, creation commands and every preset
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -2420,21 +2420,21 @@ exports[`non-redirect simple input condition wires every command and hides its t
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -2443,10 +2443,10 @@ exports[`non-redirect simple input condition wires every command and hides its t
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -2454,28 +2454,28 @@ exports[`non-redirect simple input condition wires every command and hides its t
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -2484,7 +2484,7 @@ exports[`non-redirect simple input condition wires every command and hides its t
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-0"
     >
       <div
@@ -2505,7 +2505,7 @@ exports[`non-redirect simple input condition wires every command and hides its t
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -2609,7 +2609,7 @@ exports[`non-redirect simple input condition wires every command and hides its t
             4. Vergleichswert
           </label>
           <input
-            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            class="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             data-testid="condition-value-input-0"
             placeholder="Vergleichswert eingeben"
             value=""
@@ -2679,7 +2679,7 @@ exports[`non-redirect simple input condition wires every command and hides its t
             Hinweis für Nutzer (optional)
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-0"
             placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
           />
@@ -2787,21 +2787,21 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
         class="flex flex-wrap gap-2"
       >
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition"
           type="button"
         >
            Einzelregel
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-all"
           type="button"
         >
            UND-Gruppe
         </button>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-card hover:bg-accent hover:text-accent-foreground h-9 rounded-lg px-3 text-sm"
           data-testid="add-condition-any"
           type="button"
         >
@@ -2810,10 +2810,10 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
       </div>
     </div>
     <div
-      class="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4"
+      class="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4"
     >
       <p
-        class="mb-2 text-xs font-semibold text-[var(--brand-primary)]"
+        class="mb-2 text-xs font-semibold text-(--brand-primary)"
       >
         Schnellstart mit sinnvoll vorbelegten Regeln
       </p>
@@ -2821,28 +2821,28 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
         class="flex flex-wrap gap-2"
       >
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-0"
           type="button"
         >
           Vorherigen Schritt voraussetzen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-1"
           type="button"
         >
           Fehlendes Dokument blockiert
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-2"
           type="button"
         >
           Mehrere Antworten zulassen
         </button>
         <button
-          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted"
+          class="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted"
           data-testid="condition-preset-3"
           type="button"
         >
@@ -2851,7 +2851,7 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
       </div>
     </div>
     <div
-      class="rounded-lg border border-border bg-card p-4 shadow-sm"
+      class="rounded-lg border border-border bg-card p-4 shadow-xs"
       data-testid="condition-card-0"
     >
       <div
@@ -2872,7 +2872,7 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
           </p>
         </div>
         <button
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground rounded-lg px-3 text-sm h-8 text-red-500"
           type="button"
         >
            Entfernen
@@ -3085,7 +3085,7 @@ exports[`simple condition exposes the exact editor contract and emits exact upda
             Hinweis für Nutzer (optional)
           </label>
           <textarea
-            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
+            class="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1 min-h-[68px]"
             data-testid="condition-message-0"
             placeholder="Erklärt verständlich, warum der Schritt blockiert, verborgen oder weitergeleitet wird."
           >

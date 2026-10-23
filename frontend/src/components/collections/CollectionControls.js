@@ -12,7 +12,7 @@ export function SegmentedControl({ value, onChange, options, className = '', tes
                     key={option.value}
                     type="button"
                     onClick={() => onChange(option.value)}
-                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${index ? 'border-l border-border' : ''} ${value === option.value ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${index ? 'border-l border-border' : ''} ${value === option.value ? 'bg-(--brand-primary) text-white' : 'bg-card text-muted-foreground hover:text-foreground'}`}
                     data-testid={option.testId}
                 >
                     {option.label}

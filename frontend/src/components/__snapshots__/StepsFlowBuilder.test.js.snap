@@ -1,9 +1,9 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: create condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -196,7 +196,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -211,7 +211,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: empty operator condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -403,7 +403,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -418,7 +418,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: legacy condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -623,7 +623,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -638,7 +638,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: sparse condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -843,7 +843,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -858,7 +858,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: status condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -1063,7 +1063,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -1078,7 +1078,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
 exports[`condition modal handles hidden state, field/operator shapes, create, edit, cancel and delete: upload condition modal 1`] = `
 <div>
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-70 flex items-center justify-center bg-black/50"
   >
     <div
       class="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl"
@@ -1283,7 +1283,7 @@ exports[`condition modal handles hidden state, field/operator shapes, create, ed
             Abbrechen
           </button>
           <button
-            class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="condition-confirm-btn"
           >
             Speichern
@@ -1304,7 +1304,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
     data-testid="steps-flow-builder"
   >
     <div
-      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      class="w-48 shrink-0 border-r border-border bg-card p-3"
       data-testid="flow-palette"
     >
       <p
@@ -1321,13 +1321,14 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
         class="space-y-2"
       >
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-form"
           draggable="true"
-          style="border-left-width: 3px;"
+          style="border-left-width: 3px; border-left-color: var(--brand-primary);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
+            style="background: var(--brand-primary);"
           />
           <span
             class="truncate"
@@ -1336,13 +1337,13 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-decision"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #d97706;"
+          style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(217, 119, 6);"
           />
           <span
@@ -1352,13 +1353,13 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_selection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #2563eb;"
+          style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(37, 99, 235);"
           />
           <span
@@ -1368,13 +1369,13 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_multiselection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #7c3aed;"
+          style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(124, 58, 237);"
           />
           <span
@@ -1384,13 +1385,13 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-milestone"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #059669;"
+          style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(5, 150, 105);"
           />
           <span
@@ -1400,13 +1401,13 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-display"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #64748b;"
+          style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(100, 116, 139);"
           />
           <span
@@ -1424,14 +1425,14 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm"
           data-testid="flow-add-step-btn"
         >
           <i />
            Step
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -1440,7 +1441,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Auto-Layout
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild"
           variant="outline"
@@ -1449,7 +1450,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Vollbild
         </button>
         <div
-          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+          class="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden"
         >
           <button
             class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
@@ -1476,7 +1477,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           simulator
         </button>
         <button
-          class="shadow bg-card border-border"
+          class="shadow-sm bg-card border-border"
           data-testid="flow-playback-btn"
           title="Animierten Durchlauf starten"
           variant="outline"
@@ -1489,7 +1490,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1498,7 +1499,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1507,7 +1508,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1516,15 +1517,16 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1533,7 +1535,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -1544,7 +1546,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
         data-testid="flow-empty-state"
       >
         <div
-          class="pointer-events-auto bg-card border border-border rounded-sm shadow-sm p-5 text-center max-w-sm"
+          class="pointer-events-auto bg-card border border-border rounded-sm shadow-xs p-5 text-center max-w-sm"
         >
           <p
             class="text-sm font-semibold text-foreground"
@@ -1557,7 +1559,7 @@ exports[`default wrapper composes the flow provider and empty editor controls: e
             Erstelle den ersten Step oder ziehe einen Step-Typ auf den Canvas.
           </p>
           <button
-            class="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            class="mt-4 bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
             data-testid="flow-empty-add-step-btn"
           >
             <i />
@@ -1600,7 +1602,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -1609,7 +1611,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
           Graph neu ordnen
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild"
           variant="outline"
@@ -1619,7 +1621,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
         </button>
       </div>
       <div
-        class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow px-3 py-2 text-xs text-muted-foreground"
+        class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow-sm px-3 py-2 text-xs text-muted-foreground"
         data-testid="dependency-graph-stats"
       >
         Nur echte Abhängigkeiten · 
@@ -1652,7 +1654,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1661,7 +1663,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1670,7 +1672,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1679,15 +1681,16 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1696,7 +1699,7 @@ exports[`dependency flow disables editing and reports graph statistics: dependen
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -1731,7 +1734,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
     data-testid="steps-flow-builder"
   >
     <div
-      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      class="w-48 shrink-0 border-r border-border bg-card p-3"
       data-testid="flow-palette"
     >
       <p
@@ -1748,13 +1751,14 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="space-y-2"
       >
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-form"
           draggable="true"
-          style="border-left-width: 3px;"
+          style="border-left-width: 3px; border-left-color: var(--brand-primary);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
+            style="background: var(--brand-primary);"
           />
           <span
             class="truncate"
@@ -1763,13 +1767,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-decision"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #d97706;"
+          style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(217, 119, 6);"
           />
           <span
@@ -1779,13 +1783,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_selection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #2563eb;"
+          style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(37, 99, 235);"
           />
           <span
@@ -1795,13 +1799,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_multiselection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #7c3aed;"
+          style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(124, 58, 237);"
           />
           <span
@@ -1811,13 +1815,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-milestone"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #059669;"
+          style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(5, 150, 105);"
           />
           <span
@@ -1827,13 +1831,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-display"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #64748b;"
+          style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(100, 116, 139);"
           />
           <span
@@ -1851,14 +1855,14 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm"
           data-testid="flow-add-step-btn"
         >
           <i />
            Step
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -1867,7 +1871,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Auto-Layout
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild"
           variant="outline"
@@ -1876,7 +1880,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Vollbild
         </button>
         <div
-          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+          class="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden"
         >
           <button
             class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
@@ -1903,7 +1907,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           simulator
         </button>
         <button
-          class="shadow bg-card border-border"
+          class="shadow-sm bg-card border-border"
           data-testid="flow-playback-btn"
           title="Animierten Durchlauf starten"
           variant="outline"
@@ -1916,7 +1920,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1925,7 +1929,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1934,7 +1938,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1943,15 +1947,16 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -1960,7 +1965,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -2669,7 +2674,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
     data-testid="steps-flow-builder"
   >
     <div
-      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      class="w-48 shrink-0 border-r border-border bg-card p-3"
       data-testid="flow-palette"
     >
       <p
@@ -2686,13 +2691,14 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="space-y-2"
       >
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-form"
           draggable="true"
-          style="border-left-width: 3px;"
+          style="border-left-width: 3px; border-left-color: var(--brand-primary);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
+            style="background: var(--brand-primary);"
           />
           <span
             class="truncate"
@@ -2701,13 +2707,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-decision"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #d97706;"
+          style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(217, 119, 6);"
           />
           <span
@@ -2717,13 +2723,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_selection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #2563eb;"
+          style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(37, 99, 235);"
           />
           <span
@@ -2733,13 +2739,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_multiselection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #7c3aed;"
+          style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(124, 58, 237);"
           />
           <span
@@ -2749,13 +2755,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-milestone"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #059669;"
+          style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(5, 150, 105);"
           />
           <span
@@ -2765,13 +2771,13 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-display"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #64748b;"
+          style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(100, 116, 139);"
           />
           <span
@@ -2789,14 +2795,14 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm"
           data-testid="flow-add-step-btn"
         >
           <i />
            Step
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -2805,7 +2811,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Auto-Layout
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild"
           variant="outline"
@@ -2814,7 +2820,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Vollbild
         </button>
         <div
-          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+          class="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden"
         >
           <button
             class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
@@ -2841,7 +2847,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           simulator
         </button>
         <button
-          class="shadow bg-card border-border"
+          class="shadow-sm bg-card border-border"
           data-testid="flow-playback-btn"
           title="Animierten Durchlauf starten"
           variant="outline"
@@ -2854,7 +2860,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -2863,7 +2869,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -2872,7 +2878,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -2881,15 +2887,16 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -2898,7 +2905,7 @@ exports[`editor flow handles simulation, connections, condition editing, drops, 
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -2933,7 +2940,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
     data-testid="steps-flow-builder"
   >
     <div
-      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      class="w-48 shrink-0 border-r border-border bg-card p-3"
       data-testid="flow-palette"
     >
       <p
@@ -2950,13 +2957,14 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="space-y-2"
       >
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-form"
           draggable="true"
-          style="border-left-width: 3px;"
+          style="border-left-width: 3px; border-left-color: var(--brand-primary);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
+            style="background: var(--brand-primary);"
           />
           <span
             class="truncate"
@@ -2965,13 +2973,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-decision"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #d97706;"
+          style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(217, 119, 6);"
           />
           <span
@@ -2981,13 +2989,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_selection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #2563eb;"
+          style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(37, 99, 235);"
           />
           <span
@@ -2997,13 +3005,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_multiselection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #7c3aed;"
+          style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(124, 58, 237);"
           />
           <span
@@ -3013,13 +3021,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-milestone"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #059669;"
+          style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(5, 150, 105);"
           />
           <span
@@ -3029,13 +3037,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-display"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #64748b;"
+          style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(100, 116, 139);"
           />
           <span
@@ -3053,14 +3061,14 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm"
           data-testid="flow-add-step-btn"
         >
           <i />
            Step
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -3069,7 +3077,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Auto-Layout
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild beenden"
           variant="outline"
@@ -3078,7 +3086,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Vollbild beenden
         </button>
         <div
-          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+          class="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden"
         >
           <button
             class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
@@ -3105,7 +3113,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           simulator
         </button>
         <button
-          class="shadow bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+          class="shadow-sm bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
           data-testid="flow-playback-btn"
           title="Abspielen stoppen"
           variant="outline"
@@ -3149,7 +3157,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3158,7 +3166,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3167,7 +3175,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3176,15 +3184,16 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3193,7 +3202,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -3228,7 +3237,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
     data-testid="steps-flow-builder"
   >
     <div
-      class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+      class="w-48 shrink-0 border-r border-border bg-card p-3"
       data-testid="flow-palette"
     >
       <p
@@ -3245,13 +3254,14 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="space-y-2"
       >
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-form"
           draggable="true"
-          style="border-left-width: 3px;"
+          style="border-left-width: 3px; border-left-color: var(--brand-primary);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
+            style="background: var(--brand-primary);"
           />
           <span
             class="truncate"
@@ -3260,13 +3270,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-decision"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #d97706;"
+          style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(217, 119, 6);"
           />
           <span
@@ -3276,13 +3286,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_selection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #2563eb;"
+          style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(37, 99, 235);"
           />
           <span
@@ -3292,13 +3302,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-partner_multiselection"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #7c3aed;"
+          style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(124, 58, 237);"
           />
           <span
@@ -3308,13 +3318,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-milestone"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #059669;"
+          style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(5, 150, 105);"
           />
           <span
@@ -3324,13 +3334,13 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           </span>
         </div>
         <div
-          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+          class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
           data-testid="palette-item-display"
           draggable="true"
-          style="border-left-width: 3px; border-left-color: #64748b;"
+          style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
         >
           <span
-            class="w-2 h-2 rounded-sm flex-shrink-0"
+            class="w-2 h-2 rounded-sm shrink-0"
             style="background: rgb(100, 116, 139);"
           />
           <span
@@ -3348,14 +3358,14 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center"
       >
         <button
-          class="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow"
+          class="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm"
           data-testid="flow-add-step-btn"
         >
           <i />
            Step
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-auto-layout-btn"
           variant="outline"
         >
@@ -3364,7 +3374,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Auto-Layout
         </button>
         <button
-          class="bg-card border-border shadow"
+          class="bg-card border-border shadow-sm"
           data-testid="flow-fullscreen-btn"
           title="Vollbild beenden"
           variant="outline"
@@ -3373,7 +3383,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Vollbild beenden
         </button>
         <div
-          class="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden"
+          class="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden"
         >
           <button
             class="px-2 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed border-r border-border flex items-center gap-1"
@@ -3400,7 +3410,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           simulator
         </button>
         <button
-          class="shadow bg-card border-border"
+          class="shadow-sm bg-card border-border"
           data-testid="flow-playback-btn"
           title="Animierten Durchlauf starten"
           variant="outline"
@@ -3413,7 +3423,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
         class="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none"
       >
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3422,7 +3432,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Ausblenden
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3431,7 +3441,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Blockieren
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3440,15 +3450,16 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Auto-Abschluss
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
+            style="background: var(--brand-primary);"
           />
           Weiter
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs"
         >
           <span
             class="w-3 h-[1.5px]"
@@ -3457,7 +3468,7 @@ exports[`fullscreen and playback controls cover start, stop, ETA completion and 
           Weiterleiten
         </span>
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm"
+          class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs"
         >
           <i />
            Schreibschutz am Step
@@ -5131,7 +5142,7 @@ Object {
 exports[`palette exposes all types and writes drag transfer metadata: step palette 1`] = `
 <div>
   <div
-    class="w-48 flex-shrink-0 border-r border-border bg-card p-3"
+    class="w-48 shrink-0 border-r border-border bg-card p-3"
     data-testid="flow-palette"
   >
     <p
@@ -5148,13 +5159,14 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
       class="space-y-2"
     >
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-form"
         draggable="true"
-        style="border-left-width: 3px;"
+        style="border-left-width: 3px; border-left-color: var(--brand-primary);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
+          style="background: var(--brand-primary);"
         />
         <span
           class="truncate"
@@ -5163,13 +5175,13 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
         </span>
       </div>
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-decision"
         draggable="true"
-        style="border-left-width: 3px; border-left-color: #d97706;"
+        style="border-left-width: 3px; border-left-color: rgb(217, 119, 6);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
           style="background: rgb(217, 119, 6);"
         />
         <span
@@ -5179,13 +5191,13 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
         </span>
       </div>
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-partner_selection"
         draggable="true"
-        style="border-left-width: 3px; border-left-color: #2563eb;"
+        style="border-left-width: 3px; border-left-color: rgb(37, 99, 235);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
           style="background: rgb(37, 99, 235);"
         />
         <span
@@ -5195,13 +5207,13 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
         </span>
       </div>
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-partner_multiselection"
         draggable="true"
-        style="border-left-width: 3px; border-left-color: #7c3aed;"
+        style="border-left-width: 3px; border-left-color: rgb(124, 58, 237);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
           style="background: rgb(124, 58, 237);"
         />
         <span
@@ -5211,13 +5223,13 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
         </span>
       </div>
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-milestone"
         draggable="true"
-        style="border-left-width: 3px; border-left-color: #059669;"
+        style="border-left-width: 3px; border-left-color: rgb(5, 150, 105);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
           style="background: rgb(5, 150, 105);"
         />
         <span
@@ -5227,13 +5239,13 @@ exports[`palette exposes all types and writes drag transfer metadata: step palet
         </span>
       </div>
       <div
-        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+        class="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
         data-testid="palette-item-display"
         draggable="true"
-        style="border-left-width: 3px; border-left-color: #64748b;"
+        style="border-left-width: 3px; border-left-color: rgb(100, 116, 139);"
       >
         <span
-          class="w-2 h-2 rounded-sm flex-shrink-0"
+          class="w-2 h-2 rounded-sm shrink-0"
           style="background: rgb(100, 116, 139);"
         />
         <span
@@ -5255,10 +5267,10 @@ exports[`step nodes render every simulation state and invoke edit/delete without
     data-sim-state="auto_complete"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #2563eb;"
+    style="border-color: rgb(37, 99, 235);"
   >
     <span
-      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow-sm z-10"
       data-testid="sim-badge-s"
     >
       auto-abgeschlossen
@@ -5347,10 +5359,10 @@ exports[`step nodes render every simulation state and invoke edit/delete without
     data-sim-state="blocked"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #2563eb;"
+    style="border-color: rgb(37, 99, 235);"
   >
     <span
-      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow-sm z-10"
       data-testid="sim-badge-s"
     >
       blockiert
@@ -5439,7 +5451,7 @@ exports[`step nodes render every simulation state and invoke edit/delete without
     data-sim-state="none"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #2563eb;"
+    style="border-color: rgb(37, 99, 235);"
   >
     <i
       data-position="left"
@@ -5525,10 +5537,10 @@ exports[`step nodes render every simulation state and invoke edit/delete without
     data-sim-state="hidden"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #2563eb;"
+    style="border-color: rgb(37, 99, 235);"
   >
     <span
-      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+      class="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow-sm z-10"
       data-testid="sim-badge-s"
     >
       versteckt
@@ -5617,7 +5629,7 @@ exports[`step nodes render every simulation state and invoke edit/delete without
     data-sim-state="none"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #f59e0b;"
+    style="border-color: rgb(245, 158, 11);"
   >
     <i
       data-position="left"
@@ -5676,12 +5688,12 @@ exports[`step nodes render every simulation state and invoke edit/delete without
 exports[`step nodes render every simulation state and invoke edit/delete without bubbling: visible step node 1`] = `
 <div>
   <div
-    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-[var(--brand-secondary)] "
+    class="rounded-sm shadow-md border-2 min-w-[220px] max-w-[260px] bg-white dark:bg-slate-800 relative ring-2 ring-(--brand-secondary) "
     data-playback="false"
     data-sim-state="visible"
     data-step-type="partner_selection"
     data-testid="flow-node-s"
-    style="border-color: #2563eb;"
+    style="border-color: rgb(37, 99, 235);"
   >
     <i
       data-position="left"

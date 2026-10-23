@@ -49,7 +49,7 @@ export function HelpTooltip({ content, label = 'Hilfe anzeigen', side = 'top', t
                         setOpen(false);
                     }
                 }}
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full align-middle text-muted-foreground transition-colors hover:bg-muted hover:text-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full align-middle text-muted-foreground transition-colors hover:bg-muted hover:text-(--brand-primary) focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-primary)"
                 data-testid={testId}
             >
                 <Question size={15} weight="bold" />
@@ -59,7 +59,7 @@ export function HelpTooltip({ content, label = 'Hilfe anzeigen', side = 'top', t
                     id={tooltipId}
                     role="tooltip"
                     data-testid={testId ? `${testId}-content` : undefined}
-                    className={`pointer-events-none fixed z-[9999] w-72 rounded-lg bg-slate-950 px-3 py-2 text-left text-xs font-normal leading-5 text-white shadow-xl ${side === 'right' ? '-translate-y-1/2' : '-translate-y-full'}`}
+                    className={`pointer-events-none fixed z-9999 w-72 rounded-lg bg-slate-950 px-3 py-2 text-left text-xs font-normal leading-5 text-white shadow-xl ${side === 'right' ? '-translate-y-1/2' : '-translate-y-full'}`}
                     style={{ left: position.left, top: position.top }}
                 >
                     {content}

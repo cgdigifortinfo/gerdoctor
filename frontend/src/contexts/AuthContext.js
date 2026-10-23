@@ -29,7 +29,9 @@ export function AuthProvider({ children }) {
                     const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
                     setUser(response.data);
                     return;
-                } catch {}
+                } catch {
+                    // Refresh failed; continue by clearing the local session.
+                }
             }
             setUser(false);
             tokenRef.current = null;
@@ -54,7 +56,9 @@ export function AuthProvider({ children }) {
                     setAuthToken(savedImpToken);
                 }
                 setImpersonating(true);
-            } catch {}
+            } catch {
+                // Ignore corrupt saved impersonation data and check the server session.
+            }
         }
         checkAuth();
     }, [checkAuth]);
@@ -82,7 +86,9 @@ export function AuthProvider({ children }) {
     const logout = async () => {
         try {
             await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
-        } catch {}
+        } catch {
+            // Clear the local session even if the logout request failed.
+        }
         tokenRef.current = null;
         adminTokenRef.current = null;
         adminUserRef.current = null;

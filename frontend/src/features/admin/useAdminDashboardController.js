@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { adminAPI, formatApiError, settingsAPI } from '../../lib/api';
+import { adminAPI, settingsAPI } from '../../lib/api';
 import { toast } from 'sonner';
 import { usePagination } from '../../components/PaginationControls';
 import { useAdminBilling } from './hooks/useAdminBilling';

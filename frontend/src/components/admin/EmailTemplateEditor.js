@@ -311,7 +311,7 @@ export function EmailTemplateEditor() {
                                     <Button variant="outline" size="sm" onClick={handleReset} disabled={saving} data-testid="email-template-reset-btn">
                                         <ArrowClockwise size={14} className="mr-1" /> Zurücksetzen
                                     </Button>
-                                    <Button onClick={handleSave} disabled={saving} size="sm" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]" data-testid="email-template-save-btn">
+                                    <Button onClick={handleSave} disabled={saving} size="sm" className="bg-(--brand-primary) hover:bg-(--brand-primary-hover)" data-testid="email-template-save-btn">
                                         <FloppyDisk size={14} className="mr-1" /> Speichern
                                     </Button>
                                 </div>
@@ -322,7 +322,7 @@ export function EmailTemplateEditor() {
                                     <button
                                         type="button"
                                         onClick={() => setActiveChannel('email')}
-                                        className={`flex items-center gap-2 px-4 py-2 text-sm ${activeChannel === 'email' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground'}`}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm ${activeChannel === 'email' ? 'bg-(--brand-primary) text-white' : 'bg-card text-muted-foreground'}`}
                                         data-testid="message-channel-email"
                                     >
                                         <EnvelopeSimple size={16} /> E-Mail
@@ -330,7 +330,7 @@ export function EmailTemplateEditor() {
                                     <button
                                         type="button"
                                         onClick={() => setActiveChannel('notification')}
-                                        className={`flex items-center gap-2 border-l border-border px-4 py-2 text-sm ${activeChannel === 'notification' ? 'bg-[var(--brand-primary)] text-white' : 'bg-card text-muted-foreground'}`}
+                                        className={`flex items-center gap-2 border-l border-border px-4 py-2 text-sm ${activeChannel === 'notification' ? 'bg-(--brand-primary) text-white' : 'bg-card text-muted-foreground'}`}
                                         data-testid="message-channel-notification"
                                     >
                                         <DeviceMobile size={16} /> Browser & App
@@ -357,7 +357,7 @@ export function EmailTemplateEditor() {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowSource((s) => !s)}
-                                                className="text-xs text-[var(--brand-primary)] hover:underline flex items-center gap-1"
+                                                className="text-xs text-(--brand-primary) hover:underline flex items-center gap-1"
                                                 data-testid="email-template-toggle-source"
                                             >
                                                 <Code size={12} /> {showSource ? 'WYSIWYG' : 'HTML-Code'}
@@ -433,7 +433,7 @@ export function EmailTemplateEditor() {
                                                 type="button"
                                                 onClick={() => insertVariable(v)}
                                                 data-testid={`email-template-var-${v}`}
-                                                className="text-xs bg-muted hover:bg-[var(--brand-primary)] hover:text-white border border-border px-2 py-0.5 rounded font-mono transition-colors inline-flex items-center gap-1"
+                                                className="text-xs bg-muted hover:bg-(--brand-primary) hover:text-white border border-border px-2 py-0.5 rounded font-mono transition-colors inline-flex items-center gap-1"
                                             >
                                                 <CopySimple size={10} /> {`{{${v}}}`}
                                             </button>
@@ -447,7 +447,7 @@ export function EmailTemplateEditor() {
                         <div className="bg-card border border-border rounded-lg p-4" data-testid="email-template-preview">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                    <Eye size={16} className="text-[var(--brand-primary)]" />
+                                    <Eye size={16} className="text-(--brand-primary)" />
                                     <h3 className="font-semibold text-foreground">
                                         {activeChannel === 'notification' && category !== 'layout' ? 'Notification-Vorschau' : 'E-Mail-Vorschau'}
                                     </h3>
@@ -509,12 +509,12 @@ export function EmailTemplateEditor() {
                                 <div className="grid gap-6 lg:grid-cols-2" data-testid="notification-preview">
                                     <section data-testid="notification-browser-preview">
                                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <Browser size={17} className="text-[var(--brand-primary)]" /> Browser
+                                            <Browser size={17} className="text-(--brand-primary)" /> Browser
                                         </div>
                                         <div className="rounded-lg bg-slate-100 p-4 sm:p-6">
                                             <div className="ml-auto max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
                                                 <div className="mb-3 flex items-center gap-2">
-                                                    <div className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-primary)] text-xs font-bold text-white">G</div>
+                                                    <div className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-primary) text-xs font-bold text-white">G</div>
                                                     <div>
                                                         <p className="text-xs font-semibold text-slate-900">GerDoctor</p>
                                                         <p className="text-[10px] text-slate-500">ihca.de · jetzt</p>
@@ -532,15 +532,15 @@ export function EmailTemplateEditor() {
 
                                     <section data-testid="notification-app-preview">
                                         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <DeviceMobile size={17} className="text-[var(--brand-primary)]" /> App
+                                            <DeviceMobile size={17} className="text-(--brand-primary)" /> App
                                         </div>
-                                        <div className="mx-auto max-w-[330px] rounded-[2rem] border-[6px] border-slate-800 bg-slate-50 p-3 shadow-lg">
+                                        <div className="mx-auto max-w-[330px] rounded-4xl border-[6px] border-slate-800 bg-slate-50 p-3 shadow-lg">
                                             <div className="mb-3 flex items-center justify-between px-2 text-[10px] font-semibold text-slate-700">
                                                 <span>09:41</span><span>● ● ●</span>
                                             </div>
-                                            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
                                                 <div className="flex items-start gap-3">
-                                                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--brand-primary)] text-sm font-bold text-white">G</div>
+                                                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-(--brand-primary) text-sm font-bold text-white">G</div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center justify-between gap-3">
                                                             <p className="text-xs font-semibold text-slate-950">GerDoctor</p>
@@ -600,7 +600,7 @@ export function EmailTemplateEditor() {
                         <Button variant="outline" onClick={() => setTestDialogOpen(false)} disabled={testSending} data-testid="email-test-cancel-btn">
                             Abbrechen
                         </Button>
-                        <Button onClick={handleSendTest} disabled={testSending} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]" data-testid="email-test-send-btn">
+                        <Button onClick={handleSendTest} disabled={testSending} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover)" data-testid="email-test-send-btn">
                             <PaperPlaneTilt size={14} className="mr-1" />
                             {testSending ? 'Sende…' : 'Jetzt senden'}
                         </Button>

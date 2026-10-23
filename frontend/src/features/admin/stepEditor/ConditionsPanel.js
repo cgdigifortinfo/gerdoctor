@@ -25,8 +25,8 @@ export function ConditionsPanel({ addCondition, addConditionGroup, previousStep,
                             </div>
 
                             {/* Presets */}
-                            <div className="rounded-lg border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-4">
-                                <p className="mb-2 text-xs font-semibold text-[var(--brand-primary)]">Schnellstart mit sinnvoll vorbelegten Regeln</p>
+                            <div className="rounded-lg border border-(--brand-primary)/20 bg-(--brand-primary)/5 p-4">
+                                <p className="mb-2 text-xs font-semibold text-(--brand-primary)">Schnellstart mit sinnvoll vorbelegten Regeln</p>
                                 <div className="flex flex-wrap gap-2">
                                     {[
                                         previousStep && { label: 'Vorherigen Schritt voraussetzen', preset: { source_step_order: previousStep.order, field: 'status', operator: 'status_not', value: 'completed', action: 'block', message: `Bitte schließen Sie zuerst „${previousStep.title}“ ab.` } },
@@ -35,7 +35,7 @@ export function ConditionsPanel({ addCondition, addConditionGroup, previousStep,
                                         previousStep && { label: 'Nach Abschluss weiterleiten', preset: { source_step_order: previousStep.order, field: 'status', operator: 'status_is', value: 'completed', action: 'redirect', target_step_order: sortedReferenceSteps.find((candidate) => candidate.order > formData.order)?.order || null, message: '' } },
                                     ].filter(Boolean).map((p, i) => (
                                         <button key={p.label} type="button" onClick={() => addConditionPreset(p.preset)}
-                                            className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-[var(--brand-primary)] hover:bg-muted" data-testid={`condition-preset-${i}`}>
+                                            className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs transition-colors hover:border-(--brand-primary) hover:bg-muted" data-testid={`condition-preset-${i}`}>
                                             {p.label}
                                         </button>
                                     ))}
@@ -50,7 +50,7 @@ export function ConditionsPanel({ addCondition, addConditionGroup, previousStep,
                                 if (compoundKey) {
                                     const children = c[compoundKey];
                                     return (
-                                        <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid={`condition-card-${i}`}>
+                                        <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-xs" data-testid={`condition-card-${i}`}>
                                             <div className="mb-4 flex items-start justify-between gap-3">
                                                 <div>
                                                     <p className="text-sm font-semibold">Regel {i + 1} · {compoundKey === 'all_of' ? 'UND-Gruppe' : 'ODER-Gruppe'}</p>
@@ -117,7 +117,7 @@ export function ConditionsPanel({ addCondition, addConditionGroup, previousStep,
                                     );
                                 }
                                 return (
-                                    <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid={`condition-card-${i}`}>
+                                    <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-xs" data-testid={`condition-card-${i}`}>
                                         <div className="mb-4 flex items-start justify-between gap-3">
                                             <div>
                                                 <p className="text-sm font-semibold">Regel {i + 1}</p>

@@ -114,8 +114,8 @@ export function LandingPagesSection({ content, onChange, translations, onTransCh
                         </SelectContent>
                     </Select>
                     <div className="flex border border-border rounded-sm overflow-hidden">
-                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
-                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
+                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
+                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
                     </div>
                     <Button type="button" variant="outline" onClick={addPage} className="border-border rounded-sm">
                         <Plus size={16} className="mr-2" /> Neu
@@ -123,7 +123,7 @@ export function LandingPagesSection({ content, onChange, translations, onTransCh
                     <Button type="button" variant="outline" onClick={removePage} disabled={!selectedPage || selectedPage.path === '/'} className="border-border rounded-sm">
                         <Trash size={16} className="mr-2" /> Entfernen
                     </Button>
-                    <Button onClick={onSave} disabled={saving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="cms-save-landingpages">
+                    <Button onClick={onSave} disabled={saving} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="cms-save-landingpages">
                         {saving ? 'Saving...' : 'Save'}
                     </Button>
                 </div>
@@ -184,10 +184,10 @@ export function CmsSection({ title, fields, content, onChange, translations, onT
                 <h3 className="font-semibold text-foreground">{title}</h3>
                 <div className="flex items-center gap-2">
                     <div className="flex border border-border rounded-sm overflow-hidden">
-                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
-                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
+                        <button type="button" onClick={() => setCmsLang('de')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'de' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>DE</button>
+                        <button type="button" onClick={() => setCmsLang('en')} className={`px-2.5 py-1 text-xs font-bold ${cmsLang === 'en' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>EN</button>
                     </div>
-                    <Button onClick={onSave} disabled={saving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <Button onClick={onSave} disabled={saving} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid={`cms-save-${title.toLowerCase().replace(/\s+/g, '-')}`}>
                         {saving ? 'Saving...' : 'Save'}
                     </Button>
                 </div>

@@ -1,5 +1,4 @@
-const createJestConfig = require('react-scripts/scripts/utils/createJestConfig');
-const config = createJestConfig((path) => require.resolve(`react-scripts/${path}`), process.cwd(), false);
+const config = require('./jest.config.cjs');
 module.exports = { ...config, testMatch: [
   '<rootDir>/src/features/admin/AdminDashboardComponents/UserDialogs.test.js',
   '<rootDir>/src/features/admin/adminUserDialogDomain.test.js',

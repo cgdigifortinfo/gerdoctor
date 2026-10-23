@@ -73,7 +73,7 @@ function PickerMenu({
 
     return (
         <div
-            className="absolute z-[80] mt-1 w-full min-w-[260px] rounded-lg border border-border bg-card p-2 shadow-xl"
+            className="absolute z-80 mt-1 w-full min-w-[260px] rounded-lg border border-border bg-card p-2 shadow-xl"
             data-testid={`${testId}-menu`}
         >
             <div className="relative mb-2">
@@ -83,7 +83,7 @@ function PickerMenu({
                     value={query}
                     onChange={(event) => onQueryChange(event.target.value)}
                     placeholder={searchPlaceholder}
-                    className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/15"
+                    className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-hidden focus:border-(--brand-primary) focus:ring-2 focus:ring-(--brand-primary)/15"
                     data-testid={`${testId}-search`}
                 />
             </div>
@@ -101,7 +101,7 @@ function PickerMenu({
                             className="flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                             data-testid={`${testId}-option`}
                         >
-                            <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selected ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white' : 'border-border'}`}>
+                            <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selected ? 'border-(--brand-primary) bg-(--brand-primary) text-white' : 'border-border'}`}>
                                 {selected && <Check size={12} weight="bold" />}
                             </span>
                             <span className="min-w-0">
@@ -117,10 +117,10 @@ function PickerMenu({
                         role="option"
                         aria-selected={false}
                         onClick={() => onChoose(customValue)}
-                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[var(--brand-primary)] hover:bg-muted"
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-(--brand-primary) hover:bg-muted"
                         data-testid={`${testId}-custom-option`}
                     >
-                        <span className="flex h-4 w-4 items-center justify-center rounded border border-dashed border-[var(--brand-primary)]">+</span>
+                        <span className="flex h-4 w-4 items-center justify-center rounded border border-dashed border-(--brand-primary)">+</span>
                         „{customValue}“ verwenden
                     </button>
                 )}
@@ -133,7 +133,7 @@ function PickerMenu({
                     <button
                         type="button"
                         onClick={onDone}
-                        className="w-full rounded-md bg-[var(--brand-primary)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--brand-primary-hover)]"
+                        className="w-full rounded-md bg-(--brand-primary) px-3 py-2 text-sm font-medium text-white hover:bg-(--brand-primary-hover)"
                         data-testid={`${testId}-done`}
                     >
                         Auswahl übernehmen
@@ -175,7 +175,7 @@ export function SearchableSelect({
                 aria-expanded={open}
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
-                className="flex min-h-10 w-full items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm outline-none transition-colors hover:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-10 w-full items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm outline-hidden transition-colors hover:border-(--brand-primary) focus-visible:ring-2 focus-visible:ring-(--brand-primary)/20 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid={testId}
             >
                 <span className={selected || value ? 'text-foreground' : 'text-muted-foreground'}>
@@ -251,13 +251,13 @@ export function SearchableMultiSelect({
                 role="combobox"
                 aria-expanded={open}
                 onClick={() => setOpen((current) => !current)}
-                className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-sm outline-none transition-colors hover:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]/20"
+                className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left text-sm outline-hidden transition-colors hover:border-(--brand-primary) focus-visible:ring-2 focus-visible:ring-(--brand-primary)/20"
                 data-testid={testId}
             >
                 <span className="flex min-w-0 flex-1 flex-wrap gap-1">
                     {selectedOptions.length === 0 && <span className="px-1 text-muted-foreground">{placeholder}</span>}
                     {selectedOptions.map((option) => (
-                        <span key={option.value} className="inline-flex max-w-full items-center gap-1 rounded-md bg-[var(--brand-primary)]/10 px-2 py-1 text-xs font-medium text-[var(--brand-primary)]">
+                        <span key={option.value} className="inline-flex max-w-full items-center gap-1 rounded-md bg-(--brand-primary)/10 px-2 py-1 text-xs font-medium text-(--brand-primary)">
                             <span className="truncate">{option.label}</span>
                             <span
                                 role="button"
@@ -267,7 +267,7 @@ export function SearchableMultiSelect({
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' || event.key === ' ') remove(event, option.value);
                                 }}
-                                className="rounded p-0.5 hover:bg-[var(--brand-primary)]/15"
+                                className="rounded p-0.5 hover:bg-(--brand-primary)/15"
                             >
                                 <X size={11} />
                             </span>

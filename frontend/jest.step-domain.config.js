@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['<rootDir>/src/features/admin/stepDialogDomain.test.js'],
   transform: {
-    '^.+\\.[jt]sx?$': '<rootDir>/node_modules/react-scripts/config/jest/babelTransform.js',
+    '^.+\\.[jt]sx?$': 'babel-jest',
   },
   modulePathIgnorePatterns: ['<rootDir>/.stryker-tmp/'],
 };

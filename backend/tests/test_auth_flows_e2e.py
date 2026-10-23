@@ -2,7 +2,7 @@
 
 Unlike most UI suites, these tests deliberately do not install a Playwright API
 route. Requests must travel from the browser to the frontend origin and through
-CRACO's /api proxy, so a broken REACT_APP_BACKEND_URL is caught here.
+Vite's /api proxy, so a broken REACT_APP_BACKEND_URL is caught here.
 """
 from __future__ import annotations
 

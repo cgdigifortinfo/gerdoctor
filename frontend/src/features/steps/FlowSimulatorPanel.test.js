@@ -12,7 +12,7 @@ describe('Steps flow simulator control', () => {
         render(<FlowSimulatorPanel value="none" onChange={onChange} />);
 
         expect(screen.getByTestId('flow-simulator-select')).toHaveValue('none');
-        expect(mockPlayProps).toEqual({ size: 14, className: 'text-[var(--brand-primary)]', weight: 'regular' });
+        expect(mockPlayProps).toEqual({ size: 14, className: 'text-(--brand-primary)', weight: 'regular' });
         expect(screen.queryByText('sichtbar')).not.toBeInTheDocument();
         fireEvent.change(screen.getByTestId('flow-simulator-select'), { target: { value: 'partner_path' } });
         expect(onChange).toHaveBeenCalledWith('partner_path');

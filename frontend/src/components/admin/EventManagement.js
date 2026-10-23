@@ -107,7 +107,7 @@ export default function EventManagement() {
                 <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <BellRinging size={22} className="text-[var(--brand-primary)]" />
+                            <BellRinging size={22} className="text-(--brand-primary)" />
                             <h2 className="text-lg font-semibold text-foreground">Events & Reaktionen</h2>
                         </div>
                         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">

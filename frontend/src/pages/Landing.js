@@ -45,7 +45,7 @@ export default function Landing() {
     const [landingPages, setLandingPages] = useState([]);
     const [landingTrans, setLandingTrans] = useState({});
     const [partners, setPartners] = useState([]);
-    const [survey, setSurvey] = useState(null);
+    const [, setSurvey] = useState(null);
 
     useEffect(() => {
         // Load CMS content
@@ -172,7 +172,7 @@ export default function Landing() {
                             <ThemeLangToggle />
                             <Link to={loginPath}>
                                 <Button 
-                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-medium px-6"
+                                    className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white text-sm font-medium px-6"
                                     data-testid="nav-login-btn"
                                 >
                                     {t('nav_login')}
@@ -221,7 +221,7 @@ export default function Landing() {
                             </div>
                             <Link to={loginPath} className="block">
                                 <Button 
-                                    className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                    className="w-full bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
                                     data-testid="mobile-nav-login-btn"
                                 >
                                     {t('nav_login')}
@@ -237,7 +237,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="animate-fadeIn">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-(--brand-primary) mb-4">
                                 {lp('eyebrow', 'Praktizieren in Deutschland')}
                             </p>
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl leading-none font-black text-foreground mb-6">
@@ -249,7 +249,7 @@ export default function Landing() {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link to={registerPath}>
                                     <Button 
-                                        className="w-full sm:w-auto bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-8 py-3 text-sm font-medium"
+                                        className="w-full sm:w-auto bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white px-8 py-3 text-sm font-medium"
                                         data-testid="hero-cta-btn"
                                     >
                                         {lp('hero_cta', hc('hero_cta') || 'Jetzt starten')}
@@ -274,7 +274,7 @@ export default function Landing() {
                             />
                             <div className="absolute -bottom-6 -left-6 bg-card p-6 shadow-lg rounded-sm border border-border">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-(--brand-primary) rounded-sm flex items-center justify-center">
                                         <CheckCircle size={24} className="text-white" />
                                     </div>
                                     <div>
@@ -293,7 +293,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-3 gap-8">
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-1">
-                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-(--brand-primary) rounded-sm flex items-center justify-center mb-6">
                                 <Users size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold text-foreground mb-3">
@@ -304,7 +304,7 @@ export default function Landing() {
                             </p>
                         </div>
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-2">
-                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-(--brand-primary) rounded-sm flex items-center justify-center mb-6">
                                 <Buildings size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold text-foreground mb-3">
@@ -315,7 +315,7 @@ export default function Landing() {
                             </p>
                         </div>
                         <div className="p-8 border border-border rounded-sm card-hover" data-testid="feature-box-3">
-                            <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-sm flex items-center justify-center mb-6">
+                            <div className="w-12 h-12 bg-(--brand-primary) rounded-sm flex items-center justify-center mb-6">
                                 <CheckCircle size={24} className="text-white" />
                             </div>
                             <h3 className="text-xl font-semibold text-foreground mb-3">
@@ -341,7 +341,7 @@ export default function Landing() {
                             />
                         </div>
                         <div className="order-1 md:order-2">
-                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                            <p className="text-xs tracking-[0.2em] uppercase font-bold text-(--brand-primary) mb-4">
                                 {lp('about_eyebrow', 'Who We Are')}
                             </p>
                             <h2 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-foreground mb-6">
@@ -362,7 +362,7 @@ export default function Landing() {
             <section id="partners" className="py-20 px-4 sm:px-6 lg:px-8 bg-card border-t border-border">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-12">
-                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[var(--brand-primary)] mb-4">
+                        <p className="text-xs tracking-[0.2em] uppercase font-bold text-(--brand-primary) mb-4">
                             {lp('partners_eyebrow', 'Our Network')}
                         </p>
                         <h2 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-bold text-foreground mb-4">
@@ -418,7 +418,7 @@ export default function Landing() {
                     </p>
                     <Link to={registerPath}>
                         <Button 
-                            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-8 py-3 text-sm font-medium"
+                            className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white px-8 py-3 text-sm font-medium"
                             data-testid="cta-register-btn"
                         >
                             {lp('hero_cta', 'Create Your Account')}

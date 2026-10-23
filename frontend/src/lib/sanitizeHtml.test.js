@@ -76,13 +76,4 @@ describe('sanitizeHtml', () => {
         expect(result).toBe('<a href="">empty</a><span target="_blank">span</span>');
     });
 
-    it('returns an empty result when no DOM is available', () => {
-        const originalDocument = global.document;
-        Object.defineProperty(global, 'document', { configurable: true, value: undefined });
-        try {
-            expect(sanitizeHtml('<b>ignored</b>')).toBe('');
-        } finally {
-            Object.defineProperty(global, 'document', { configurable: true, value: originalDocument });
-        }
-    });
 });

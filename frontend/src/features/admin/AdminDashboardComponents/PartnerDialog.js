@@ -112,7 +112,7 @@ export function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPar
                         <Label>Tags</Label>
                             <div className="mt-1 flex flex-wrap gap-1.5 p-2 min-h-[38px] border border-border rounded-sm bg-background">
                                 {formData.tags.map(tag => (
-                                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] text-xs rounded-sm" data-testid={`tag-badge-${tag}`}>
+                                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-(--brand-primary)/10 text-(--brand-primary) text-xs rounded-sm" data-testid={`tag-badge-${tag}`}>
                                         {tag}
                                         <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500 font-bold ml-0.5" data-testid={`remove-tag-${tag}`}>&times;</button>
                                     </span>
@@ -126,7 +126,7 @@ export function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPar
                                         onFocus={() => { if (tagInput.trim()) setShowTagSuggestions(true); }}
                                         onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
                                         placeholder={formData.tags.length === 0 ? "Tag eingeben..." : "+"}
-                                        className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                                        className="w-full bg-transparent border-none outline-hidden text-sm text-foreground placeholder:text-muted-foreground"
                                         data-testid="partner-tags-input"
                                     />
                                     {showTagSuggestions && tagSuggestions.length > 0 && (
@@ -141,7 +141,7 @@ export function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPar
                                             {tagSuggestions.map(s => (
                                                 <button key={s} type="button" onMouseDown={() => addTag(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-foreground">{s}</button>
                                             ))}
-                                            <button type="button" onMouseDown={() => addTag(tagInput)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-[var(--brand-primary)] font-medium border-t border-border" data-testid="create-new-tag">
+                                            <button type="button" onMouseDown={() => addTag(tagInput)} className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-(--brand-primary) font-medium border-t border-border" data-testid="create-new-tag">
                                                 + Neuen Tag "{tagInput.trim()}" erstellen
                                             </button>
                                         </div>
@@ -187,7 +187,7 @@ export function PartnerDialog({ open, onClose, partner, onSave, allUsers, allPar
                     <div className="border-t border-border pt-4" data-testid="partner-stripe-fields"><Label>Stripe-Verknüpfung</Label><p className="mb-3 text-xs text-muted-foreground">Manuelle Pflege für bestehende Stripe-Konten. IDs müssen zum selben Stripe-Kunden gehören.</p><div className="space-y-3"><div><Label>Customer-ID</Label><Input value={formData.stripe_customer_id} onChange={event => setFormData({...formData,stripe_customer_id:event.target.value.trim()})} placeholder="cus_…" /></div><div><Label>Subscription-ID</Label><Input value={formData.stripe_subscription_id} onChange={event => setFormData({...formData,stripe_subscription_id:event.target.value.trim()})} placeholder="sub_…" /></div><div><Label>Abrechnungsstatus</Label><Select value={formData.billing_status || 'pending'} onValueChange={value => setFormData({...formData,billing_status:value})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pending">pending</SelectItem><SelectItem value="trialing">trialing</SelectItem><SelectItem value="active">active</SelectItem><SelectItem value="paid">paid</SelectItem><SelectItem value="past_due">past_due</SelectItem><SelectItem value="unpaid">unpaid</SelectItem><SelectItem value="canceled">canceled</SelectItem></SelectContent></Select></div></div></div>
                     <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-partner-btn">
+                        <Button type="submit" className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="save-partner-btn">
                             {partner ? t('save') : t('partner_create')}
                         </Button>
                     </div>

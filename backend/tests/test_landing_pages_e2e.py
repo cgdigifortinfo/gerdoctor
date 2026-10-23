@@ -32,6 +32,10 @@ def _page_text(path: str, screenshot_name: str):
         text = page.locator("body").inner_text(timeout=10000)
         cta = page.locator("a:has([data-testid='hero-cta-btn'])").first
         register_href = cta.get_attribute("href") if cta.count() else None
+        cta_section = page.locator("section").filter(has=page.get_by_test_id("cta-register-btn"))
+        if cta_section.count():
+            # CSS cascade layers must preserve readable text on the dark CTA.
+            expect(cta_section.get_by_role("heading")).to_have_css("color", "rgb(255, 255, 255)")
         capture_page(page, "landing-pages", screenshot_name)
         browser.close()
         return text, register_href

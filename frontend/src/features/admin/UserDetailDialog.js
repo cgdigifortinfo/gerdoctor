@@ -30,7 +30,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                     {/* Profile Image + Basic Info */}
                                     <div className="flex items-start gap-6">
                                         {/* Profile Image Preview */}
-                                        <div className="flex-shrink-0">
+                                        <div className="shrink-0">
                                             {selectedUser.profile?.profile_image ? (
                                                 <img
                                                     src={filesAPI.getUrl(selectedUser.profile.profile_image)}
@@ -69,7 +69,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                     <section className="rounded-lg border border-border p-4" data-testid="user-permissions-editor">
                                         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                                             <div><h4 className="font-semibold">Nutzergruppen und individuelle Rechte</h4><p className="mt-1 text-xs text-muted-foreground">Gruppenrechte bilden die Basis. „Erlauben“ ergänzt Rechte; „Verweigern“ hat immer Vorrang.</p></div>
-                                            <span className="rounded-full bg-[var(--brand-primary)]/10 px-3 py-1 text-xs font-medium text-[var(--brand-primary)]">{effectivePermissionLabel(selectedUser.effective_permissions)}</span>
+                                            <span className="rounded-full bg-(--brand-primary)/10 px-3 py-1 text-xs font-medium text-(--brand-primary)">{effectivePermissionLabel(selectedUser.effective_permissions)}</span>
                                         </div>
                                         {selectedUser.is_primary_admin ? (
                                             <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">Das primäre Administratorkonto behält aus Sicherheitsgründen immer Vollzugriff.</div>
@@ -91,10 +91,10 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                     <div className="p-4 bg-muted rounded-sm">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-sm font-medium">Fortschritt</span>
-                                            <span className="text-sm font-bold text-[var(--brand-primary)]">{completionPercent(selectedUser.completion_pct)}%</span>
+                                            <span className="text-sm font-bold text-(--brand-primary)">{completionPercent(selectedUser.completion_pct)}%</span>
                                         </div>
                                         <div className="w-full h-2 bg-background rounded-full overflow-hidden">
-                                            <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${completionPercent(selectedUser.completion_pct)}%` }} />
+                                            <div className="h-full bg-(--brand-primary) rounded-full transition-all" style={{ width: `${completionPercent(selectedUser.completion_pct)}%` }} />
                                         </div>
                                     </div>
         
@@ -111,7 +111,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                                         {typeof value === 'string' && value.length === 36 && value.includes('-') ? (
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <ImageIcon size={14} className="text-muted-foreground" />
-                                                                <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--brand-primary)] hover:underline">
+                                                                <a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-(--brand-primary) hover:underline">
                                                                     View file
                                                                 </a>
                                                             </div>
@@ -136,7 +136,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                                     <div key={p.step_id} className="border border-border rounded-sm overflow-hidden">
                                                         <div className="flex items-center justify-between p-3 bg-muted/50">
                                                             <div className="flex items-center gap-2">
-                                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${p.status === 'completed' ? 'bg-green-500 text-white' : p.status === 'in_progress' ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${p.status === 'completed' ? 'bg-green-500 text-white' : p.status === 'in_progress' ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>
                                                                     {p.status === 'completed' ? <Check size={10} weight="bold" /> : step?.order || '?'}
                                                                 </div>
                                                                 <span className="text-sm font-medium">{step?.title || 'Unknown Step'}</span>
@@ -167,8 +167,8 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                                                                     <div className="mt-1 space-y-1">
                                                                                         {value.map((entry, i) => (
                                                                                             <div key={i} className="flex items-center gap-2 text-sm">
-                                                                                                {entry.document_type && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm">{entry.document_type}</span>}
-                                                                                                {entry.file_id ? <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="text-[var(--brand-primary)] hover:underline text-xs">{entry.filename || 'Download'}</a> : <span className="text-muted-foreground text-xs">-</span>}
+                                                                                                {entry.document_type && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-(--brand-primary)/10 text-(--brand-primary) rounded-sm">{entry.document_type}</span>}
+                                                                                                {entry.file_id ? <a href={filesAPI.getUrl(entry.file_id)} target="_blank" rel="noopener noreferrer" className="text-(--brand-primary) hover:underline text-xs">{entry.filename || 'Download'}</a> : <span className="text-muted-foreground text-xs">-</span>}
                                                                                             </div>
                                                                                         ))}
                                                                                     </div>
@@ -176,7 +176,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                                                             );
                                                                         }
                                                                         if (fieldType === 'file' && value) {
-                                                                            return (<div key={key}><span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--brand-primary)] hover:underline">Download</a></div></div>);
+                                                                            return (<div key={key}><span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span><div><a href={filesAPI.getUrl(value)} target="_blank" rel="noopener noreferrer" className="text-xs text-(--brand-primary) hover:underline">Download</a></div></div>);
                                                                         }
                                                                         const display = displayFieldValue(value);
                                                                         return (<div key={key}><span className="text-xs text-muted-foreground">{label}{fieldWasRemoved && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Feld inzwischen gelöscht</span>}</span><p className="text-sm font-medium">{display}</p></div>);
@@ -242,7 +242,7 @@ export function UserDetailDialog({ showUserDialog, setShowUserDialog, selectedUs
                                                     const { done: isDone, inProgress: isWip, label: actionLabel } = historyAction(h.action);
                                                     return (
                                                         <div key={idx} className="relative flex items-start gap-3 py-2">
-                                                            <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-green-500 text-white' : isWip ? 'bg-[var(--brand-primary)] text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                            <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${isDone ? 'bg-green-500 text-white' : isWip ? 'bg-(--brand-primary) text-white' : 'bg-muted text-muted-foreground'}`}>
                                                                 {isDone ? <Check size={10} /> : <ArrowRight size={10} />}
                                                             </div>
                                                             <div className="flex-1 min-w-0">

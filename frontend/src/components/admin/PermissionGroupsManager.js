@@ -100,7 +100,7 @@ export default function PermissionGroupsManager({ groups, catalog, onRefresh, ca
     };
     return (
         <div className="rounded-sm border border-border bg-card" data-testid="permission-groups-manager">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><div className="flex items-center gap-2"><ShieldCheck size={22} className="text-[var(--brand-primary)]" /><h2 className="text-lg font-semibold">Nutzergruppen und Rechte</h2></div><p className="mt-1 text-xs text-muted-foreground">Gruppen bündeln Einzelberechtigungen. Benutzer-Overrides können Rechte zusätzlich erlauben oder ausdrücklich verweigern.</p></div>{canCreate && <Button onClick={openCreate} data-testid="create-permission-group"><Plus size={16} className="mr-1" /> Gruppe anlegen</Button>}</div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4"><div><div className="flex items-center gap-2"><ShieldCheck size={22} className="text-(--brand-primary)" /><h2 className="text-lg font-semibold">Nutzergruppen und Rechte</h2></div><p className="mt-1 text-xs text-muted-foreground">Gruppen bündeln Einzelberechtigungen. Benutzer-Overrides können Rechte zusätzlich erlauben oder ausdrücklich verweigern.</p></div>{canCreate && <Button onClick={openCreate} data-testid="create-permission-group"><Plus size={16} className="mr-1" /> Gruppe anlegen</Button>}</div>
             <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
                 {groups.map((group) => {
                     const permissionCount = group.permissions?.includes('*') ? catalog?.all_permissions?.length || 0 : group.permissions?.length || 0;

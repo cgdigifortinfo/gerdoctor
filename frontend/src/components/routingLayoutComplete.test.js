@@ -38,7 +38,7 @@ test('protected route covers loading, login, role redirects and permission modes
   expect(screen.getByText('Keine Berechtigung')).toBeInTheDocument(); view.unmount();
   view = renderProtected({ loading: false, user: { role: 'user', permissions: ['*'] } }, { allowedRoles: ['user'], requiredPermission: 'read' });
   expect(screen.getByText('protected')).toBeInTheDocument(); view.unmount();
-  view = renderProtected({ loading: false, user: { role: 'user', permissions: ['read'] } });
+  renderProtected({ loading: false, user: { role: 'user', permissions: ['read'] } });
   expect(screen.getByText('protected')).toBeInTheDocument();
 });
 

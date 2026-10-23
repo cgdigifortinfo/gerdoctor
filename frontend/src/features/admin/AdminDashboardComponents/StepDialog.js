@@ -132,7 +132,7 @@ export function StepDialog({ open, onClose, step, onSave, existingSteps, surveys
                 <DialogHeader className="border-b border-border px-6 py-5 pr-16">
                     <DialogTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span>{step ? t('step_edit') : t('step_create')}</span>
-                        <span className="text-[var(--brand-primary)]" data-testid="step-editor-title">
+                        <span className="text-(--brand-primary)" data-testid="step-editor-title">
                             {stepDialogTitle(formData, Boolean(step))}
                         </span>
                     </DialogTitle>
@@ -152,12 +152,12 @@ export function StepDialog({ open, onClose, step, onSave, existingSteps, surveys
                                         key={section.id}
                                         type="button"
                                         onClick={() => setActiveSection(section.id)}
-                                        className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${activeSection === section.id ? 'border-[var(--brand-primary)] bg-card text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-card hover:text-foreground'}`}
+                                        className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${activeSection === section.id ? 'border-(--brand-primary) bg-card text-foreground shadow-xs' : 'border-transparent text-muted-foreground hover:bg-card hover:text-foreground'}`}
                                         data-testid={`step-section-${section.id}`}
                                     >
                                         <span className="flex items-center justify-between gap-2 text-sm font-semibold">
                                             <span className="inline-flex items-center gap-1.5">{section.label}<HelpTooltip content={section.help} side="right" testId={`step-section-help-${section.id}`} /></span>
-                                            {section.count > 0 && <span className="rounded-full bg-[var(--brand-primary)]/10 px-2 py-0.5 text-[11px] text-[var(--brand-primary)]">{section.count}</span>}
+                                            {section.count > 0 && <span className="rounded-full bg-(--brand-primary)/10 px-2 py-0.5 text-[11px] text-(--brand-primary)">{section.count}</span>}
                                         </span>
                                         <span className="mt-0.5 hidden text-[11px] leading-4 text-muted-foreground md:block">{section.description}</span>
                                     </button>
@@ -246,7 +246,7 @@ export function StepDialog({ open, onClose, step, onSave, existingSteps, surveys
                         <p className="hidden text-xs text-muted-foreground sm:block">Änderungen werden erst mit „Speichern“ übernommen.</p>
                         <div className="ml-auto flex gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
+                        <Button type="submit" className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="save-step-btn">{step ? t('save') : t('create_user_submit')}</Button>
                         </div>
                     </div>
                 </form>

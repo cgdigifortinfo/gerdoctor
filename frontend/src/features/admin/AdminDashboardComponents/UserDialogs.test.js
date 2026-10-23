@@ -22,7 +22,7 @@ test('create user resets, edits, switches role, selects partner and submits', ()
 
 test('create user strips unavailable permissions and none partner', () => {
   const onSave = jest.fn(); const { rerender } = render(<CreateUserDialog open onClose={jest.fn()} onSave={onSave} partners={[]} surveys={[]} permissionGroups={[]} canManagePermissions={false} defaultSurveyId="" t={x => x} />);
-  expect(screen.getByTestId('submit-create-user')).toBeDisabled(); rerender(<CreateUserDialog open onClose={jest.fn()} onSave={onSave} partners={[]} surveys={[{ id: 's', name: 'S', slug: 's', is_active: true }]} permissionGroups={[]} canManagePermissions={false} defaultSurveyId="s" t={x => x} />); fireEvent.click(screen.getByTestId('submit-create-user')); expect(onSave.mock.calls.at(-1)[0].partner_id).toBeUndefined(); expect(onSave.mock.calls.at(-1)[0].group_ids).toBeUndefined();
+  expect(screen.getByTestId('submit-create-user')).toBeDisabled(); rerender(<CreateUserDialog open onClose={jest.fn()} onSave={onSave} partners={[]} surveys={[{ id: 's', name: 'S', slug: 's', is_active: true }]} permissionGroups={[]} canManagePermissions={false} defaultSurveyId="s" t={x => x} />); fireEvent.change(screen.getByTestId('create-user-name'), { target: { value: 'Name' } }); fireEvent.change(screen.getByTestId('create-user-email'), { target: { value: 'user@example.com' } }); fireEvent.change(screen.getByTestId('create-user-password'), { target: { value: 'secret' } }); fireEvent.click(screen.getByTestId('submit-create-user')); expect(onSave.mock.calls.at(-1)[0].partner_id).toBeUndefined(); expect(onSave.mock.calls.at(-1)[0].group_ids).toBeUndefined();
 });
 
 test('link user sorts, filters, links and shows empty result', () => {

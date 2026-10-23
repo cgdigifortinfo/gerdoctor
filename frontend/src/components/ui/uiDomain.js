@@ -3,7 +3,7 @@ const STATUS_STYLES = Object.freeze({
     warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
     danger: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
     neutral: 'bg-muted text-muted-foreground',
-    info: 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]',
+    info: 'bg-(--brand-primary)/10 text-(--brand-primary)',
 });
 
 export const statusStyle = (tone = 'neutral') => STATUS_STYLES[tone] ?? STATUS_STYLES.neutral;

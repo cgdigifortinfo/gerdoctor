@@ -71,7 +71,7 @@ export function StepsTab(props) {
                                     >
                                         Templates ({stepTemplates.length})
                                     </Button>
-                                    <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="add-step-btn">
+                                    <Button onClick={() => { setEditingStep(null); setShowStepDialog(true); }} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="add-step-btn">
                                         <Plus size={18} className="mr-2" /> Add Step
                                     </Button>
                                 </div>
@@ -94,12 +94,12 @@ export function StepsTab(props) {
                                                             <p className="text-sm font-semibold text-foreground truncate">{tpl.name}</p>
                                                             <p className="text-xs text-muted-foreground truncate">{tpl.description || tpl.config?.step_type || ''}</p>
                                                         </div>
-                                                        <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm flex-shrink-0">
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded-sm shrink-0">
                                                             {tpl.config?.step_type || 'form'}
                                                         </span>
                                                     </div>
                                                     <div className="flex gap-2 mt-3">
-                                                        <Button size="sm" onClick={() => handleApplyTemplate(tpl)} className="h-7 px-2 text-xs bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid={`apply-template-${tpl.id}`}>
+                                                        <Button size="sm" onClick={() => handleApplyTemplate(tpl)} className="h-7 px-2 text-xs bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid={`apply-template-${tpl.id}`}>
                                                             Einfügen
                                                         </Button>
                                                         <Button size="sm" variant="outline" onClick={() => handleDeleteTemplate(tpl)} className="h-7 px-2 text-xs border-red-200 text-red-500" data-testid={`delete-template-${tpl.id}`}>
@@ -193,7 +193,7 @@ export function StepsTab(props) {
                                 {steps.length === 0 && (
                                     <EmptyState className="rounded-sm border border-dashed border-border p-8" testId="steps-list-empty-state" title="Keine Steps in diesem Survey" description="Erstelle den ersten Step oder wähle ein Template aus." action={<Button
                                             onClick={() => { setEditingStep(null); setShowStepDialog(true); }}
-                                            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                            className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
                                             data-testid="steps-list-empty-add-step-btn"
                                         >
                                             <Plus size={16} className="mr-2" /> Step erstellen
@@ -203,7 +203,7 @@ export function StepsTab(props) {
                                     <div key={step.id} className="border border-border rounded-sm p-4" data-testid={`step-row-order-${step.order}`}>
                                         <div className="flex justify-between items-start">
                                             {/* Reorder arrows */}
-                                            <div className="flex flex-col gap-1 mr-3 flex-shrink-0">
+                                            <div className="flex flex-col gap-1 mr-3 shrink-0">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -227,7 +227,7 @@ export function StepsTab(props) {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                                    <span className="w-8 h-8 rounded-full bg-(--brand-primary) text-white flex items-center justify-center text-sm font-bold shrink-0">
                                                         {step.order}
                                                     </span>
                                                     <h3 className="font-semibold text-foreground">{step.title}</h3>
@@ -240,16 +240,16 @@ export function StepsTab(props) {
                                                     <span>Type: <strong>{step.step_type}</strong></span>
                                                     <span>Fields: <strong>{step.fields?.length || 0}</strong></span>
                                                     <span>Dauer: <strong>{step.duration_value === 0 ? t('step_instant') : `${step.duration_value} ${t('step_' + step.duration_unit)}`}</strong></span>
-                                                    {step.email_on_enter && <span className="text-[var(--brand-primary)]">Email on enter</span>}
-                                                    {step.email_on_edit && <span className="text-[var(--brand-primary)]">Email on edit</span>}
-                                                    {step.email_on_leave && <span className="text-[var(--brand-primary)]">Email on leave</span>}
+                                                    {step.email_on_enter && <span className="text-(--brand-primary)">Email on enter</span>}
+                                                    {step.email_on_edit && <span className="text-(--brand-primary)">Email on edit</span>}
+                                                    {step.email_on_leave && <span className="text-(--brand-primary)">Email on leave</span>}
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 flex-shrink-0 ml-4">
-                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-[var(--brand-primary)] hover:bg-[var(--brand-soft)]" data-testid={`edit-step-${step.id}`}>
+                                            <div className="flex gap-2 shrink-0 ml-4">
+                                                <Button variant="outline" size="sm" onClick={() => { setEditingStep(step); setShowStepDialog(true); }} className="border-border text-(--brand-primary) hover:bg-(--brand-soft)" data-testid={`edit-step-${step.id}`}>
                                                     <Pencil size={16} className="mr-1" /> Edit
                                                 </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleSaveStepAsTemplate(step)} className="border-border text-muted-foreground hover:text-[var(--brand-primary)]" data-testid={`save-template-${step.id}`} title="Als Template speichern">
+                                                <Button variant="outline" size="sm" onClick={() => handleSaveStepAsTemplate(step)} className="border-border text-muted-foreground hover:text-(--brand-primary)" data-testid={`save-template-${step.id}`} title="Als Template speichern">
                                                     Template
                                                 </Button>
                                                 <Button variant="outline" size="sm" onClick={() => handleDeleteStep(step.id)} className="border-red-200 text-red-500 hover:bg-red-50" data-testid={`delete-step-${step.id}`}>

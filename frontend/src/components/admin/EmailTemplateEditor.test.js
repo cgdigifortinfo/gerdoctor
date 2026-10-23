@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmailTemplateEditor from './EmailTemplateEditor';
 import { buildPreviewVariables, copyTextSafely, invalidRecipients, parseRecipients, readCookie, renderLayoutPreview, writeCookie } from '../../features/admin/emailTemplateDomain';
 import { adminAPI } from '../../lib/api';

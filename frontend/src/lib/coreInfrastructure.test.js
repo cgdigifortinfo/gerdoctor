@@ -5,7 +5,7 @@ import { useFlowHistory } from '../hooks/useFlowHistory';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 test('cn merges conditional Tailwind classes', () => {
-  expect(cn('px-1', false && 'hidden', 'px-2')).toBe('px-2');
+  expect(cn('px-1', false, 'px-2')).toBe('px-2');
 });
 
 test('flow history covers empty, bounded, undo, redo, and clear states', () => {

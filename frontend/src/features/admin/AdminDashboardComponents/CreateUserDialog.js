@@ -91,7 +91,7 @@ export function CreateUserDialog({ open, onClose, onSave, partners, surveys, per
                     )}
                     <div className="flex justify-end gap-3 pt-2">
                         <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
-                        <Button type="submit" disabled={formData.role === 'user' && !formData.survey_id} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
+                        <Button type="submit" disabled={formData.role === 'user' && !formData.survey_id} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="submit-create-user">{t('create_user_submit')}</Button>
                     </div>
                 </form>
             </DialogContent>

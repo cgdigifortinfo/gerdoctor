@@ -1,9 +1,9 @@
-FROM node:22-bookworm-slim AS frontend-builder
+FROM node:24.22.1-bookworm-slim AS frontend-builder
 
 WORKDIR /build/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 COPY frontend/ ./
 ENV REACT_APP_BACKEND_URL=""

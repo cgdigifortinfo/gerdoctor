@@ -49,7 +49,7 @@ export function UsersTab(props) {
                                         {can('users.export') && <Button variant="outline" onClick={handleExportCsv} className="border-border text-muted-foreground" data-testid="export-csv-btn">
                                             <DownloadSimple size={16} className="mr-1" /> Export CSV
                                         </Button>}
-                                        {can('users.create') && <Button onClick={() => setShowCreateUserDialog(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="create-user-btn">
+                                        {can('users.create') && <Button onClick={() => setShowCreateUserDialog(true)} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="create-user-btn">
                                             <UserPlus size={16} className="mr-1" /> {t('admin_create_user')}
                                         </Button>}
                                 </>} />
@@ -57,8 +57,8 @@ export function UsersTab(props) {
 
                             {/* Bulk Actions Bar */}
                             {can('users.update') && selectedUserIds.length > 0 && (
-                                <div className="p-3 bg-[var(--brand-primary)]/5 border-b border-border flex flex-wrap items-center gap-3">
-                                    <span className="text-sm font-medium text-[var(--brand-primary)]">{selectedUserIds.length} selected</span>
+                                <div className="p-3 bg-(--brand-primary)/5 border-b border-border flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-medium text-(--brand-primary)">{selectedUserIds.length} selected</span>
                                     <Select value={bulkRole} onValueChange={setBulkRole}>
                                         <SelectTrigger className="w-32 h-8 text-xs border-border" data-testid="bulk-role-select">
                                             <SelectValue />
@@ -69,7 +69,7 @@ export function UsersTab(props) {
                                             <SelectItem value="partner">Partner</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="bulk-apply-btn">
+                                    <Button size="sm" onClick={handleBulkRoleUpdate} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="bulk-apply-btn">
                                         Apply Role
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])} className="text-muted-foreground">
@@ -105,7 +105,7 @@ export function UsersTab(props) {
                                         {usersPagination.paginatedItems.map((u) => {
                                             const registration = registrationBadge(u.pending_registrations, u.role);
                                             return (
-                                            <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-[var(--brand-primary)]/5' : ''}`}>
+                                            <tr key={u.id} className={`border-t border-border table-row-hover ${selectedUserIds.includes(u.id) ? 'bg-(--brand-primary)/5' : ''}`}>
                                                 <td className="px-4 py-3">
                                                     <Checkbox
                                                         checked={selectedUserIds.includes(u.id)}
@@ -152,7 +152,7 @@ export function UsersTab(props) {
                                                                 <span
                                                                     key={`${pn}-${idx}`}
                                                                     title={pn}
-                                                                    className="px-1.5 py-0.5 text-[11px] font-medium bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-sm truncate max-w-[120px]"
+                                                                    className="px-1.5 py-0.5 text-[11px] font-medium bg-(--brand-primary)/10 text-(--brand-primary) rounded-sm truncate max-w-[120px]"
                                                                 >
                                                                     {pn}
                                                                 </span>
@@ -174,7 +174,7 @@ export function UsersTab(props) {
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                            <div className="h-full bg-[var(--brand-primary)] rounded-full transition-all" style={{ width: `${userCompletion(u)}%` }} />
+                                                            <div className="h-full bg-(--brand-primary) rounded-full transition-all" style={{ width: `${userCompletion(u)}%` }} />
                                                         </div>
                                                         <span className="text-xs text-muted-foreground font-medium">{userCompletion(u)}%</span>
                                                     </div>
@@ -191,7 +191,7 @@ export function UsersTab(props) {
                                                             <Eye size={16} className="mr-1" /> View
                                                         </Button>
                                                         {can('users.impersonate') && u.role !== 'admin' && (
-                                                            <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
+                                                            <Button variant="outline" size="sm" onClick={() => handleImpersonate(u.id)} className="border-border text-muted-foreground hover:text-(--brand-primary) hover:border-(--brand-primary)" data-testid={`impersonate-user-${u.id}`} title="Als User einloggen">
                                                                 <UserSwitch size={16} />
                                                             </Button>
                                                         )}

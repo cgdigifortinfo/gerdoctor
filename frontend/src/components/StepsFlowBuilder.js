@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
     Background, Controls, Handle, Position, MiniMap,
-    useNodesState, useEdgesState, MarkerType, addEdge,
+    useNodesState, useEdgesState, MarkerType,
     ReactFlowProvider, useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -62,7 +62,7 @@ export function StepNode({ data }) {
     if (sim === 'hidden') { overlay = 'versteckt'; ring = 'ring-2 ring-slate-400'; extraClass = 'opacity-40 grayscale'; }
     else if (sim === 'blocked') { overlay = 'blockiert'; ring = 'ring-2 ring-red-500'; }
     else if (sim === 'auto_complete') { overlay = 'auto-abgeschlossen'; ring = 'ring-2 ring-emerald-500'; }
-    else if (sim === 'visible') { ring = 'ring-2 ring-[var(--brand-secondary)]'; }
+    else if (sim === 'visible') { ring = 'ring-2 ring-(--brand-secondary)'; }
     if (isPlayback) { ring = 'ring-4 ring-amber-400'; extraClass = `${extraClass} animate-pulse`.trim(); }
 
     return (
@@ -75,7 +75,7 @@ export function StepNode({ data }) {
             data-playback={isPlayback ? 'true' : 'false'}
         >
             {overlay && (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow z-10"
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-800 text-white rounded-sm shadow-sm z-10"
                       data-testid={`sim-badge-${data.id}`}>
                     {overlay}
                 </span>
@@ -300,7 +300,7 @@ export function Palette() {
         event.dataTransfer.effectAllowed = 'copy';
     };
     return (
-        <div className="w-48 flex-shrink-0 border-r border-border bg-card p-3" data-testid="flow-palette">
+        <div className="w-48 shrink-0 border-r border-border bg-card p-3" data-testid="flow-palette">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Step-Typen</p>
             <p className="text-[11px] text-muted-foreground mb-3">Ziehen Sie einen Typ auf den Canvas.</p>
             <div className="space-y-2">
@@ -309,11 +309,11 @@ export function Palette() {
                         key={k}
                         draggable
                         onDragStart={(e) => onDragStart(e, k)}
-                        className="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-sm transition-all"
+                        className="px-2.5 py-2 rounded-sm border border-border cursor-grab active:cursor-grabbing text-xs font-medium flex items-center gap-2 hover:shadow-xs transition-all"
                         style={{ borderLeftWidth: 3, borderLeftColor: v.bg }}
                         data-testid={`palette-item-${k}`}
                     >
-                        <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: v.bg }} />
+                        <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: v.bg }} />
                         <span className="truncate">{v.label}</span>
                     </div>
                 ))}
@@ -395,7 +395,7 @@ export function ConditionModal({ open, mode, source, target, initial, onCancel, 
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50" onClick={onCancel}>
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/50" onClick={onCancel}>
             <div className="mx-4 w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()} data-testid="condition-modal">
                 <h3 className="text-lg font-semibold text-foreground mb-1">
                     {mode === 'edit' ? 'Regel bearbeiten' : 'Neue Regel'}
@@ -485,7 +485,7 @@ export function ConditionModal({ open, mode, source, target, initial, onCancel, 
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={onCancel} data-testid="condition-cancel-btn">Abbrechen</Button>
-                        <Button size="sm" onClick={() => onConfirm(form)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white" data-testid="condition-confirm-btn">Speichern</Button>
+                        <Button size="sm" onClick={() => onConfirm(form)} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white" data-testid="condition-confirm-btn">Speichern</Button>
                     </div>
                 </div>
             </div>
@@ -836,17 +836,17 @@ export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStep
             {!isDependency && <Palette />}
             <div className="flex-1 relative" ref={flowWrapper} onDragOver={handleDragOver} onDrop={handleDrop}>
                 <div className="absolute top-3 left-3 z-10 flex gap-2 flex-wrap items-center">
-                    {!isDependency && <Button size="sm" onClick={onAddStep} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white shadow" data-testid="flow-add-step-btn">
+                    {!isDependency && <Button size="sm" onClick={onAddStep} className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white shadow-sm" data-testid="flow-add-step-btn">
                         <Plus size={14} className="mr-1" /> Step
                     </Button>}
-                    <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow" data-testid="flow-auto-layout-btn">
+                    <Button size="sm" variant="outline" onClick={runAutoLayout} className="bg-card border-border shadow-sm" data-testid="flow-auto-layout-btn">
                         <Graph size={14} className="mr-1" /> {isDependency ? 'Graph neu ordnen' : 'Auto-Layout'}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={toggleFullscreen} className="bg-card border-border shadow" data-testid="flow-fullscreen-btn" title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}>
+                    <Button size="sm" variant="outline" onClick={toggleFullscreen} className="bg-card border-border shadow-sm" data-testid="flow-fullscreen-btn" title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}>
                         {isFullscreen ? <ArrowsIn size={14} className="mr-1" /> : <ArrowsOut size={14} className="mr-1" />}
                         {isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
                     </Button>
-                    {!isDependency && <div className="inline-flex rounded-sm shadow bg-card border border-border overflow-hidden">
+                    {!isDependency && <div className="inline-flex rounded-sm shadow-sm bg-card border border-border overflow-hidden">
                         <button
                             type="button"
                             onClick={handleUndo}
@@ -873,7 +873,7 @@ export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStep
                         size="sm"
                         variant="outline"
                         onClick={playbackIndex >= 0 ? stopPlayback : startPlayback}
-                        className={`shadow ${playbackIndex >= 0 ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' : 'bg-card border-border'}`}
+                        className={`shadow-sm ${playbackIndex >= 0 ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' : 'bg-card border-border'}`}
                         data-testid="flow-playback-btn"
                         title={playbackIndex >= 0 ? 'Abspielen stoppen' : 'Animierten Durchlauf starten'}
                     >
@@ -883,7 +883,7 @@ export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStep
                     </Button>}
                 </div>
                 {isDependency && (
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow px-3 py-2 text-xs text-muted-foreground" data-testid="dependency-graph-stats">
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-card/95 border border-border rounded-sm shadow-sm px-3 py-2 text-xs text-muted-foreground" data-testid="dependency-graph-stats">
                         Nur echte Abhängigkeiten · <strong className="text-foreground">{dependencyStats.conditions}</strong> Kanten · <strong className="text-violet-700 dark:text-violet-300">{dependencyStats.readOnlyRules}</strong> kompakte Schreibschutzregeln · <strong className="text-foreground">{dependencyStats.roots}</strong> Startpunkte · <strong className="text-foreground">{dependencyStats.branches}</strong> Verzweigungen
                     </div>
                 )}
@@ -910,12 +910,12 @@ export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStep
                 )}
                 <div className="flow-legend absolute top-3 right-3 z-10 flex flex-wrap gap-2 max-w-[60%] justify-end pointer-events-none">
                     {Object.entries(ACTION_LABELS).filter(([key]) => key !== 'read_only').map(([k, v]) => (
-                        <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-sm">
+                        <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white dark:bg-slate-800 border border-border rounded-sm shadow-xs">
                             <span className="w-3 h-[1.5px]" style={{ background: v.color }} />
                             {v.label}
                         </span>
                     ))}
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-sm">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200 border border-violet-200 dark:border-violet-800 rounded-sm shadow-xs">
                         <LockSimple size={10} /> Schreibschutz am Step
                     </span>
                 </div>
@@ -924,13 +924,13 @@ export function FlowInner({ steps, onEdit, onDelete, onAddStep = NOOP, onAddStep
                         className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
                         data-testid="flow-empty-state"
                     >
-                        <div className="pointer-events-auto bg-card border border-border rounded-sm shadow-sm p-5 text-center max-w-sm">
+                        <div className="pointer-events-auto bg-card border border-border rounded-sm shadow-xs p-5 text-center max-w-sm">
                             <p className="text-sm font-semibold text-foreground">Keine Steps in diesem Survey</p>
                             <p className="text-xs text-muted-foreground mt-1">Erstelle den ersten Step oder ziehe einen Step-Typ auf den Canvas.</p>
                             <Button
                                 size="sm"
                                 onClick={onAddStep}
-                                className="mt-4 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                className="mt-4 bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
                                 data-testid="flow-empty-add-step-btn"
                             >
                                 <Plus size={14} className="mr-1" /> Step erstellen

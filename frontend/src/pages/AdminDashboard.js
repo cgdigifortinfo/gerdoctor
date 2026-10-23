@@ -38,7 +38,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
                             <Logo />
-                            <span className="text-xs font-bold tracking-wider uppercase text-[var(--brand-primary)] px-2 py-1 bg-[var(--brand-soft)] rounded">
+                            <span className="text-xs font-bold tracking-wider uppercase text-(--brand-primary) px-2 py-1 bg-(--brand-soft) rounded">
                                 Admin
                             </span>
                         </div>
@@ -56,39 +56,39 @@ export default function AdminDashboard() {
             <div className="page-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="main-navigation mb-6 bg-card border border-border flex-wrap h-auto gap-1 p-1">
-                        {can('analytics.view') && <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        {can('analytics.view') && <TabsTrigger value="analytics" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white">
                             <ChartBar size={18} className="mr-2" />
                             {t('admin_dashboard')}
                         </TabsTrigger>}
-                        {(can('users.view') || can('groups.view')) && <TabsTrigger value="users" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-users-tab">
+                        {(can('users.view') || can('groups.view')) && <TabsTrigger value="users" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-users-tab">
                             <Users size={18} className="mr-2" />
                             {t('admin_users')}
                         </TabsTrigger>}
-                        {(can('steps.view') || can('surveys.view')) && <TabsTrigger value="steps" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-steps-tab">
+                        {(can('steps.view') || can('surveys.view')) && <TabsTrigger value="steps" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-steps-tab">
                             <ListChecks size={18} className="mr-2" />
                             {t('admin_steps')}
                         </TabsTrigger>}
-                        {can('partners.view') && <TabsTrigger value="partners" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-partners-tab">
+                        {can('partners.view') && <TabsTrigger value="partners" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-partners-tab">
                             <Buildings size={18} className="mr-2" />
                             {t('admin_partners')} {partners.some(p => p.registration_status === 'pending') && <span className="ml-2 rounded-full bg-amber-500 text-white text-[10px] px-1.5">{partners.filter(p => p.registration_status === 'pending').length}</span>}
                         </TabsTrigger>}
-                        {can('cms.view') && <TabsTrigger value="cms" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white">
+                        {can('cms.view') && <TabsTrigger value="cms" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white">
                             <Notebook size={18} className="mr-2" />
                             {t('admin_cms')}
                         </TabsTrigger>}
-                        {can('messages.view') && <TabsTrigger value="email-templates" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-email-templates-tab">
+                        {can('messages.view') && <TabsTrigger value="email-templates" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-email-templates-tab">
                             <Envelope size={18} className="mr-2" />
                             Nachrichten
                         </TabsTrigger>}
-                        {can('messages.view') && <TabsTrigger value="events" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-events-tab">
+                        {can('messages.view') && <TabsTrigger value="events" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-events-tab">
                             <BellRinging size={18} className="mr-2" />
                             Events
                         </TabsTrigger>}
-                        {can('audit.view') && <TabsTrigger value="audit" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-audit-tab">
+                        {can('audit.view') && <TabsTrigger value="audit" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-audit-tab">
                             <ClockCounterClockwise size={18} className="mr-2" />
                             {t('admin_audit')}
                         </TabsTrigger>}
-                        {can('settings.view') && <TabsTrigger value="settings" className="data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white" data-testid="admin-settings-tab">
+                        {can('settings.view') && <TabsTrigger value="settings" className="data-[state=active]:bg-(--brand-primary) data-[state=active]:text-white" data-testid="admin-settings-tab">
                             <GearSix size={18} className="mr-2" />
                             {t('admin_settings')}
                         </TabsTrigger>}

@@ -9,6 +9,11 @@
 backend/.venv
 frontend/node_modules
 frontend/build
+frontend/.stryker-tmp
+frontend/coverage
+frontend/reports
+backend/mutants
+backend/.mypy_cache
 backups
 docs
 memory

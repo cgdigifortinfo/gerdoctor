@@ -45,7 +45,7 @@ export function LinkUserDialog({ open, onClose, partner, users, onLink }) {
                                 <Button
                                     size="sm"
                                     onClick={() => onLink(partner?.id, u.id)}
-                                    className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+                                    className="bg-(--brand-primary) hover:bg-(--brand-primary-hover) text-white"
                                     data-testid={`link-select-user-${u.id}`}
                                 >
                                     <LinkIcon size={14} className="mr-1" /> Link
